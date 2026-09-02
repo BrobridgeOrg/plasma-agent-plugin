@@ -140,7 +140,7 @@ OPHION_PROFILE=all
 | 6 | `run_query(sql)` | `POST /apis/v1/w/:ws/query/execution` | C |
 | 7 | `create_view(name, type, view_sql, sync_mode, scheduler_settings?, description?)` | `POST /apis/v1/w/:ws/view` | C |
 | 8 | `sync_view(view_id)` | `POST /apis/v1/w/:ws/view/:id/sync` | C |
-| 9 | `create_access_entry(view_id, name, auth_type, expires_in?, format?, entry_type?, description?)` | `POST /apis/v1/w/:ws/view/:id/access_entry` | C |
+| 9 | `create_access_entry(view_id, name, auth_type, expires_in?, secret_key?, description?)` | `POST /apis/v1/w/:ws/view/:id/access_entry` | C |
 | 10 | `list_access_entries(view_id)` | `GET /apis/v1/w/:ws/view/:id/access_entries` | R |
 | 11 | `get_export_url(view_id)` | `GET /apis/v1/w/:ws/view/:id/export/url` | R |
 
@@ -187,10 +187,14 @@ Ophion URL 與 query-mcp 可否連通（一次 `initialize` 探測）。這是�
 - `expires_in`：人類寫法（`30d`、`12h`），轉成 `expired_at`。不給時的行為
   （Plasma 的 `expired_at` 可為 null，推定＝不過期）**在實作時以真機確認**，
   確認後回應必須明講這條會不會過期——不確認就不要在回應裡斷言。
-- `format`：`json`（預設）| `xml` | `rss`；`entry_type`：`signed_api`（預設）
-  | `signed_url`。
-- 回應含 `secret_key`／金鑰時，明確標示這是**對外可存取的端點**，並提醒金鑰
-  只在此處出現一次（依 Plasma 實際行為在實作時確認並校正這句話）。
+- **沒有 `format` / `entry_type` 參數**（實作時對照 `CreateAccessEntryRequestJSON`
+  確認）：那支端點只吃 `name` / `description` / `auth_type` / `secret_key` /
+  `expired_at`，格式與 entry 型別屬於 manifest 層，不在這裡。
+- `secret_key`：`api_key` 留空由 Plasma 產生；`basic_auth` **必須**帶
+  `username:password`——自動產生的密鑰不可能帶使用者名稱，所以 `basic_auth`
+  留空一律拒絕，不送出一個註定壞掉的 entry。
+- 回應直接帶 `access_url` 與 `access_entry.secret_key`，一併交付並明確標示這是
+  **對外可存取的端點**。
 - `auth_type=none` 一律在回應中標示「無認證的公開端點」。
 
 ## 6. ophion MCP（proxy）
@@ -206,6 +210,21 @@ Ophion URL 與 query-mcp 可否連通（一次 `initialize` 探測）。這是�
 - 上游 401 → 譯成「Ophion service token 不對或未設」。
 - 連不到 → 譯成「Ophion internal API 不可達（叢集內端點，需 port-forward）」。
 - 全部工具皆為唯讀，不需同意 hook。
+
+### 6.1 工具清單是延後鏡射的（實作時才浮現的機制）
+
+上游 tool 清單要有 workspace 才問得到，而 server 啟動時可能還沒選。所以：
+
+- `ophion_context` 一律註冊——server 永遠不是空的，永遠能解釋自己為什麼沒別的工具。
+- 一段 receiving middleware 在**每個進來的請求**前檢查：已選 workspace 且上游答得出
+  `tools/list`，就把上游工具原封鏡射上來（`AddTool` 同時觸發
+  `tools/list_changed`）。鏡射失敗不報錯，交給 `ophion_context` 診斷——知識端掛掉
+  不該把解釋它的工具一起帶走。
+- **已知限制**：第一次使用（state 檔還沒有 workspace）時，client 必須在
+  `use_workspace` 之後重新問一次 `tools/list`（或吃 `list_changed`）才看得到知識
+  工具。第二次之後不會遇到，因為 state 檔跨 session 留著 workspace。
+- 上游 session 依 workspace 快取，且 `NewServer` 回傳一個 `io.Closer`：streamable
+  transport 每個 workspace 持有一條長連線，必須有人能結束它們（測試最先撞到這點）。
 
 ## 7. 同意機制
 
