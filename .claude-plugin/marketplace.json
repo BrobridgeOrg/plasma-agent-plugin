@@ -1,0 +1,12 @@
+{
+  "name": "plasma-plugin-local",
+  "owner": { "name": "Brobridge", "email": "bbgai@brobridge.com" },
+  "description": "Local development marketplace for plasma-plugin. Add this directory with /plugin marketplace add <path to this repo>.",
+  "plugins": [
+    {
+      "name": "plasma-plugin",
+      "source": "./",
+      "description": "Plasma control plane + Ophion knowledge, as two MCP servers and three skills."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "plasma": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/plasma-mcp.sh",
+    "args": ["plasma"]
+  },
+  "ophion": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/plasma-mcp.sh",
+    "args": ["ophion"]
+  }
+}
