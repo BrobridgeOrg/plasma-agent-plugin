@@ -119,10 +119,12 @@ Talk to them in whatever language they used.
    reconstruct a source path. Ordinary snake_case names need no quotes;
    double-quote a *single* identifier only when it is a reserved word or holds
    odd characters, never a whole dotted path. Double quotes delimit
-   identifiers, single quotes string literals — never one for the other. Carry step 3's traps into the SQL itself — a `WHERE` that
-   excludes the known-bad rows beats a note in the chat, which nobody reads
-   again once the view exists. Filters on coded columns use what
-   `plan_value_filter` returned, not codes you typed.
+   identifiers, single quotes string literals — never one for the other.
+
+   Carry step 3's traps into the SQL itself: a `WHERE` that excludes the
+   known-bad rows beats a note in the chat, which nobody reads again once the
+   view exists. Filters on coded columns use what `plan_value_filter`
+   returned, not codes you typed.
 
    The Trino rules that actually bite, all of them banned in the right-hand
    column:
