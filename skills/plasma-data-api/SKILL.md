@@ -109,11 +109,48 @@ Talk to them in whatever language they used.
       the missing source data. **Never** close this rung by shipping a
       plausible-looking approximation.
 
-5. **Write the SQL.** Two-segment names (`"database"."table"`); the workspace
-   is already the catalog. Carry step 3's traps into the SQL itself — a
-   `WHERE` that excludes the known-bad rows beats a note in the chat, which
-   nobody sees again once the view exists. Filters on coded columns use what
+5. **Write the SQL — Trino, and only Trino.** Plasma executes through Trino;
+   there is no other dialect and no compatibility layer. SQL that would run in
+   PostgreSQL, MySQL, SQL Server, BigQuery, Oracle or Spark and happens to
+   resemble Trino is a defect, not a near miss.
+
+   Identifiers: two-segment `database.table` — the workspace is already the
+   catalog. Copy the name from Ophion's `sql_name` exactly and never
+   reconstruct a source path. Ordinary snake_case names need no quotes;
+   double-quote a *single* identifier only when it is a reserved word or holds
+   odd characters, never a whole dotted path. Double quotes delimit
+   identifiers, single quotes string literals — never one for the other. Carry step 3's traps into the SQL itself — a `WHERE` that
+   excludes the known-bad rows beats a note in the chat, which nobody reads
+   again once the view exists. Filters on coded columns use what
    `plan_value_filter` returned, not codes you typed.
+
+   The Trino rules that actually bite, all of them banned in the right-hand
+   column:
+
+   | Use | Never |
+   |---|---|
+   | `CAST(x AS type)` | `x::type` |
+   | `DATE '2026-01-31'`, `TIMESTAMP '2026-01-31 10:00:00'` | a quoted date string, which is VARCHAR |
+   | `date_diff('day', a, b)` for elapsed units | `b - a` expecting a number (it yields INTERVAL) |
+   | `date_add('day', 7, x)` or an `INTERVAL` literal | `DATEADD`, `DATE_SUB`, `x + 7` |
+   | `CURRENT_DATE`, `CURRENT_TIMESTAMP` | `NOW()`, `GETDATE()`, `SYSDATE`, or those names in quotes |
+   | `\|\|` or `concat()` | `+` for strings |
+   | `IS NULL` / `IS NOT NULL` | `= NULL`, `<> NULL`, `ISNULL()`, `NVL()` |
+   | `COALESCE` | `IFNULL`, `NVL` |
+   | `approx_percentile(x, 0.5)` | `PERCENTILE_CONT`, `MEDIAN`, `APPROX_QUANTILE` |
+   | `LOWER()` on both sides for case-insensitive matching | `ILIKE` |
+   | `COUNT(DISTINCT (a, b))` | `COUNT(DISTINCT a, b)` |
+   | `row_number() OVER (...)` in a CTE, filtered outside | `LIMIT` inside a per-group ranking, `TOP`, `ROWNUM` |
+   | `LIMIT n` | `TOP n`, `FETCH FIRST`, `ROWNUM <= n` |
+   | one statement, no semicolon | a trailing `;`, two statements, `SET` / `USE` / temp tables |
+
+   Integer division truncates — cast an operand to `DOUBLE` when the metric is
+   a rate or an average. Compare `DATE` with `TIMESTAMP` only with an explicit
+   cast. Every non-aggregate expression in `SELECT` must appear in `GROUP BY`.
+
+   If you are unsure whether a function exists in Trino, do not guess it into
+   a materialized view: `run_query` it in step 6 first — a view built on a
+   non-existent function fails on every sync, not on your screen.
 
 6. **Verify with `run_query` and show your work.** Present the SQL and the
    sample rows together and ask whether these are the numbers they meant.
@@ -167,6 +204,8 @@ Talk to them in whatever language they used.
   every time.
 - **`auth_type=none` needs an explicit yes**, and say so again on handover.
 - **Never present a 100-row sample as the answer.** It is on Plasma's ceiling.
+- **Trino only.** No `::`, no `NOW()`, no `ILIKE`, no `NVL`, no `TOP` — see the
+  table in step 5. Another dialect's syntax is a defect even when it parses.
 - One workspace at a time. Every tool answer names the workspace it used —
   if that is not the one you meant, switch with `use_workspace` rather than
   reinterpreting the result.
