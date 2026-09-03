@@ -266,14 +266,17 @@ matcher 用後綴正則命中（plugin MCP 的工具全名形如
   卡是 index 不是證據——每個相關 `ku_id` 都要 `get_knowledge_unit`；`found=false`
   帶的 `suggestions` 是要換詞而不是重試，換兩三種詞彙都沒有就當「這個 workspace
   沒有」，走階梯。
-- **逐欄清關**：`get_table_card` 只帶掛在 relation 本身的事實，`list_columns` 只有
-  型別／nullability／描述——**trap 與 value domain 都不在卡裡**（實作時讀
-  `TableCard` 組裝與 `get_value_domain` 的輸入確認）。所以 skill 明寫怎麼取：
-  `search_knowledge` 帶 `unit_types=["antipattern_trap","data_quality_issue",
-  "validity_rule"]`；編碼欄位一律 `search_value_candidates` → `plan_value_filter`
-  （`get_value_domain` 吃 `domain_id`，不吃欄位名）；再加
-  `["data_recency","write_source"]` 決定這個 API 的數字有多新。找到的 trap 要在
-  用那個欄位**之前**帶 provenance 講給人聽。
+- **逐欄清關**（2026-09-03 更新）：先前這裡寫「欄位層的 trap 進不了 table card」是
+  **錯的**——生產路徑 `inference_engine/verify.go` 的 `deriveAbout` 把欄位知識抬到
+  parent table（`ABOUT` + `via="column:<name>"`），所以 table card 看得到，只是把整張
+  表所有欄位的事實混在一起、且只能按 layer 過濾又會被 `MaxPerSection` 截斷。
+  真正缺的是「依主體」這個軸，已在 Ophion 側補上（`1692757`）：
+  `list_units(subject=<database.table[.column]>)` 回該主體的 per-unit_type 清單，
+  `get_column_card` 回單一欄位的結構／meaning／來源 comment／錨在它上面的 unit／
+  **綁定的 value domain**／載體的 `access_mode`。skill 因此改成一次呼叫，不再教繞路。
+  另外每筆 `search_knowledge` 命中都帶 `subject`（精確錨點），命中可直接接卡片。
+  **仍然的盲區**：錨在 concept 上的知識這個軸看不到（SIT 實測有 12 筆
+  `antipattern_trap` 錨在 concept），所以 `get_concept_card` 是必經而非擴網。
 - **階梯（不准跳級）**：①先找既有規則（`business_rule` / `validity_rule` /
   `state_machine` / `event_lifecycle`，以及 profile 有開時的 `get_concept_card`
   的 `governed_by`，含 SAME_AS 手足上的規則）——有規則就照規則實作並引用；
