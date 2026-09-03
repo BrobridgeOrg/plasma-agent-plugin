@@ -36,33 +36,61 @@ Talk to them in whatever language they used.
      vocabularies all miss, treat it as "this workspace does not hold it" and
      go to step 4. Do not fill the hole yourself.
 
-3. **Clear every column before it enters the SQL.** The table card and
-   `list_columns` do **not** carry traps or value domains; those are separate
-   lookups, and skipping them is exactly how a query that runs cleanly returns
-   the wrong number.
+3. **Clear every column before it enters the SQL.** `get_table_card` carries
+   only the units mounted on the *relation itself*, and `list_columns` carries
+   only structure (type, nullability, best description). **Nothing hands you
+   "every unit about this column"** — Ophion has no by-subject unit query
+   today — so you assemble it, and skipping that is exactly how a query that
+   runs cleanly returns the wrong number.
 
-   | Check | How | Why it matters |
-   |---|---|---|
-   | Relation is usable at all | `get_table_card` → `access_mode` | `definition_required` and `blocked` must never appear in `FROM`/`JOIN` |
-   | Column meaning, type, nullability | `list_columns` | a field name is not a definition; a nullable column changes every aggregate |
-   | Anti-patterns and traps | `search_knowledge(query="<table> <column> <the metric's words>", unit_types=["antipattern_trap","data_quality_issue","validity_rule"])`, then `get_knowledge_unit` on each hit | this is where "this column is populated only after discharge" or "duplicated per revision" lives |
-   | Coded values in any filter | `search_value_candidates(terms=[…])` → `plan_value_filter`; `get_value_domain` takes the `domain_id` those return, not a column name | never hand-write `=`/`IN` on a coded column — the code is rarely what the label suggests |
-   | What the number will mean | `search_knowledge(unit_types=["data_recency","write_source"])` | tells you how stale the API's answer can be, and who writes the data |
+   **The reliable way to get a column's units** (do this before trusting a
+   column, not after a number looks odd):
+
+   1. `list_units` with no arguments once per workspace → the inventory:
+      every unit type with its count. **A count of 0 means the KB holds no
+      such knowledge at all** — that is a corpus-coverage gap to report, not
+      a clean bill of health for your column.
+   2. For a type whose count is small enough to page through
+      (`antipattern_trap`, `data_quality_issue`, `validity_rule`,
+      `value_domain`, `data_recency` usually are):
+      `list_units(unit_type="…")` and filter the page's `about` /
+      `about_entities` for your table and column. This is **guaranteed
+      recall** — `list_units` exists precisely because keyword search is not.
+   3. Only for types too numerous to enumerate (the per-column ones such as
+      `column_description`) fall back to
+      `search_knowledge(query="<table> <column> <the metric's words>",
+      unit_types=[…])`, and know you are accepting a recall risk: a miss here
+      is not proof of absence.
+   4. `get_knowledge_unit` on every `ku_id` you intend to rely on. Card lines
+      and search hits are index entries, not the evidence.
+
+   | Also check | How |
+   |---|---|
+   | Relation is usable at all | `get_table_card` → `access_mode`; `definition_required` and `blocked` never appear in `FROM`/`JOIN` |
+   | Column meaning, type, nullability | `list_columns` — a field name is not a definition, and a nullable column changes every aggregate |
+   | Coded values in any filter | `search_value_candidates(terms=[…])` → `plan_value_filter`; `get_value_domain` takes the `domain_id` those return, not a column name. Never hand-write `=`/`IN` on a coded column |
+   | Whether anything is contested | `list_conflicts` — cards only count conflicts, and the keyword search hides them |
 
    Report every trap you find to the person, with its provenance, **before**
    you build on that column. A trap you found and did not mention becomes
-   their wrong dashboard.
+   their wrong dashboard. And say which of the two cases you are in: "the KB
+   records no traps for this column" or "the KB records no traps of this kind
+   anywhere" — they carry very different confidence.
 
 4. **When no single table answers it, climb this ladder in order.** Do not
    skip a rung, and do not jump to inventing SQL.
 
-   1. **Look for a rule that already defines it.**
-      `search_knowledge(query=…, unit_types=["business_rule","validity_rule","state_machine","event_lifecycle"])`,
-      and — where the profile exposes them — `find_concepts` →
-      `get_concept_card`, whose `governed_by` carries rules mounted on the
-      concept *and* on its `SAME_AS` / `NORMALIZES_TO` siblings. Expand every
-      hit with `get_knowledge_unit`. If a rule exists, **that rule is the
-      definition** — implement it as written and cite it. Do not improve on it.
+   1. **Look for a rule that already defines it.** Enumerate, as in step 3:
+      `list_units(unit_type="business_rule")` and its neighbours
+      (`validity_rule`, `state_machine`, `event_lifecycle`), filtered on
+      `about` for the tables in play — keyword `search_knowledge` widens the
+      net afterwards but is never the only check. Where the profile exposes
+      them, also `find_concepts` → `get_concept_card`: its `governed_by`
+      carries rules mounted on the concept *and* on its `SAME_AS` /
+      `NORMALIZES_TO` siblings, which is where a metric's definition often
+      lives rather than on any one table. Expand every hit with
+      `get_knowledge_unit`. If a rule exists, **that rule is the definition**
+      — implement it as written and cite it. Do not improve on it.
    2. **No rule, but the pieces are there: compose, then ask.** Derive it from
       the `table.column` you have actually cleared, then state the derivation
       to the person in one sentence — which columns, which join, which
@@ -124,8 +152,12 @@ Talk to them in whatever language they used.
 
 - **Ophion is the only admissible source.** A table or column that Ophion did
   not give you does not go into SQL, however obvious it looks.
-- **Column clearance (step 3) is not optional**, and it is not what the cards
-  already told you: traps and value domains are separate calls.
+- **Column clearance (step 3) is not optional**, and no single tool gives it
+  to you: the table card is relation-scoped, `list_columns` is structural, and
+  Ophion has no by-subject unit query — you assemble it from `list_units`
+  plus `about`.
+- **"Search found nothing" and "the KB holds none of these" are different
+  answers.** Only the inventory count tells them apart; say which one you got.
 - **The confirmation in 4.2 is mandatory.** An unconfirmed derivation is never
   a basis for a materialized view.
 - **A gap gets named, not filled.** "I could not find how this is derived, and
