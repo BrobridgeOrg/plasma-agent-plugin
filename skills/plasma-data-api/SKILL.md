@@ -18,22 +18,84 @@ Talk to them in whatever language they used.
    time. A screenshot counts as the spec — read the labels, axis titles and
    filters off it and confirm your reading back to them.
 
-2. **Find the data with the ophion tools, not by guessing.** `overview` first,
-   then `search_knowledge` for the concept, then `get_table_card` on the
-   candidates. Use `plan_value_filter` / `get_value_domain` before writing any
-   `WHERE` on a coded column — codes are rarely what they look like. Follow
-   the `ophion-knowledge-lookup` skill for the method.
+2. **Find the data in Ophion — and nowhere else.** Every table and column
+   that ends up in your SQL must be one you found through the ophion tools.
+   If Ophion does not have it, you may not use it: not from a name that looks
+   right, not from a label on their screenshot, not from how the same system
+   looked at another site. Work outward: `overview` → `search_knowledge` (pass
+   several synonyms; it ORs them) → `find_tables` → `get_table_card` →
+   `list_columns`.
 
-3. **Write the SQL.** Two-segment names (`"database"."table"`); the workspace
-   is already the catalog. Never put a relation whose `access_mode` is
-   `definition_required` or `blocked` into `FROM`/`JOIN`.
+   Two things about the cards, both load-bearing:
+   - **A card is an index, not the evidence.** `get_table_card` and
+     `get_concept_card` hand you one line plus a `ku_id` per fact. Fetch every
+     relevant `ku_id` with `get_knowledge_unit` before you build on it, and
+     never quote a card summary as the rule.
+   - **A miss is an answer.** `found=false` comes with `suggestions` — pivot on
+     those rather than retrying the same string. When two or three different
+     vocabularies all miss, treat it as "this workspace does not hold it" and
+     go to step 4. Do not fill the hole yourself.
 
-4. **Verify with `run_query` and show your work.** Present the SQL and the
+3. **Clear every column before it enters the SQL.** The table card and
+   `list_columns` do **not** carry traps or value domains; those are separate
+   lookups, and skipping them is exactly how a query that runs cleanly returns
+   the wrong number.
+
+   | Check | How | Why it matters |
+   |---|---|---|
+   | Relation is usable at all | `get_table_card` → `access_mode` | `definition_required` and `blocked` must never appear in `FROM`/`JOIN` |
+   | Column meaning, type, nullability | `list_columns` | a field name is not a definition; a nullable column changes every aggregate |
+   | Anti-patterns and traps | `search_knowledge(query="<table> <column> <the metric's words>", unit_types=["antipattern_trap","data_quality_issue","validity_rule"])`, then `get_knowledge_unit` on each hit | this is where "this column is populated only after discharge" or "duplicated per revision" lives |
+   | Coded values in any filter | `search_value_candidates(terms=[…])` → `plan_value_filter`; `get_value_domain` takes the `domain_id` those return, not a column name | never hand-write `=`/`IN` on a coded column — the code is rarely what the label suggests |
+   | What the number will mean | `search_knowledge(unit_types=["data_recency","write_source"])` | tells you how stale the API's answer can be, and who writes the data |
+
+   Report every trap you find to the person, with its provenance, **before**
+   you build on that column. A trap you found and did not mention becomes
+   their wrong dashboard.
+
+4. **When no single table answers it, climb this ladder in order.** Do not
+   skip a rung, and do not jump to inventing SQL.
+
+   1. **Look for a rule that already defines it.**
+      `search_knowledge(query=…, unit_types=["business_rule","validity_rule","state_machine","event_lifecycle"])`,
+      and — where the profile exposes them — `find_concepts` →
+      `get_concept_card`, whose `governed_by` carries rules mounted on the
+      concept *and* on its `SAME_AS` / `NORMALIZES_TO` siblings. Expand every
+      hit with `get_knowledge_unit`. If a rule exists, **that rule is the
+      definition** — implement it as written and cite it. Do not improve on it.
+   2. **No rule, but the pieces are there: compose, then ask.** Derive it from
+      the `table.column` you have actually cleared, then state the derivation
+      to the person in one sentence — which columns, which join, which
+      filter, which assumption — and **ask whether that is what they mean**.
+      This question is not a courtesy: without a rule in the graph, your
+      derivation is a hypothesis, and only they can confirm it. Wait for the
+      answer. If they correct you, redo the derivation and ask again.
+   3. **The pieces are not there: name the gap.** Say plainly:
+      - what the metric needs that the workspace does not record;
+      - which table or column would have to carry it;
+      - what you searched (terms and `unit_types`) and what came back empty —
+        so they can tell "Ophion has not learned this" from "the source system
+        does not capture it".
+
+      Then offer the real options: get the answer adjudicated into Ophion so
+      it becomes knowledge, settle for a metric the data can support, or add
+      the missing source data. **Never** close this rung by shipping a
+      plausible-looking approximation.
+
+5. **Write the SQL.** Two-segment names (`"database"."table"`); the workspace
+   is already the catalog. Carry step 3's traps into the SQL itself — a
+   `WHERE` that excludes the known-bad rows beats a note in the chat, which
+   nobody sees again once the view exists. Filters on coded columns use what
+   `plan_value_filter` returned, not codes you typed.
+
+6. **Verify with `run_query` and show your work.** Present the SQL and the
    sample rows together and ask whether these are the numbers they meant.
    `run_query` needs their approval each time and is capped at 100 rows, so
-   treat the result as a shape check, not a total.
+   treat the result as a shape check, not a total. If step 4.2 applied, this
+   is also where the derivation gets its second look — the numbers either
+   match what they described or they do not.
 
-5. **Create the materialized view** with `create_view`
+7. **Create the materialized view** with `create_view`
    (`type=materialized_view`). Ask how fresh the data must be:
    - refreshed on a schedule → `sync_mode=scheduled` plus
      `scheduler_settings`;
@@ -41,7 +103,7 @@ Talk to them in whatever language they used.
    Then poll `get_view` until `last_sync_status=synced`. There is no API
    before a successful sync.
 
-6. **Interview them about the API — do not choose these for them:**
+8. **Interview them about the API — do not choose these for them:**
    - **Authentication.** `api_key` (a key in `X-API-Key`), `basic_auth`
      (you must supply `secret_key` as `username:password`), or `none`.
      `none` means anyone with the URL reads this data; if they want it, say
@@ -49,7 +111,7 @@ Talk to them in whatever language they used.
    - **Lifetime.** `expires_in` such as `30d` or `12h`. No value means the
      endpoint never expires — state which of the two you are creating.
 
-7. **Publish and hand over.** `create_access_entry`, then `get_export_url` if
+9. **Publish and hand over.** `create_access_entry`, then `get_export_url` if
    you need the URL again. Give them:
    - the URL, the key, and when it expires;
    - a `curl` they can paste;
@@ -60,10 +122,15 @@ Talk to them in whatever language they used.
 
 ## Rules
 
-- **Ophion's knowledge is not optional.** If the graph does not say where a
-  metric comes from, ask the person — do not assemble plausible columns.
-  "I could not find how this is derived" is a real answer.
-- **No materialized view on unverified SQL.** Steps 4 and 5 are in that order
+- **Ophion is the only admissible source.** A table or column that Ophion did
+  not give you does not go into SQL, however obvious it looks.
+- **Column clearance (step 3) is not optional**, and it is not what the cards
+  already told you: traps and value domains are separate calls.
+- **The confirmation in 4.2 is mandatory.** An unconfirmed derivation is never
+  a basis for a materialized view.
+- **A gap gets named, not filled.** "I could not find how this is derived, and
+  here is what I searched" is a real answer; an invented composition is not.
+- **No materialized view on unverified SQL.** Step 6 comes before step 7,
   every time.
 - **`auth_type=none` needs an explicit yes**, and say so again on handover.
 - **Never present a 100-row sample as the answer.** It is on Plasma's ceiling.

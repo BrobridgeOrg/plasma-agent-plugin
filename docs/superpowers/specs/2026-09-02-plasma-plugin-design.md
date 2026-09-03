@@ -256,23 +256,32 @@ matcher 用後綴正則命中（plugin MCP 的工具全名形如
 
 觸發：客戶口吻的「我想要這些資料的 API」「這個指標給我一個 API」「BI 要接資料」。
 
-流程：
+九步：釐清指標 → **只在 Ophion 找資料** → **逐欄清關** → **表答不出來時走階梯**
+→ 寫 SQL → `run_query` 試跑並給人確認 → 建 mview → 反問 API 三件事 → 發布交付。
 
-1. 釐清要的指標與粒度（不清楚就問，一次問一件）。
-2. 用 ophion 工具找來源表與計算方式，讀 `access_mode` 與 provenance。
-3. 生 SQL。
-4. `run_query` 試跑，把 **SQL 與樣本結果一起**給使用者確認。
-5. 建 mview（問同步方式與頻率）。
-6. **反問 API 三件事**：認證方式、存活時間、格式。
-7. `create_access_entry` + `get_export_url`，交出 URL、金鑰、`curl` 範例，
-   以及怎麼接回 BI 工具。
+其中三步是這份 skill 的骨幹，也是 2026-09-03 依實際 tool 行為補強的：
 
-硬規則：
-
-- 知識不足就問人，不用猜的欄位湊 SQL。
-- 沒試跑過、使用者沒確認過的 SQL，不建 mview。
-- `access_mode=definition_required` 的關聯不得出現在 `FROM`／`JOIN`。
-- `auth_type=none` 要對方明確答應，並在交付時重述這是公開端點。
+- **只在 Ophion 找**：進 SQL 的每個 table／column 都必須是 ophion 工具給的。
+  Ophion 沒有就不准用（名字看起來對、截圖標籤寫了、別的場站長這樣，都不算）。
+  卡是 index 不是證據——每個相關 `ku_id` 都要 `get_knowledge_unit`；`found=false`
+  帶的 `suggestions` 是要換詞而不是重試，換兩三種詞彙都沒有就當「這個 workspace
+  沒有」，走階梯。
+- **逐欄清關**：`get_table_card` 只帶掛在 relation 本身的事實，`list_columns` 只有
+  型別／nullability／描述——**trap 與 value domain 都不在卡裡**（實作時讀
+  `TableCard` 組裝與 `get_value_domain` 的輸入確認）。所以 skill 明寫怎麼取：
+  `search_knowledge` 帶 `unit_types=["antipattern_trap","data_quality_issue",
+  "validity_rule"]`；編碼欄位一律 `search_value_candidates` → `plan_value_filter`
+  （`get_value_domain` 吃 `domain_id`，不吃欄位名）；再加
+  `["data_recency","write_source"]` 決定這個 API 的數字有多新。找到的 trap 要在
+  用那個欄位**之前**帶 provenance 講給人聽。
+- **階梯（不准跳級）**：①先找既有規則（`business_rule` / `validity_rule` /
+  `state_machine` / `event_lifecycle`，以及 profile 有開時的 `get_concept_card`
+  的 `governed_by`，含 SAME_AS 手足上的規則）——有規則就照規則實作並引用；
+  ②沒規則但拼得出來 → 用已清關的 `table.column` 組出來，**一句話說明推導並問使用者
+  對不對，等回答**（沒有規則時推導只是假設，只有人能確認）；③拼不出來 → 明講缺什麼、
+  哪個 table/column 才會有、搜過哪些詞與 `unit_types` 是空的，讓人分得清「Ophion
+  還沒學到」與「來源系統根本沒記」，再給裁決進 Ophion／換指標／補來源資料三條路。
+  **不准用一個看起來合理的近似值收尾。**
 
 ### 8.2 `ophion-knowledge-lookup`
 
