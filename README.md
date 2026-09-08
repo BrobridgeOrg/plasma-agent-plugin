@@ -82,5 +82,3 @@ make test
 
 `bin/plasma-mcp.sh` 會在 binary 不存在或比原始碼舊時自動 `go build`，且建置訊息
 一律走 stderr——stdout 是 MCP 通道，混進一行就壞協定。
-
-設計文件：[docs/superpowers/specs/2026-09-02-plasma-plugin-design.md](docs/superpowers/specs/2026-09-02-plasma-plugin-design.md)
