@@ -31,6 +31,22 @@ Claude Code 不會在 session 中重連 MCP server，所以「動態」不靠改
 /plugin install plasma-plugin@plasma-plugin-local
 ```
 
+裝完的**第一件事**是跑設定：
+
+```text
+/plasma-plugin:plasma-plugin-setup
+```
+
+它會先看現況，再讓你選一條路線：
+
+- **逐步問答**：一題一題問 endpoint 與認證，答案直接寫進 `~/.plasma-plugin/config.env`
+  （權限 600）。token 與密碼可以選擇不進對話紀錄——在自己的終端機執行
+  `bin/plasma-config.sh set-secret PLASMA_PASSWORD`，輸入不回顯。
+- **自己編輯設定檔**：只給你設定檔路徑與各欄位說明，其餘你自己填。
+
+設定還沒填完時，每個 session 開頭的 SessionStart hook 會提醒先做設定，填完就
+不再出現。設定檔是 MCP server **啟動時**讀的，第一次設定完成請重啟 session。
+
 **不需要安裝 Go、Node.js 或 Docker。** 支援 macOS／Linux 的 arm64、amd64；
 Windows 請使用 WSL。首次啟動會下載與 plugin 版本一致的 GitHub Release 執行檔，
 驗證 SHA-256 後快取到 `~/.plasma-plugin/bin/<version>/<os>-<arch>/`，後續直接執行。
@@ -47,13 +63,31 @@ PLASMA_MCP_RELEASE_DIR="$HOME/Downloads/plasma-release" claude
 第一次安裝完成後不再需要此環境變數。更新 plugin 時需提供新版的下載檔案，或讓
 launcher 透過 GitHub 下載。快取與設定都支援以 `PLASMA_PLUGIN_HOME` 改變根目錄。
 
+## 設定
+
 設定放 `~/.plasma-plugin/config.env`（**不要**放在 plugin 目錄，marketplace
-更新會換掉整個目錄）：
+更新會換掉整個目錄）。要填的是 `PLASMA_URL`、Plasma 認證（`PLASMA_TOKEN`
+或 `PLASMA_USERNAME` + `PLASMA_PASSWORD` 擇一）、`OPHION_URL` 與
+`OPHION_SERVICE_TOKEN`；`OPHION_PROFILE` 留空即為 `all`。環境變數會蓋過檔案，
+所以單一 session 可以不改檔就指向別的部署。
+
+交給 setup skill 問答填寫最省事，也可以自己來：
 
 ```bash
 mkdir -p ~/.plasma-plugin
 cp config.env.example ~/.plasma-plugin/config.env && chmod 600 ~/.plasma-plugin/config.env
 ```
+
+`bin/plasma-config.sh` 是同一份設定的命令列入口，setup skill 走的也是它：
+
+| 指令 | 用途 |
+|---|---|
+| `init` | 建立目錄與設定檔（700／600），印出路徑 |
+| `set KEY VALUE` | 寫入一個已知欄位，重複指定只留一行 |
+| `set-secret KEY` | 從終端機隱藏輸入 token／密碼，不經過命令列與對話 |
+| `show` | 檢視目前設定與來源；秘密只顯示長度 |
+| `check` | 判斷設定是否完整，缺什麼一起列出 |
+| `probe` | 不帶認證測兩個 endpoint 通不通 |
 
 Ophion 的 query-mcp 是叢集內 API，工作站通常要 port-forward：
 
@@ -61,7 +95,8 @@ Ophion 的 query-mcp 是叢集內 API，工作站通常要 port-forward：
 kubectl -n <namespace> port-forward svc/ophion 5101:5101
 ```
 
-裝好後在 session 裡叫 `whoami`——兩個 endpoint、登入者、當下 workspace 一次看完。
+設定好、重啟 session 後叫 `whoami`——兩個 endpoint、登入者、當下 workspace
+一次看完。
 
 ## 工具
 
@@ -109,7 +144,7 @@ ChatGPT／Codex 匯入時，不能依賴原 hook 的 `permissionDecision: "ask"`
 ## 開發
 
 ```bash
-make check     # fmt + vet + Go tests + build + launcher tests
+make check     # fmt + vet + Go tests + build + launcher tests + config tests
 make test
 ```
 

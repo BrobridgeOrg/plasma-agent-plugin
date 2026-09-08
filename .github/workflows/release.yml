@@ -50,6 +50,7 @@ jobs:
           go vet ./...
           go test ./...
           make test-launcher
+          make test-config
       - name: Build release assets
         run: GITHUB_REF_NAME="$RELEASE_TAG" make release
       - name: Smoke test packaged Linux binary
