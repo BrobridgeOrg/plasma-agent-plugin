@@ -110,3 +110,7 @@ PLASMA_MCP_BINARY="$PWD/bin/plasma-plugin-mcp" claude --plugin-dir "$PWD"
 提交後推送對應的 `v<version>` tag。GitHub Actions 會執行檢查、建置四種平台的
 執行檔，並在目前 repo 發佈 Release 與 `checksums.txt`。本機可用 `make release`
 產生相同格式的資產，輸出在 `dist/v<version>/`。
+
+既有 tag 若未觸發發佈，可在 GitHub 的 **Actions → Release → Run workflow**
+選擇 `main`，並在 `tag` 填入版本（例如 `v0.1.1`）。手動執行仍會 checkout 該
+tag 的原始碼並驗證版本，不會拿目前 main 的程式替換已標記的版本。

@@ -3,21 +3,38 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to build (for example v0.1.1)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: write
     steps:
+      - name: Validate release tag
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Expected an existing version tag such as v0.1.1" >&2
+            exit 1
+          }
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Manual runs use the workflow on main but build the exact tagged source.
+          ref: refs/tags/${{ env.RELEASE_TAG }}
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
           go-version-file: go.mod
@@ -26,7 +43,7 @@ jobs:
           python3 - <<'PY'
           import json, os, pathlib
           version = pathlib.Path('VERSION').read_text().strip()
-          assert os.environ['GITHUB_REF_NAME'] == 'v' + version
+          assert os.environ['RELEASE_TAG'] == 'v' + version
           assert json.loads(pathlib.Path('.claude-plugin/plugin.json').read_text())['version'] == version
           PY
           test -z "$(gofmt -l cmd internal)"
@@ -34,11 +51,11 @@ jobs:
           go test ./...
           make test-launcher
       - name: Build release assets
-        run: make release
+        run: GITHUB_REF_NAME="$RELEASE_TAG" make release
       - name: Smoke test packaged Linux binary
         run: |
           export PLASMA_PLUGIN_HOME="$RUNNER_TEMP/plasma-release-smoke"
-          export PLASMA_MCP_RELEASE_DIR="$GITHUB_WORKSPACE/dist/$GITHUB_REF_NAME"
+          export PLASMA_MCP_RELEASE_DIR="$GITHUB_WORKSPACE/dist/$RELEASE_TAG"
           printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"mcp__plasma__run_query"}' |
             bash bin/plasma-mcp.sh hook > "$RUNNER_TEMP/hook.json"
           python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["hookSpecificOutput"]["permissionDecision"] == "ask"' "$RUNNER_TEMP/hook.json"
@@ -47,6 +64,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "dist/$GITHUB_REF_NAME/"* \
-            --verify-tag --title "Plasma plugin $GITHUB_REF_NAME" \
-            --notes-file "releases/$GITHUB_REF_NAME.md"
+          gh release create "$RELEASE_TAG" "dist/$RELEASE_TAG/"* \
+            --verify-tag --title "Plasma plugin $RELEASE_TAG" \
+            --notes-file "releases/$RELEASE_TAG.md"
