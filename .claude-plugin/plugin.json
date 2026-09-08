@@ -2,7 +2,7 @@
   "name": "plasma-plugin",
   "displayName": "Plasma + Ophion",
   "description": "Operate Plasma with Ophion's knowledge: pick a workspace, look up how the source system was designed, verify SQL, build a materialized view and publish it as a data API.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"

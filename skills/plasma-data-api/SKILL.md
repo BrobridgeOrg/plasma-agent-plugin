@@ -1,22 +1,39 @@
 ---
 name: plasma-data-api
-description: Use when someone wants data out of Plasma as a callable API or endpoint — "I want an API for these numbers", "我想要這些資料的 API", "expose this metric to Power BI / Tableau / our app", "give me a URL for this report", or when they hand you a BI screenshot and ask where the data comes from. Covers the whole path: find the source with Ophion, verify SQL, build the materialized view, interview them for the API's auth and lifetime, publish it, and hand over the URL and key.
+description: >-
+  當使用者想把表單、報表、BI 畫面或指定指標做成 Plasma 資料 API 時使用。以 Ophion 查核來源與定義，驗證 Trino SQL，原則上一份表單建立一個 mview；全程使用台灣繁體中文，只在開始同步拉資料及後續開啟 API 時確認，最後交付 URL、驗證方式與有效期限。
 ---
 
 # From "I want an API" to a callable endpoint
+
+## 共通互動原則
+
+- 所有對使用者的回覆都使用**台灣繁體中文**，包含進度、問題、結果、錯誤說明、確認文字及交付說明。工具名稱、SQL、欄位名稱、URL 與需忠實引用的原文保留原樣，並以台灣繁體中文解釋。
+- 在使用者已交付的任務範圍內，連續完成知識查找、欄位查核、SQL 驗證及不會啟動同步的 mview 建立；報告進度即可，不要每完成一步就問「是否繼續」。只有缺少會影響正確性的必要資訊時才釐清，釐清不等於每一步都要核准。
+- 確認集中在兩個執行時點：**開始同步拉資料**，以及同步成功後**開啟資料 API**。每次以中文清楚說明具體影響；同一動作不要先在對話問一次、又重複要求一次工具確認。若宿主提供符合需求的確認介面，使用該介面；否則以中文取得明確同意後再呼叫工具。
+- **原則上一份表單／報表建立一個 mview。** 不因不同區塊、指標、頁籤或來源表就拆成多個 mview；只有使用者明確要求拆分，才改變這個原則。
 
 The person asking usually knows the numbers they want and nothing about the
 schema. They should not have to. Your job is to find the data, prove the SQL
 produces what they described, and hand back an endpoint.
 
-Talk to them in whatever language they used.
+全程以台灣繁體中文協作，依上述共通互動原則執行。
 
 ## The path
 
 1. **Understand the metric.** What number, at what grain (per day? per
-   patient? per store?), over what period, filtered how. Ask one question at a
-   time. A screenshot counts as the spec — read the labels, axis titles and
-   filters off it and confirm your reading back to them.
+   patient? per store?), over what period, filtered how. A screenshot or form
+   counts as the spec: read its labels, sections and filters, then explain your
+   interpretation in Taiwan Traditional Chinese and continue. Ask only for
+   missing information that materially changes the result; do not require
+   approval of an otherwise clear reading.
+
+   **一份表單就是一個交付單位，原則上只建立一個 mview。** 先列出整份表單的
+   欄位、指標、篩選與資料粒度，再設計一份完整 SQL。多張來源表可用 CTE、
+   JOIN、條件聚合或語意一致的 UNION ALL 組合；不要為了方便開發或對應每個
+   表單區塊建立多個 mview，也不要額外建立中繼 mview。整合時必須保留正確
+   粒度，不能用會重複計算的 JOIN 硬湊。若確實無法正確整合，說明具體限制並
+   釐清需求，不得自行拆分或省略表單欄位。
 
 2. **Find the data in Ophion — and nowhere else.** Every table and column
    that ends up in your SQL must be one you found through the ophion tools.
@@ -90,13 +107,15 @@ Talk to them in whatever language they used.
       afterwards; it is never the only check. Expand every hit with
       `get_knowledge_unit`. If a rule exists, **that rule is the definition**
       — implement it as written and cite it. Do not improve on it.
-   2. **No rule, but the pieces are there: compose, then ask.** Derive it from
-      the `table.column` you have actually cleared, then state the derivation
-      to the person in one sentence — which columns, which join, which
-      filter, which assumption — and **ask whether that is what they mean**.
-      This question is not a courtesy: without a rule in the graph, your
-      derivation is a hypothesis, and only they can confirm it. Wait for the
-      answer. If they correct you, redo the derivation and ask again.
+   2. **No rule, but the pieces are there: compose a clearly labelled candidate.**
+      Derive it only from the `table.column` you have actually cleared. Explain
+      the columns, joins, filters and assumptions in Taiwan Traditional
+      Chinese, and label the derivation as a proposal rather than an Ophion
+      rule. Continue SQL validation without a separate approval round.
+      Include the proposed definition and its validation result in the final
+      sync confirmation; do not sync it until that definition is explicitly
+      accepted there. If required facts are missing or competing meanings
+      prevent a sound candidate, ask a focused clarification instead of guessing.
    3. **The pieces are not there: name the gap.** Say plainly:
       - what the metric needs that the workspace does not record;
       - which table or column would have to carry it;
@@ -154,37 +173,69 @@ Talk to them in whatever language they used.
    a materialized view: `run_query` it in step 6 first — a view built on a
    non-existent function fails on every sync, not on your screen.
 
-6. **Verify with `run_query` and show your work.** Present the SQL and the
-   sample rows together and ask whether these are the numbers they meant.
-   `run_query` needs their approval each time and is capped at 100 rows, so
-   treat the result as a shape check, not a total. If step 4.2 applied, this
-   is also where the derivation gets its second look — the numbers either
-   match what they described or they do not.
+6. **Verify with `run_query` and show your work.** Validate the complete form's
+   SQL, report representative rows and data-quality findings in Taiwan
+   Traditional Chinese, and continue without asking for per-query approval.
+   `run_query` really executes a SELECT against the source through Trino; it
+   is not a dry run. It returns at most 100 rows, so use it as a shape check,
+   never as proof that the entire dataset has only that many rows. Compare
+   the result against the requested form, grain and definitions yourself.
+   Include any step 4.2 assumptions in the final sync summary.
 
-7. **Create the materialized view** with `create_view`
-   (`type=materialized_view`). Ask how fresh the data must be:
-   - refreshed on a schedule → `sync_mode=scheduled` plus
-     `scheduler_settings`;
-   - rebuilt only when asked → `sync_mode=manual`, then `sync_view`.
-   Then poll `get_view` until `last_sync_status=synced`. There is no API
-   before a successful sync.
+7. **建立一個 mview，並在開始同步時確認。**
 
-8. **Interview them about the API — do not choose these for them:**
-   - **Authentication.** `api_key` (a key in `X-API-Key`), `basic_auth`
-     (you must supply `secret_key` as `username:password`), or `none`.
-     `none` means anyone with the URL reads this data; if they want it, say
-     that plainly and get an explicit yes.
-   - **Lifetime.** `expires_in` such as `30d` or `12h`. No value means the
-     endpoint never expires — state which of the two you are creating.
+   預設以 `create_view(type=materialized_view, sync_mode=manual)` 建立整份表單的
+   單一 mview 定義，不另外要求核准建立動作。建立定義不代表已同步完成。
+   SQL 必須先通過步驟 6；已經存在同一份表單的 mview 時先查核並重用適合的
+   物件，不為各區塊重複建立。
 
-9. **Publish and hand over.** `create_access_entry`, then `get_export_url` if
-   you need the URL again. Give them:
-   - the URL, the key, and when it expires;
-   - a `curl` they can paste;
-   - how to plug it into their tool (Power BI: *Get Data → Web → Advanced*,
-     with the key as a request header);
-   - which view backs it and how it refreshes, so they know why a number
-     might be an hour old.
+   在呼叫 `sync_view` 前，集中呈現 workspace、表單／mview 名稱、來源、完整
+   表單的欄位涵蓋範圍、日期與篩選、SQL 驗證結果，以及尚待接受的推導假設。
+   以台灣繁體中文取得這一次同步的確認，例如：
+
+   > 即將同步「＜表單名稱＞」對應的「＜mview 名稱＞」。執行 sync 後，系統就會
+   > 開始依照上述 SQL 從來源系統拉取資料，並寫入／更新這個 mview，會使用查詢
+   > 與同步資源。這次同步尚不會開啟資料 API。是否確認開始同步？
+
+   若有推導假設，將它們明列在同一份確認內容，讓使用者一併確認定義與同步。
+   未取得明確同意就停在這個時點，不得呼叫同步、不得用其他工具繞過。
+
+   **排程是相同確認時點的例外路徑。** 若使用者已要求排程，使用
+   `create_view(sync_mode=scheduled, scheduler_settings=...)` 會立刻啟動首次
+   同步，因此必須先完成上述確認，再呼叫 `create_view`；同時以中文說明首次
+   拉資料會立即開始，以及後續自動拉資料的頻率。不要先建立 manual mview
+   再另建一個 scheduled mview。排程參數若尚未指定，於這次同步確認一併釐清。
+
+   取得確認後執行該次同步，持續用 `get_view` 查狀態，不逐次詢問。只有實際
+   回報 `last_sync_status=synced` 才進入開 API 階段；失敗時說明原因，不能宣稱
+   已完成。新的同步或重試若未包含在原確認範圍內，需要新的同步確認。
+
+8. **同步成功後，一次確認開啟 API 的內容。** 將 API 設定整理成一份中文
+   確認，不要逐欄訪談或先建立才補問：
+   - 對應的表單、單一 mview 與要提供的資料範圍。
+   - 驗證方式：`api_key`、`basic_auth` 或 `none`；沿用使用者已指定的選擇。
+     未指定時可以提出 `api_key` 的建議，於這次確認取得同意後才採用。
+     `basic_auth` 需要 `secret_key=username:password`。
+   - 有效期限：明確列出 `expires_in`；不填代表不會自動到期。未指定時於同一
+     份確認提出期限建議或詢問必要資訊，不能默默開成永久有效。
+
+   確認文字須以台灣繁體中文說明，例如：
+
+   > 「＜mview 名稱＞」已同步成功。下一步將開啟資料 API，讓可連線到此端點且
+   > 通過＜驗證方式＞的呼叫者讀取上述資料；有效期限為＜期限＞。
+   > 是否確認開啟 API？
+
+   若 `auth_type=none`，必須改成明確說明「任何可連線到此端點且持有 URL 的人，
+   不需驗證即可讀取資料」，並在同一次開 API 確認取得明確同意。
+   同意同步不等於同意開 API。
+
+9. **Publish and hand over.** Only after step 8's confirmation, call
+   `create_access_entry`, then `get_export_url` if needed. Deliver in Taiwan
+   Traditional Chinese: the URL, authentication details, expiry, a usable
+   `curl` example, connection instructions for the user's tool, and the
+   single backing mview with its refresh behavior. Retrieving an existing URL
+   does not require another publication confirmation. Keep API keys out of
+   repository files and shared progress logs.
 
 ## Rules
 
@@ -198,13 +249,18 @@ Talk to them in whatever language they used.
   own.
 - **"Search found nothing" and "the KB holds none of these" are different
   answers.** Only the inventory count tells them apart; say which one you got.
-- **The confirmation in 4.2 is mandatory.** An unconfirmed derivation is never
-  a basis for a materialized view.
+- **推導假設要在最後同步確認中取得明確同意。** 不增加步驟 4.2 的獨立確認關卡，
+  也不能把未確認假設當成既定規則同步成正式資料。
 - **A gap gets named, not filled.** "I could not find how this is derived, and
   here is what I searched" is a real answer; an invented composition is not.
 - **No materialized view on unverified SQL.** Step 6 comes before step 7,
   every time.
-- **`auth_type=none` needs an explicit yes**, and say so again on handover.
+- **`auth_type=none` 必須在開 API 的那次確認取得明確同意**，交付時再說明免驗證。
+- **一份表單／報表原則上對應一個 mview。** 不因指標、區塊或來源表數量拆分，
+  不用多個中繼 mview 代替一份完整結果；只有使用者明確要求才拆分。
+- **只在同步與開 API 的執行時點要求操作確認。** 不在查找、欄位查核、SELECT
+  驗證、建立 manual mview、輪詢狀態或取回既有 URL 時另加確認關卡。
+  宿主平台另有權限要求時照其介面處理，不宣稱 skill 可以繞過平台限制。
 - **Never present a 100-row sample as the answer.** It is on Plasma's ceiling.
 - **Trino only.** No `::`, no `NOW()`, no `ILIKE`, no `NVL`, no `TOP` — see the
   table in step 5. Another dialect's syntax is a defect even when it parses.

@@ -1,9 +1,17 @@
 ---
 name: plasma-plugin-setup
-description: Use when the plasma or ophion MCP tools are missing, erroring, or unauthenticated — first-time setup of this plugin, "no workspace selected", 401/403 from Plasma, 404 or unreachable from Ophion, or after moving to another machine or deployment. Covers config.env, the state file, installing the release binary, and reading each failure.
+description: >-
+  當 Plasma 或 Ophion MCP 工具缺少、連線失敗或驗證失敗，或需要初次安裝、更換部署、設定 workspace 時使用。以台灣繁體中文處理 config.env、狀態檔、預編譯執行檔及錯誤診斷，並說明同步與開 API 的確認時點。
 ---
 
 # Setting up and diagnosing the plugin
+
+## 共通互動原則
+
+- 所有對使用者的回覆都使用**台灣繁體中文**，包含進度、問題、結果、錯誤說明、確認文字及交付說明。工具名稱、SQL、欄位名稱、URL 與需忠實引用的原文保留原樣，並以台灣繁體中文解釋。
+- 在使用者已交付的任務範圍內，連續完成知識查找、欄位查核、SQL 驗證及不會啟動同步的 mview 建立；報告進度即可，不要每完成一步就問「是否繼續」。只有缺少會影響正確性的必要資訊時才釐清，釐清不等於每一步都要核准。
+- 確認集中在兩個執行時點：**開始同步拉資料**，以及同步成功後**開啟資料 API**。每次以中文清楚說明具體影響；同一動作不要先在對話問一次、又重複要求一次工具確認。若宿主提供符合需求的確認介面，使用該介面；否則以中文取得明確同意後再呼叫工具。
+- **原則上一份表單／報表建立一個 mview。** 不因不同區塊、指標、頁籤或來源表就拆成多個 mview；只有使用者明確要求拆分，才改變這個原則。
 
 ## One-time setup
 
@@ -74,7 +82,8 @@ and forces a fresh login.
 | Ophion `rejected the service token` | `OPHION_SERVICE_TOKEN` wrong or unset | Fix it in `config.env` |
 | Ophion `unreachable` | Nothing listening at `OPHION_URL` | Start the port-forward, or point at the in-cluster URL |
 | `OPHION_URL is not set` | Ophion half-configured | Set it; the plugin refuses to guess an endpoint |
-| A tool prompt you cannot skip | `run_query`, `create_view`, `sync_view` and `create_access_entry` are gated by a `PreToolUse` hook | Intended. Read the arguments in the prompt and approve or decline |
+| 同步或開 API 的確認 | `sync_view`、會立即同步的 scheduled `create_view`、`create_access_entry` 需要確認 | 以台灣繁體中文說明：sync 會開始拉取資料並寫入 mview；開 API 會讓符合存取條件的呼叫者讀取資料 |
+| 查詢或建立 manual mview 仍逐次跳出確認 | 可能仍在使用舊版 hook／binary，或宿主另設了工具權限 | 檢查安裝版本與宿主設定；目前流程不額外強制這兩步確認，不能以關閉所有同步／API 確認來排障 |
 
 ## Changing deployment
 

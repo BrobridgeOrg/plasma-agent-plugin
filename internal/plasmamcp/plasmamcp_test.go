@@ -204,7 +204,7 @@ func TestToolListCoversTheDocumentedSurface(t *testing.T) {
 	}
 }
 
-func TestCostlyToolsAreNotAdvertisedAsReadOnly(t *testing.T) {
+func TestToolAnnotationsDistinguishQueriesFromMutations(t *testing.T) {
 	s := newSession(t, &fakePlasma{}, pcontext.State{})
 
 	res, err := s.client.ListTools(context.Background(), nil)
@@ -215,13 +215,13 @@ func TestCostlyToolsAreNotAdvertisedAsReadOnly(t *testing.T) {
 	for _, tool := range res.Tools {
 		readOnly[tool.Name] = tool.Annotations != nil && tool.Annotations.ReadOnlyHint
 	}
-	for _, name := range []string{"run_query", "create_view", "sync_view", "create_access_entry"} {
+	for _, name := range []string{"create_view", "sync_view", "create_access_entry"} {
 		if readOnly[name] {
-			t.Errorf("%s is marked read-only; it costs Trino time or exposes data", name)
+			t.Errorf("%s is marked read-only; it changes state or exposes data", name)
 		}
 	}
 	for _, name := range []string{"whoami", "list_workspaces", "list_views", "get_view",
-		"list_access_entries", "get_export_url"} {
+		"list_access_entries", "get_export_url", "run_query"} {
 		if !readOnly[name] {
 			t.Errorf("%s should be marked read-only", name)
 		}

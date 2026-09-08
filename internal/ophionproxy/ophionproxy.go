@@ -42,6 +42,10 @@ type Deps struct {
 const instructions = `Read-only knowledge about how one data system was designed,
 for the workspace currently selected in the plasma server.
 
+所有對使用者的進度、說明與結果都使用台灣繁體中文。查找與欄位查核可連續執行，
+不要逐步要求核准；釐清缺少的必要資訊即可。一份表單原則上對應一個 mview，
+跨表或跨概念的知識應支援同一份完整結果，不要自行拆成多個 mview。
+
 Switch workspaces with the plasma server's use_workspace: the next call here
 follows it. Every answer states the workspace it came from — check that line
 before trusting a result.

@@ -17,7 +17,7 @@ VERSION = (ROOT / 'VERSION').read_text().strip()
 OS = {'Darwin': 'darwin', 'Linux': 'linux'}[platform.system()]
 ARCH = {'arm64': 'arm64', 'aarch64': 'arm64', 'x86_64': 'amd64'}[platform.machine()]
 ASSET = f'plasma-plugin-mcp_{VERSION}_{OS}_{ARCH}.tar.gz'
-EVENT = json.dumps({'hook_event_name': 'PreToolUse', 'tool_name': 'mcp__plasma__run_query'})
+EVENT = json.dumps({'hook_event_name': 'PreToolUse', 'tool_name': 'mcp__plasma__sync_view'})
 
 
 class LauncherTests(unittest.TestCase):
@@ -72,6 +72,32 @@ class LauncherTests(unittest.TestCase):
         self.assertIn('Checksum mismatch', result.stderr)
         self.assertFalse(self.binary.exists())
         self.assertEqual(list(self.binary.parent.glob('.download.*')), [])
+
+    def test_preparation_does_not_prompt(self):
+        for tool, args in [('run_query', {'sql': 'SELECT 1'}),
+                           ('create_view', {'sync_mode': 'manual'}),
+                           ('create_view', {})]:
+            with self.subTest(tool=tool, args=args):
+                payload = json.dumps({'hook_event_name': 'PreToolUse',
+                                      'tool_name': 'mcp__plasma__' + tool,
+                                      'tool_input': args})
+                result = self.launch(payload=payload)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, '')
+
+    def test_scheduled_sync_and_api_have_chinese_prompts(self):
+        for tool, args, message in [
+            ('create_view', {'sync_mode': 'scheduled'}, '立即開始'),
+            ('create_access_entry', {'auth_type': 'none'}, '不需驗證即可讀取')
+        ]:
+            with self.subTest(tool=tool):
+                payload = json.dumps({'hook_event_name': 'PreToolUse',
+                                      'tool_name': 'mcp__plasma__' + tool,
+                                      'tool_input': args})
+                result = self.launch(payload=payload)
+                self.assert_hook(result)
+                reason = json.loads(result.stdout)['hookSpecificOutput']['permissionDecisionReason']
+                self.assertIn(message, reason)
 
     def test_missing_checksum_is_rejected(self):
         (self.release / 'checksums.txt').write_text('')

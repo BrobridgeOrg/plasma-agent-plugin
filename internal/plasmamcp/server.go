@@ -2,10 +2,8 @@
 // workspace, look at views, try a SELECT, create a (materialized) view, and
 // publish it as a data API.
 //
-// Four of the tools cost something an operator should see first — Trino time,
-// or an externally reachable endpoint. They are deliberately NOT annotated
-// read-only, and the plugin ships a PreToolUse hook that forces a
-// confirmation prompt for them even when the whole server is allow-listed.
+// The plugin asks for confirmation at data synchronization and API publication,
+// including scheduled creation because it starts syncing immediately.
 package plasmamcp
 
 import (
@@ -52,6 +50,11 @@ type server struct {
 
 const instructions = `Plasma control plane for one workspace at a time.
 
+所有對使用者的進度、說明、問題與交付都使用台灣繁體中文；SQL 與識別名稱保留原樣。
+原則上一份表單／報表建立一個 mview，整合所有區塊與指標，不因來源表不同而拆分。
+只有使用者明確要求才拆成多個 mview。查找、SELECT 驗證與建立 manual mview
+不另加逐步確認；只在開始同步拉資料及後續開啟資料 API 時確認。
+
 Start with whoami (it reports the selected workspace and both endpoints) and
 use_workspace to select one; every other tool acts on that selection, and
 each answer names the workspace it used.
@@ -64,9 +67,17 @@ run_query executes SELECT against the workspace. Plasma allows only reads and
 caps the result at 100 rows, so use it to verify the shape of a result before
 building anything on it — never as a way to move data.
 
-The path to a data API is: verify SQL with run_query, create_view with
-type=materialized_view, wait for a successful sync (get_view), then
-create_access_entry and get_export_url.`
+The path to a data API is: verify the complete form's SQL with run_query,
+create one materialized_view with sync_mode=manual, obtain confirmation in
+Taiwan Traditional Chinese that sync will start pulling source data into the
+mview, then sync_view and poll get_view until last_sync_status=synced.
+Scheduled create_view starts the first sync immediately, so confirm before
+that call instead, including the recurring schedule. Do not create a second
+mview just to add a schedule. Unverified business assumptions must be stated
+and accepted in the sync confirmation. Only after a successful sync, obtain
+separate Chinese confirmation for API publication, its authentication and
+expiry, then create_access_entry and get_export_url. A confirmation should
+cover the actual operation once, without an extra duplicate approval round.`
 
 // NewServer builds the MCP server with all eleven tools registered.
 func NewServer(deps Deps) *mcp.Server {

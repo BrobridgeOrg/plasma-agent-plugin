@@ -31,7 +31,7 @@ func TestUnknownSubcommandIsNamed(t *testing.T) {
 func TestHookModeWritesTheDecisionToStdout(t *testing.T) {
 	var out bytes.Buffer
 	in := strings.NewReader(`{"hook_event_name":"PreToolUse",` +
-		`"tool_name":"mcp__plugin_plasma-plugin_plasma__run_query","tool_input":{}}`)
+		`"tool_name":"mcp__plugin_plasma-plugin_plasma__sync_view","tool_input":{}}`)
 
 	if err := run(context.Background(), []string{"hook"}, in, &out); err != nil {
 		t.Fatalf("run: %v", err)

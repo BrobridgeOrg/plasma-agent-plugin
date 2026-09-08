@@ -72,8 +72,8 @@ kubectl -n <namespace> port-forward svc/ophion 5101:5101
 | `whoami` | 兩邊 endpoint、登入者、當下 workspace（排障第一站） |
 | `list_workspaces` / `use_workspace` | 列出並選擇 workspace（ophion 那台跟著走） |
 | `list_views` / `get_view` | 看 view／mview 與同步狀態 |
-| `run_query` | 在 workspace 跑一段 SELECT（**需同意**） |
-| `create_view` | 建 view／mview，帶排程時一次建完 view+blueprint+schedule（**需同意**） |
+| `run_query` | 在 workspace 跑一段 SELECT 驗證 SQL，不額外逐次確認 |
+| `create_view` | 建立 view／mview 定義；manual 不額外確認，scheduled 會立即同步，**需先確認** |
 | `sync_view` | 觸發一次同步（**需同意**） |
 | `create_access_entry` | 把 view 發布成對外 Data API（**需同意**） |
 | `list_access_entries` / `get_export_url` | 看既有發布與取回 URL |
@@ -85,9 +85,26 @@ Plasma 這側再列一份表清單只會多一個會對不上的來源。
 
 ## 使用者同意
 
-`run_query`、`create_view`、`sync_view`、`create_access_entry` 由 plugin 自帶的
-`PreToolUse` hook 強制成 `ask`：**即使整台 MCP server 被加進 allowlist，這四顆
-仍然每次跳確認**，而確認框會顯示完整參數，所以按下去之前看得到要跑的 SQL。
+三份 skill 的所有進度、說明、確認與交付均使用**台灣繁體中文**。
+查找知識、查核欄位、SELECT 驗證及建立 manual mview 定義可連續完成，不逐步
+要求核准。原則上**一份表單／報表建立一個 mview**，整合所有指標與區塊，
+不因來源表不同而拆分；只有使用者明確要求才拆分。
+
+確認集中在兩個時點：
+
+1. **開始同步拉資料**：`sync_view`，或會立即同步的 scheduled `create_view`。
+   中文確認會說明：執行後就會依 SQL 從來源系統拉取資料並寫入／更新 mview，
+   使用查詢與同步資源；若有排程，也說明後續自動拉資料的頻率。
+2. **同步成功後開啟 API**：`create_access_entry`。中文確認會說明資料範圍、
+   驗證方式、有效期限與誰可以透過端點讀取資料。
+
+Claude Code 的 `PreToolUse` hook 會在上述操作回傳 `ask`，即使 MCP server
+被加入 allowlist，仍會要求確認。`run_query` 與 manual `create_view` 不由此
+hook 強制確認；宿主平台自身的工具權限仍適用。
+
+ChatGPT／Codex 匯入時，不能依賴原 hook 的 `permissionDecision: "ask"`；
+應使用宿主支援的工具確認設定。未有適用確認介面時，skill 會在同步與開 API
+前用中文取得明確同意，不在前置步驟另加確認。
 
 ## 開發
 

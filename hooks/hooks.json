@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__.*__(run_query|create_view|sync_view|create_access_entry)$",
+        "matcher": "mcp__.*__(create_view|sync_view|create_access_entry)$",
         "hooks": [
           {
             "type": "command",

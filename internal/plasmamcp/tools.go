@@ -208,7 +208,7 @@ func (s *server) register(srv *mcp.Server) {
 			"This is how you check whether a materialized view has synced.",
 	}), s.getView)
 
-	mcp.AddTool(srv, costly(&mcp.Tool{
+	mcp.AddTool(srv, readOnly(&mcp.Tool{
 		Name: "run_query",
 		Description: "Execute one SELECT against the workspace and return up to 100 rows. " +
 			"This runs on the Trino cluster, so it costs real query time.",

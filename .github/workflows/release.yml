@@ -56,7 +56,7 @@ jobs:
         run: |
           export PLASMA_PLUGIN_HOME="$RUNNER_TEMP/plasma-release-smoke"
           export PLASMA_MCP_RELEASE_DIR="$GITHUB_WORKSPACE/dist/$RELEASE_TAG"
-          printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"mcp__plasma__run_query"}' |
+          printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"mcp__plasma__sync_view"}' |
             bash bin/plasma-mcp.sh hook > "$RUNNER_TEMP/hook.json"
           python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["hookSpecificOutput"]["permissionDecision"] == "ask"' "$RUNNER_TEMP/hook.json"
       - name: Publish release
