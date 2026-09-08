@@ -28,7 +28,7 @@ import (
 )
 
 // Version is reported to the MCP client.
-const Version = "0.1.0"
+var Version = "dev"
 
 // Deps is everything the proxy needs.
 type Deps struct {

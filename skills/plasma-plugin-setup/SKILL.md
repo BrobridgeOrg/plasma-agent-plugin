@@ -1,6 +1,6 @@
 ---
 name: plasma-plugin-setup
-description: Use when the plasma or ophion MCP tools are missing, erroring, or unauthenticated — first-time setup of this plugin, "no workspace selected", 401/403 from Plasma, 404 or unreachable from Ophion, or after moving to another machine or deployment. Covers config.env, the state file, building the binary, and reading each failure.
+description: Use when the plasma or ophion MCP tools are missing, erroring, or unauthenticated — first-time setup of this plugin, "no workspace selected", 401/403 from Plasma, 404 or unreachable from Ophion, or after moving to another machine or deployment. Covers config.env, the state file, installing the release binary, and reading each failure.
 ---
 
 # Setting up and diagnosing the plugin
@@ -31,12 +31,21 @@ kubectl -n <namespace> port-forward svc/ophion 5101:5101
 Environment variables override the file, so a single session can be pointed
 elsewhere without editing it.
 
-The binary builds itself on first launch when a Go toolchain is present. To
-build it deliberately:
+The launcher downloads the exact plugin version's prebuilt binary on first
+launch, verifies SHA-256, and caches it under
+`~/.plasma-plugin/bin/v<version>/<os>-<arch>/`. Users do not need Go.
+Supported platforms are macOS/Linux, arm64/amd64 (Windows through WSL).
 
-```bash
-make -C "$CLAUDE_PLUGIN_ROOT" build
-```
+Private repository downloads require an authenticated GitHub CLI (`gh auth
+login`). Alternatively, download the matching archive and `checksums.txt`
+from the repository's GitHub Release into one directory, and launch Claude
+Code with `PLASMA_MCP_RELEASE_DIR=/absolute/path/to/that/directory` in its
+environment. This also supports offline installation. The variable is only
+needed while installing a version that is not cached yet.
+
+For local development only, run `make build` and set `PLASMA_MCP_BINARY` to
+the absolute path of `bin/plasma-plugin-mcp`. Normal startup never builds or
+implicitly uses that development binary.
 
 Then start a session and call `whoami`. It reports both endpoints, the
 authenticated user and the selected workspace — that one call is the whole
@@ -55,6 +64,8 @@ and forces a fresh login.
 
 | What you see | What it means | What to do |
 |---|---|---|
+| `Cannot download` / `Release download failed` | Release unavailable or GitHub access missing | Check access to `BrobridgeOrg/plasma-agent-plugin`, authenticate gh, or use `PLASMA_MCP_RELEASE_DIR` |
+| `Checksum mismatch` | Archive does not match the release checksums | Download both files again from the same release; do not bypass verification |
 | `no Plasma credentials` | Neither auth mode is configured | Set `PLASMA_TOKEN`, or username + password |
 | Plasma `401` after retry | Password rejected, or a static token expired | Re-check the credentials; a static token is never refreshed for you |
 | Plasma `403` | Authenticated, but not a member of this workspace | `list_workspaces` and pick one you belong to |

@@ -19,7 +19,7 @@ import (
 )
 
 // Version is reported to the MCP client.
-const Version = "0.1.0"
+var Version = "dev"
 
 // Plasma is the slice of the REST client these tools use. It is an interface
 // so the tools can be tested without a Plasma deployment.

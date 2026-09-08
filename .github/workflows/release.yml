@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version-file: go.mod
+      - name: Verify version and source
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          version = pathlib.Path('VERSION').read_text().strip()
+          assert os.environ['GITHUB_REF_NAME'] == 'v' + version
+          assert json.loads(pathlib.Path('.claude-plugin/plugin.json').read_text())['version'] == version
+          PY
+          test -z "$(gofmt -l cmd internal)"
+          go vet ./...
+          go test ./...
+          make test-launcher
+      - name: Build release assets
+        run: make release
+      - name: Smoke test packaged Linux binary
+        run: |
+          export PLASMA_PLUGIN_HOME="$RUNNER_TEMP/plasma-release-smoke"
+          export PLASMA_MCP_RELEASE_DIR="$GITHUB_WORKSPACE/dist/$GITHUB_REF_NAME"
+          printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"mcp__plasma__run_query"}' |
+            bash bin/plasma-mcp.sh hook > "$RUNNER_TEMP/hook.json"
+          python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["hookSpecificOutput"]["permissionDecision"] == "ask"' "$RUNNER_TEMP/hook.json"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/$GITHUB_REF_NAME/"* \
+            --verify-tag --title "Plasma plugin $GITHUB_REF_NAME" \
+            --notes-file "releases/$GITHUB_REF_NAME.md"
