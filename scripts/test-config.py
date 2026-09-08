@@ -105,8 +105,15 @@ class ConfigTests(unittest.TestCase):
         result = self.run_config('check')
         self.assertEqual(result.returncode, 1)
         self.assertIn('status=incomplete', result.stdout)
-        self.assertIn('OPHION_URL', result.stdout.rsplit('missing=', 1)[1])
-        self.assertIn('OPHION_SERVICE_TOKEN', result.stdout.rsplit('missing=', 1)[1])
+        self.assertIn('missing=OPHION_URL, OPHION_SERVICE_TOKEN', result.stdout)
+
+    def test_a_list_of_gaps_joins_cleanly_in_any_locale(self):
+        # `paste -d` reads its delimiter as a cyclic list, so a two-character
+        # separator alternates and a multibyte one is torn apart outside a
+        # UTF-8 locale. Four gaps are enough for both to show.
+        result = self.run_config('check', env={'LC_ALL': 'C', 'LANG': 'C'})
+        self.assertIn('missing=PLASMA_URL, Plasma credentials, OPHION_URL, '
+                      'OPHION_SERVICE_TOKEN', result.stdout)
 
     def test_half_configured_password_auth_is_incomplete(self):
         self.configure(PLASMA_URL='http://plasma.test', PLASMA_USERNAME='ops',
@@ -135,12 +142,15 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_session_start_asks_for_setup_only_while_incomplete(self):
-        result = self.run_config('session-start')
+        # The C locale is the one the hook meets on a CI runner, and the
+        # message is Chinese: it has to survive as valid UTF-8 JSON there.
+        result = self.run_config('session-start', env={'LC_ALL': 'C', 'LANG': 'C'})
         self.assertEqual(result.returncode, 0, result.stderr)
         context = json.loads(result.stdout)['hookSpecificOutput']
         self.assertEqual(context['hookEventName'], 'SessionStart')
         self.assertIn('plasma-plugin-setup', context['additionalContext'])
-        self.assertIn('PLASMA_URL', context['additionalContext'])
+        self.assertIn('缺少：PLASMA_URL、Plasma credentials、OPHION_URL、'
+                      'OPHION_SERVICE_TOKEN。', context['additionalContext'])
 
         self.complete()
         quiet = self.run_config('session-start')

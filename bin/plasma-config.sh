@@ -184,6 +184,14 @@ cmd_show() {
   done
 }
 
+# join_lines concatenates stdin with a separator. `paste -d` cannot do this:
+# POSIX makes -d a list of delimiters used cyclically, so a multi-character
+# separator alternates, and in the C locale a multibyte one is torn into
+# invalid bytes.
+join_lines() {
+  SEP="$1" awk 'NR > 1 { printf "%s", ENVIRON["SEP"] } { printf "%s", $0 } END { if (NR) print "" }'
+}
+
 # missing prints the human-readable name of everything still needed.
 missing() {
   local out=()
@@ -206,7 +214,7 @@ cmd_check() {
     return 0
   fi
   echo "status=incomplete"
-  echo "missing=$(echo "$gaps" | paste -sd ', ' -)"
+  echo "missing=$(printf '%s\n' "$gaps" | join_lines ', ')"
   return 1
 }
 
@@ -237,7 +245,7 @@ cmd_session_start() {
   [[ -n "$plugin_home" ]] || return 0
   gaps="$(missing 2>/dev/null)" || true
   [[ -n "$gaps" ]] || return 0
-  list="$(echo "$gaps" | paste -sd '、' -)"
+  list="$(printf '%s\n' "$gaps" | join_lines '、')"
   printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' \
     "plasma-plugin 尚未完成設定，缺少：${list}。使用者一旦想使用 Plasma 或 Ophion 工具，先執行 plasma-plugin-setup skill 帶他完成設定，不要先呼叫這兩台 MCP server 的工具。"
 }
