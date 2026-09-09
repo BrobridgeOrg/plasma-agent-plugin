@@ -35,6 +35,14 @@ type Plasma interface {
 		req plasmaapi.CreateAccessEntryRequest) (plasmaapi.AccessEntryCreated, error)
 	ListAccessEntries(ctx context.Context, workspace, viewID string) ([]plasmaapi.AccessEntry, error)
 	ExportURL(ctx context.Context, workspace, viewID string) (string, error)
+	ListPGConnections(context.Context, string, plasmaapi.ViewQuery) (plasmaapi.PGConnectionList, error)
+	GetPGConnection(context.Context, string, string) (plasmaapi.PGConnection, error)
+	CreatePGBlueprint(context.Context, string, plasmaapi.CreatePGBlueprintRequest) (plasmaapi.Blueprint, error)
+	ListBlueprints(context.Context, string, plasmaapi.ViewQuery) (plasmaapi.BlueprintList, error)
+	GetBlueprint(context.Context, string, string) (plasmaapi.Blueprint, error)
+	SpawnBlueprintJob(context.Context, string, string) (string, error)
+	ListBlueprintJobs(context.Context, string, string, plasmaapi.ViewQuery) (plasmaapi.JobList, error)
+	GetJob(context.Context, string, string) (plasmaapi.Job, error)
 }
 
 // Deps is everything the server needs.
@@ -51,8 +59,9 @@ type server struct {
 const instructions = `Plasma control plane for one workspace at a time.
 
 所有對使用者的進度、說明、問題與交付都使用台灣繁體中文；SQL 與識別名稱保留原樣。
-原則上一份表單／報表建立一個 mview，整合所有區塊與指標，不因來源表不同而拆分。
-只有使用者明確要求才拆成多個 mview。查找、SELECT 驗證與建立 manual mview
+資料 API 原則上一份表單／報表建立一個 mview；指定 PG 資料表則建立一個 view，
+依 view → blueprint → PG 執行。整合所有區塊與指標，不因來源表不同而拆分。
+只有使用者明確要求才拆分。查找、SELECT 驗證與建立 view 或 manual mview
 不另加逐步確認；只在開始同步拉資料及後續開啟資料 API 時確認。
 
 Start with whoami (it reports the selected workspace and both endpoints) and
@@ -67,6 +76,16 @@ run_query executes SELECT against the workspace. Plasma allows only reads and
 caps the result at 100 rows, so use it to verify the shape of a result before
 building anything on it — never as a way to move data.
 
+PG 匯出先從 Ophion overview 列出已串接 DB，反問使用者選擇 PG 連線，不自行代選。
+用 list_pg_connections／get_pg_connection 核對 DBC、database 與 schema；已明確
+選定的連線沿用，不重複問。未選定時可先查核 SQL、建立 view，不建立 blueprint。
+create_view(type=view) 省略同步與排程設定。使用 create_pg_blueprint 選取 view
+及既有 PG DBC，明確指定 table、write_mode、force_create_table；建立不執行。
+同步確認後才 spawn_blueprint_job，再以 list_blueprint_jobs 找本次新 job，用
+get_job 追蹤 completed。舊 job 的成功不代表本次結果。不要對一般 view 呼叫
+sync_view。PG 寫入模式只支援 append／overwrite／truncate，沒有 upsert；目前
+工具不設定 blueprint 排程。來源查核仍由 Ophion 提供。
+
 The path to a data API is: verify the complete form's SQL with run_query,
 create one materialized_view with sync_mode=manual, obtain confirmation in
 Taiwan Traditional Chinese that sync will start pulling source data into the
@@ -79,7 +98,7 @@ separate Chinese confirmation for API publication, its authentication and
 expiry, then create_access_entry and get_export_url. A confirmation should
 cover the actual operation once, without an extra duplicate approval round.`
 
-// NewServer builds the MCP server with all eleven tools registered.
+// NewServer builds the MCP server with all tools registered.
 func NewServer(deps Deps) *mcp.Server {
 	s := &server{deps: deps}
 	srv := mcp.NewServer(&mcp.Implementation{

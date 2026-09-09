@@ -61,6 +61,38 @@ func (h *harness) calls(path string) int {
 
 func tokenConfig() pcontext.Config { return pcontext.Config{PlasmaToken: "static-token"} }
 
+func TestCreatePlainViewRequestAndResponse(t *testing.T) {
+	harness := newHarness(t, tokenConfig())
+	harness.handler = func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, http.StatusCreated, map[string]any{
+			"view": map[string]any{"id": "v-plain", "name": "report", "type": "view", "view_sql": "SELECT 1"},
+		})
+	}
+	view, err := harness.client.CreateView(context.Background(), "ws-1", CreateViewRequest{
+		Name: "report", Type: "view", ViewSQL: "SELECT 1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.ID != "v-plain" || view.Type != "view" || view.ViewSQL != "SELECT 1" {
+		t.Fatalf("unexpected view: %+v", view)
+	}
+	if len(harness.reqs) != 1 {
+		t.Fatalf("got %d requests, want one", len(harness.reqs))
+	}
+	request := harness.reqs[0]
+	if request.method != http.MethodPost || request.path != "/apis/v1/w/ws-1/view" || request.auth != "Bearer static-token" {
+		t.Fatalf("unexpected request: %+v", request)
+	}
+	var body map[string]any
+	if err := json.Unmarshal([]byte(request.body), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["name"] != "report" || body["type"] != "view" || body["view_sql"] != "SELECT 1" || len(body) != 3 {
+		t.Fatalf("plain view body must omit sync settings: %s", request.body)
+	}
+}
+
 func passwordConfig() pcontext.Config {
 	return pcontext.Config{PlasmaUsername: "admin", PlasmaPassword: "pw"}
 }

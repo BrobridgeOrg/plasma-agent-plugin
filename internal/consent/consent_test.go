@@ -50,6 +50,7 @@ func TestSyncAndPublicationAlwaysAsk(t *testing.T) {
 	for _, tool := range []string{
 		"mcp__plugin_plasma-plugin_plasma__sync_view",
 		"mcp__plugin_plasma-plugin_plasma__create_access_entry",
+		"mcp__plugin_plasma-plugin_plasma__spawn_blueprint_job",
 	} {
 		specific := hookOutput(t, decide(t, tool))
 		if specific["permissionDecision"] != "ask" {
@@ -66,6 +67,7 @@ func TestReasonNamesTheCostOfTheSpecificTool(t *testing.T) {
 	cases := map[string]string{
 		"mcp__plugin_plasma-plugin_plasma__sync_view":           "從來源系統拉取資料",
 		"mcp__plugin_plasma-plugin_plasma__create_access_entry": "驗證方式及有效期限",
+		"mcp__plugin_plasma-plugin_plasma__spawn_blueprint_job": "使用者選定的 PG 資料表",
 	}
 	for tool, want := range cases {
 		specific := hookOutput(t, decide(t, tool))
@@ -80,6 +82,7 @@ func TestOtherToolsAreLeftAlone(t *testing.T) {
 	for _, tool := range []string{
 		"mcp__plugin_plasma-plugin_plasma__run_query",
 		"mcp__plugin_plasma-plugin_plasma__create_view",
+		"mcp__plugin_plasma-plugin_plasma__create_pg_blueprint",
 		"mcp__plugin_plasma-plugin_plasma__list_views",
 		"mcp__plugin_plasma-plugin_ophion__overview",
 		"Bash",

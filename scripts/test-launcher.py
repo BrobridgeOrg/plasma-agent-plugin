@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import tarfile
@@ -76,7 +77,8 @@ class LauncherTests(unittest.TestCase):
     def test_preparation_does_not_prompt(self):
         for tool, args in [('run_query', {'sql': 'SELECT 1'}),
                            ('create_view', {'sync_mode': 'manual'}),
-                           ('create_view', {})]:
+                           ('create_view', {}),
+                           ('create_pg_blueprint', {'view_id': 'v-1', 'dbc_id': 'dbc-1'})]:
             with self.subTest(tool=tool, args=args):
                 payload = json.dumps({'hook_event_name': 'PreToolUse',
                                       'tool_name': 'mcp__plasma__' + tool,
@@ -88,7 +90,8 @@ class LauncherTests(unittest.TestCase):
     def test_scheduled_sync_and_api_have_chinese_prompts(self):
         for tool, args, message in [
             ('create_view', {'sync_mode': 'scheduled'}, '立即開始'),
-            ('create_access_entry', {'auth_type': 'none'}, '不需驗證即可讀取')
+            ('create_access_entry', {'auth_type': 'none'}, '不需驗證即可讀取'),
+            ('spawn_blueprint_job', {'blueprint_id': 'bp-1'}, '使用者選定的 PG 資料表')
         ]:
             with self.subTest(tool=tool):
                 payload = json.dumps({'hook_event_name': 'PreToolUse',
@@ -98,6 +101,12 @@ class LauncherTests(unittest.TestCase):
                 self.assert_hook(result)
                 reason = json.loads(result.stdout)['hookSpecificOutput']['permissionDecisionReason']
                 self.assertIn(message, reason)
+
+    def test_pg_spawn_matches_confirmation_hook(self):
+        hooks = json.loads((ROOT / 'hooks/hooks.json').read_text())['hooks']['PreToolUse']
+        for name in ['mcp__plasma__spawn_blueprint_job',
+                     'mcp__plugin_plasma-plugin_plasma__spawn_blueprint_job']:
+            self.assertTrue(any(re.search(hook['matcher'], name) for hook in hooks))
 
     def test_missing_checksum_is_rejected(self):
         (self.release / 'checksums.txt').write_text('')

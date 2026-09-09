@@ -43,8 +43,10 @@ const instructions = `Read-only knowledge about how one data system was designed
 for the workspace currently selected in the plasma server.
 
 所有對使用者的進度、說明與結果都使用台灣繁體中文。查找與欄位查核可連續執行，
-不要逐步要求核准；釐清缺少的必要資訊即可。一份表單原則上對應一個 mview，
-跨表或跨概念的知識應支援同一份完整結果，不要自行拆成多個 mview。
+不要逐步要求核准；釐清缺少的必要資訊即可。一份表單原則上對應一個完整結果，
+資料 API 使用 mview，指定 PG 資料表則使用 view → blueprint → PG，不自行拆分。
+PG 連線先從 overview 的已串接 DB 清單整理選項，反問使用者選擇，不能自行代選；
+再由 Plasma 工具核對實際 DBC、database 與 schema。既有明確選擇不重複問。
 
 Switch workspaces with the plasma server's use_workspace: the next call here
 follows it. Every answer states the workspace it came from — check that line

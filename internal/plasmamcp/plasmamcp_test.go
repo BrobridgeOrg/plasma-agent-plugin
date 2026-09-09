@@ -36,6 +36,11 @@ type fakePlasma struct {
 	syncedView       string
 	viewQuery        plasmaapi.ViewQuery
 	calls            int
+	connection       plasmaapi.PGConnection
+	blueprint        plasmaapi.Blueprint
+	job              plasmaapi.Job
+	createdBlueprint *plasmaapi.CreatePGBlueprintRequest
+	spawnedBlueprint string
 }
 
 func (f *fakePlasma) BaseURL() string { return "http://plasma.test" }
@@ -193,6 +198,8 @@ func TestToolListCoversTheDocumentedSurface(t *testing.T) {
 		"whoami", "list_workspaces", "use_workspace", "list_views", "get_view",
 		"run_query", "create_view", "sync_view", "create_access_entry",
 		"list_access_entries", "get_export_url",
+		"list_pg_connections", "get_pg_connection", "create_pg_blueprint", "list_blueprints",
+		"get_blueprint", "spawn_blueprint_job", "list_blueprint_jobs", "get_job",
 	}
 	for _, name := range want {
 		if !got[name] {
@@ -215,13 +222,14 @@ func TestToolAnnotationsDistinguishQueriesFromMutations(t *testing.T) {
 	for _, tool := range res.Tools {
 		readOnly[tool.Name] = tool.Annotations != nil && tool.Annotations.ReadOnlyHint
 	}
-	for _, name := range []string{"create_view", "sync_view", "create_access_entry"} {
+	for _, name := range []string{"create_view", "sync_view", "create_access_entry", "create_pg_blueprint", "spawn_blueprint_job"} {
 		if readOnly[name] {
 			t.Errorf("%s is marked read-only; it changes state or exposes data", name)
 		}
 	}
 	for _, name := range []string{"whoami", "list_workspaces", "list_views", "get_view",
-		"list_access_entries", "get_export_url", "run_query"} {
+		"list_access_entries", "get_export_url", "run_query", "list_pg_connections", "get_pg_connection",
+		"list_blueprints", "get_blueprint", "list_blueprint_jobs", "get_job"} {
 		if !readOnly[name] {
 			t.Errorf("%s should be marked read-only", name)
 		}
@@ -433,6 +441,51 @@ func TestCreateViewRejectsAnUnknownType(t *testing.T) {
 	}
 	if plasma.calls != 0 {
 		t.Errorf("%d Plasma calls made, want none", plasma.calls)
+	}
+}
+
+func TestCreatePlainViewOmitsSyncSettings(t *testing.T) {
+	for _, mode := range []string{"", "manual"} {
+		t.Run("mode="+mode, func(t *testing.T) {
+			plasma := &fakePlasma{view: plasmaapi.View{ID: "v-plain", Type: "view"}}
+			session := newSession(t, plasma, selectedState())
+			result := session.call("create_view", map[string]any{
+				"name": "report", "type": "view", "view_sql": " SELECT 1 ", "sync_mode": mode,
+			})
+			if result.IsError {
+				t.Fatalf("create view: %s", text(t, result))
+			}
+			if plasma.createdView == nil {
+				t.Fatal("view was not created")
+			}
+			request := plasma.createdView
+			if request.Type != "view" || request.ViewSQL != "SELECT 1" || request.SyncMode != "" || len(request.SchedulerSettings) != 0 {
+				t.Fatalf("unexpected view request: %+v", request)
+			}
+			var output createViewOutput
+			structured(t, result, &output)
+			if output.View.ID != "v-plain" || !strings.Contains(output.NextStep, "blueprint") || strings.Contains(output.NextStep, "last_sync_status") {
+				t.Fatalf("unexpected view output: %+v", output)
+			}
+			if plasma.calls != 1 || plasma.syncedView != "" {
+				t.Fatalf("view creation must not trigger sync: calls=%d, synced=%q", plasma.calls, plasma.syncedView)
+			}
+		})
+	}
+}
+
+func TestCreatePlainViewRejectsMviewScheduling(t *testing.T) {
+	for _, settings := range []map[string]any{
+		{"sync_mode": "scheduled"},
+		{"scheduler_settings": map[string]any{"frequency": "repeat"}},
+	} {
+		plasma := &fakePlasma{}
+		session := newSession(t, plasma, selectedState())
+		settings["name"], settings["type"], settings["view_sql"] = "report", "view", "SELECT 1"
+		result := session.call("create_view", settings)
+		if !result.IsError || plasma.calls != 0 {
+			t.Fatalf("scheduling a plain view must fail before calling Plasma: %+v", result)
+		}
 	}
 }
 

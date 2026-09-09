@@ -6,7 +6,7 @@
     {
       "name": "plasma-plugin",
       "source": "./",
-      "description": "Plasma control plane + Ophion knowledge, as two MCP servers and three skills."
+      "description": "Plasma 操作工具與 Ophion 知識，包含兩台 MCP server 與四份 skill，支援資料 API 及 view → blueprint → PG 匯出。"
     }
   ]
 }

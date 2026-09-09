@@ -1,69 +1,63 @@
 ---
 name: ophion-knowledge-lookup
 description: >-
-  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，支援一份表單建立一個 mview。
+  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，支援資料 API 或 view → blueprint → PG 流程。
 ---
 
-# Reading Ophion's knowledge
+# 查找與判讀 Ophion 知識
 
 ## 共通互動原則
 
-- 所有對使用者的回覆都使用**台灣繁體中文**，包含進度、問題、結果、錯誤說明、確認文字及交付說明。工具名稱、SQL、欄位名稱、URL 與需忠實引用的原文保留原樣，並以台灣繁體中文解釋。
-- 在使用者已交付的任務範圍內，連續完成知識查找、欄位查核、SQL 驗證及不會啟動同步的 mview 建立；報告進度即可，不要每完成一步就問「是否繼續」。只有缺少會影響正確性的必要資訊時才釐清，釐清不等於每一步都要核准。
-- 確認集中在兩個執行時點：**開始同步拉資料**，以及同步成功後**開啟資料 API**。每次以中文清楚說明具體影響；同一動作不要先在對話問一次、又重複要求一次工具確認。若宿主提供符合需求的確認介面，使用該介面；否則以中文取得明確同意後再呼叫工具。
-- **原則上一份表單／報表建立一個 mview。** 不因不同區塊、指標、頁籤或來源表就拆成多個 mview；只有使用者明確要求拆分，才改變這個原則。
+- 所有進度、問題、結果、錯誤與交付均使用台灣繁體中文；系統功能名稱如 view、
+  mview、blueprint、workspace、PG，以及工具名稱、SQL、欄位名稱與 URL 保留原樣。
+- 在已交付範圍內連續完成知識查找、欄位查核及 SQL 驗證，不逐步詢問是否繼續。
+  只釐清影響正確性的必要資訊，查到假設時標明並納入最後同步確認。
+- 以整份表單為查找單位，不因區塊、指標或來源表不同而自行拆分交付物。
+  資料 API 由 `plasma-data-api` 建立一個 mview；指定 PG 資料表由
+  `plasma-postgres-export` 建立一個 view，再透過 blueprint 匯出。
 
-Ophion holds conclusions about **how a data system was designed** — table and
-column meaning, business rules, value meanings, derivations, quality traps,
-design intent. It holds **no rows**. Any question about a specific record's
-value cannot be answered here; say so instead of inferring one.
+Ophion 保存來源系統的設計知識：資料表與欄位意義、業務規則、代碼、推導、
+品質陷阱及設計意圖，**不保存實際資料列**。特定紀錄的數值不能從設計知識猜測。
 
-The tools always answer for the workspace currently selected in the plasma
-server, and every answer states it. Check that line.
+工具使用 Plasma 目前選定的 workspace，每次回覆都標示範圍，必須核對。
+彙整整份表單所有欄位／指標的來源、粒度、關聯與規則，供後續組成一份完整 SQL。
+多個來源或概念不代表要建立多個 view／mview。
 
-以使用者交付的整份表單為查找範圍，整理所有欄位／指標的來源、粒度、關聯與
-規則，交給 `plasma-data-api` 組成一份 SQL、一個 mview。查到多張來源表或不同
-概念，不代表要拆成多個 mview。知識不足時明列缺口；候選推導必須標成假設，
-可先驗證並納入最後同步確認，不要每讀一張卡片或發現一條規則就要求核准。
+## 查找順序
 
-## Order of operations
+1. `overview`：先掌握資料庫、主要概念與規模，再用這個 workspace 的詞彙搜尋。
+2. `search_knowledge`：使用需求中的概念，閱讀回傳內容，不只看標題。
+3. `find_tables`／`get_table_card`／`list_columns`：找到承載概念的資料表，
+   查核卡片上的陷阱。卡片是索引，相關 `ku_id` 要以 `get_knowledge_unit` 展開。
+4. `get_column_card`：逐欄查核型別、意義、空值、來源註解、知識與值域。
+   概念上的規則另用 `find_concepts`／`get_concept_card` 查核，不可省略。
+5. `get_value_domain`／`search_value_candidates`／`plan_value_filter`：
+   代碼欄位的篩選必須查明值域，不從欄位名稱或代碼外觀手寫條件。
+6. `trace_lineage`：查看衍生數值依賴的來源。
+7. `read_source`：需要原始措辭或定義時閱讀來源。
 
-1. **`overview`** — the databases, the main concepts, the scale. Do this
-   before searching, so you know what vocabulary this workspace uses.
-2. **`search_knowledge`** — the concept in the user's words. Read the returned
-   units, not just their titles.
-3. **`find_tables` / `get_table_card` / `list_columns`** — narrow to the
-   relations that carry it. The table card is where the traps live.
-4. **`get_value_domain` / `search_value_candidates` / `plan_value_filter`** —
-   any time a filter touches a coded column. Do not hand-write a code
-   predicate from a column name.
-5. **`trace_lineage`** — when the number is derived, to see what feeds it.
-6. **`read_source`** — when you need the original wording behind a claim.
+## 判讀結果
 
-## Judging what comes back
+- **`access_mode` 決定能否在 SQL 引用來源。** `direct` 使用原樣 `sql_name`；
+  `definition_required` 表示有宣告但尚未部署，先讀 `declaration_source_refs`，
+  不可放進 FROM／JOIN；`blocked` 表示宣告與目錄有衝突，解決前不產生依賴它的 SQL。
+- **資料血緣只代表依賴，不是完整運算式。** 不宣稱能單靠血緣重建定義。
+- **每項事實保留證據**，包含來源位置與信心分數。將用於操作的答案需引用來源；
+  `authority=user_qa` 是經人工裁定的答案，優先於一般來源。
+- **缺漏也是查核結果。** 沒有欄位知識時明說來源未涵蓋，不從名稱補上猜測。
+  搜尋未命中與知識清單沒有紀錄不同；某類陷阱未記錄不等於資料沒有風險。
+- 查到陷阱時先向使用者說明影響與證據，再落實到 SQL；不逐張卡片要求核准。
 
-- **`access_mode` decides whether you may name a relation in SQL.**
-  `direct` — use `sql_name`. `definition_required` — the workspace declares it
-  but it is not deployed: never put it in `FROM`/`JOIN`; read
-  `declaration_source_refs` for the definition. `blocked` — a declared-vs-
-  catalog conflict is open; generate no SQL until it is resolved.
-- **Lineage is dependencies, not the expression.** It tells you what a
-  relation reads, never the full SQL. Do not claim you can reconstruct a
-  definition from lineage alone.
-- **Provenance travels with every fact** (`file:line`, a confidence score).
-  Cite it when the answer will be acted on. `authority=user_qa` marks a
-  human-adjudicated answer and outranks ordinary source material.
-- **Absence is a finding.** If the graph has nothing on a column, report that
-  the source material does not cover it. Do not fill the gap from the column's
-  name, and do not present a guess as knowledge.
+完整的逐欄查核、概念規則、無單一來源時的推導順序與 Trino 驗證方式，
+依 [資料 API 技能的步驟 1–6](../plasma-data-api/SKILL.md) 執行。
+PG 流程只共用這些查核步驟，不接續建立 mview 或發布 API。
 
-## When knowledge tools are missing or failing
+## 工具缺少或失敗
 
-Call `ophion_context`. It reports the workspace being read and whether Ophion
-answers. Three failures mean different things:
+呼叫 `ophion_context`，確認 workspace 與 Ophion 狀態：
 
-- **no workspace selected** → use the plasma server's `use_workspace`;
-- **404 / no published knowledge** → this workspace has no generation
-  published yet; there is nothing to read, which is not a configuration error;
-- **unreachable** → Ophion's query-mcp is a cluster-internal API; a
-  workstation usually needs a port-forward. See `plasma-plugin-setup`.
+- 未選 workspace：使用 Plasma 的 `use_workspace`。
+- `404`／`no published knowledge`：尚無已發布知識版本，需先產生並發布，
+  不是設定錯誤。
+- 無法連線：Ophion 的 query-mcp 是叢集內部 API，工作站通常需要連接埠轉送。
+  依 `plasma-plugin-setup` 排查。

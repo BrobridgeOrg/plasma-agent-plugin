@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "mcp__.*__(create_view|sync_view|create_access_entry)$",
+        "matcher": "mcp__.*__(create_view|sync_view|create_access_entry|spawn_blueprint_job)$",
         "hooks": [
           {
             "type": "command",

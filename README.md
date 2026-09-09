@@ -2,8 +2,20 @@
 
 一個 Claude Code plugin：**用 Ophion 的知識操作 Plasma**。
 
-含兩台 MCP server 與三份 skill，目標情境是「客戶說我想要這些資料的 API」——
-從找來源、驗 SQL、建 materialized view，一路做到交出可呼叫的 Data API。
+含兩台 MCP server 與四份 skill，支援資料 API 與指定 PG 資料表兩種交付方式：
+資料 API 使用 mview；PG 匯出依 view → blueprint → PG 執行。
+
+- `plasma-plugin-setup`：連線設定與診斷。
+- `ophion-knowledge-lookup`：查核來源、欄位與業務規則。
+- `plasma-data-api`：建立 mview、同步並發布資料 API。
+- `plasma-postgres-export`：建立 view，供 blueprint 選取後匯出至指定 PG 資料表。
+
+Go 工具 `create_view(type=view)` 建立一般 view 定義，不帶 mview 同步設定。
+PG 連線先從 Ophion MCP 的已串接 DB 清單整理選項，反問使用者選擇，再核對 Plasma
+DBC。`create_pg_blueprint` 綁定 view 與所選 PG DBC，建立後不執行；確認同步後使用
+`spawn_blueprint_job`，再透過 jobs 工具追蹤本次結果。支援 `append`、`overwrite`、
+`truncate`，沒有 upsert；資料庫與 schema 沿用 DBC。新工具提供單次執行，尚未封裝
+blueprint 排程或直接查詢 PG 資料內容。
 
 ```text
 Claude Code
@@ -100,7 +112,7 @@ kubectl -n <namespace> port-forward svc/ophion 5101:5101
 
 ## 工具
 
-**plasma（11 顆）**
+**plasma（19 顆）**
 
 | 工具 | 用途 |
 |---|---|
@@ -108,10 +120,15 @@ kubectl -n <namespace> port-forward svc/ophion 5101:5101
 | `list_workspaces` / `use_workspace` | 列出並選擇 workspace（ophion 那台跟著走） |
 | `list_views` / `get_view` | 看 view／mview 與同步狀態 |
 | `run_query` | 在 workspace 跑一段 SELECT 驗證 SQL，不額外逐次確認 |
-| `create_view` | 建立 view／mview 定義；manual 不額外確認，scheduled 會立即同步，**需先確認** |
+| `create_view` | `type=view` 建立一般 view，省略同步／排程設定；mview 的 manual 不額外確認，scheduled 會立即同步，**需先確認** |
 | `sync_view` | 觸發一次同步（**需同意**） |
 | `create_access_entry` | 把 view 發布成對外 Data API（**需同意**） |
 | `list_access_entries` / `get_export_url` | 看既有發布與取回 URL |
+| `list_pg_connections` / `get_pg_connection` | 核對使用者選定的既有 PG DBC、database 與 schema，不回傳密碼 |
+| `create_pg_blueprint` | 綁定來源 view、所選 PG DBC、目標表與明確寫入模式，不啟動同步 |
+| `list_blueprints` / `get_blueprint` | 搜尋與核對 blueprint、目的地及最近 job 狀態 |
+| `spawn_blueprint_job` | 執行 view → blueprint → PG（**需同意**），回傳受理訊息 |
+| `list_blueprint_jobs` / `get_job` | 找出本次新 job 並追蹤執行結果，不將舊成功當成這次成功 |
 
 沒有 `list_tables`：能不能查、怎麼查是 Ophion 帶 `access_mode` 的權威判斷，
 Plasma 這側再列一份表清單只會多一個會對不上的來源。
@@ -120,9 +137,9 @@ Plasma 這側再列一份表清單只會多一個會對不上的來源。
 
 ## 使用者同意
 
-三份 skill 的所有進度、說明、確認與交付均使用**台灣繁體中文**。
+四份 skill 的所有進度、說明、確認與交付均使用**台灣繁體中文**，保留系統功能英文名稱。
 查找知識、查核欄位、SELECT 驗證及建立 manual mview 定義可連續完成，不逐步
-要求核准。原則上**一份表單／報表建立一個 mview**，整合所有指標與區塊，
+要求核准。資料 API 原則上**一份表單／報表建立一個 mview**，PG 匯出則建立一個 view，整合所有指標與區塊，
 不因來源表不同而拆分；只有使用者明確要求才拆分。
 
 確認集中在兩個時點：
@@ -130,6 +147,8 @@ Plasma 這側再列一份表清單只會多一個會對不上的來源。
 1. **開始同步拉資料**：`sync_view`，或會立即同步的 scheduled `create_view`。
    中文確認會說明：執行後就會依 SQL 從來源系統拉取資料並寫入／更新 mview，
    使用查詢與同步資源；若有排程，也說明後續自動拉資料的頻率。
+   PG 匯出則在 `spawn_blueprint_job` 前確認 view、使用者選定的 PG 連線、目標表與
+   寫入模式；`overwrite` 可能刪表重建，`truncate` 會清空既有資料，需一併說明。
 2. **同步成功後開啟 API**：`create_access_entry`。中文確認會說明資料範圍、
    驗證方式、有效期限與誰可以透過端點讀取資料。
 

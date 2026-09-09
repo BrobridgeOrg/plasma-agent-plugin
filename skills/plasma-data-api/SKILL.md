@@ -1,10 +1,10 @@
 ---
 name: plasma-data-api
 description: >-
-  當使用者想把表單、報表、BI 畫面或指定指標做成 Plasma 資料 API 時使用。以 Ophion 查核來源與定義，驗證 Trino SQL，原則上一份表單建立一個 mview；全程使用台灣繁體中文，只在開始同步拉資料及後續開啟 API 時確認，最後交付 URL、驗證方式與有效期限。
+  當使用者想把表單、報表、BI 畫面或指定指標做成 Plasma 資料 API 時使用。以 Ophion 查核來源與定義，驗證 Trino SQL，原則上一份表單建立一個 mview；全程使用台灣繁體中文，只在開始同步拉資料及後續開啟 API 時確認，最後交付 URL、驗證方式與有效期限。直接寫入 PG 指定資料表時改用 plasma-postgres-export。
 ---
 
-# From "I want an API" to a callable endpoint
+# 從資料需求建立可呼叫的 API
 
 ## 共通互動原則
 
@@ -13,174 +13,98 @@ description: >-
 - 確認集中在兩個執行時點：**開始同步拉資料**，以及同步成功後**開啟資料 API**。每次以中文清楚說明具體影響；同一動作不要先在對話問一次、又重複要求一次工具確認。若宿主提供符合需求的確認介面，使用該介面；否則以中文取得明確同意後再呼叫工具。
 - **原則上一份表單／報表建立一個 mview。** 不因不同區塊、指標、頁籤或來源表就拆成多個 mview；只有使用者明確要求拆分，才改變這個原則。
 
-The person asking usually knows the numbers they want and nothing about the
-schema. They should not have to. Your job is to find the data, prove the SQL
-produces what they described, and hand back an endpoint.
+使用者不需要熟悉資料結構。協助找到來源、驗證 SQL 符合整份需求，再交付端點。
+若目標是直接寫入 PostgreSQL 指定資料表，改用 `plasma-postgres-export` 的 view → blueprint → PG 流程。
 
-全程以台灣繁體中文協作，依上述共通互動原則執行。
+## 執行流程
 
-## The path
+1. **理解完整指標與表單。** 整理欄位、指標、粒度（每日、每位病人、每間門市等）、
+   期間與篩選。截圖或表單可作為規格：閱讀標籤與區塊，以中文說明理解後繼續，
+   只釐清影響結果的必要缺漏。
 
-1. **Understand the metric.** What number, at what grain (per day? per
-   patient? per store?), over what period, filtered how. A screenshot or form
-   counts as the spec: read its labels, sections and filters, then explain your
-   interpretation in Taiwan Traditional Chinese and continue. Ask only for
-   missing information that materially changes the result; do not require
-   approval of an otherwise clear reading.
+   一份表單原則上建立一個 mview。用一份完整 SQL 整合所有區塊，可用 CTE、
+   JOIN、條件聚合或語意一致的 UNION ALL。不要另建中繼 mview，也不要用會
+   重複計算的 JOIN 硬湊。確實無法整合時說明限制並釐清，不自行拆分或省略欄位。
 
-   **一份表單就是一個交付單位，原則上只建立一個 mview。** 先列出整份表單的
-   欄位、指標、篩選與資料粒度，再設計一份完整 SQL。多張來源表可用 CTE、
-   JOIN、條件聚合或語意一致的 UNION ALL 組合；不要為了方便開發或對應每個
-   表單區塊建立多個 mview，也不要額外建立中繼 mview。整合時必須保留正確
-   粒度，不能用會重複計算的 JOIN 硬湊。若確實無法正確整合，說明具體限制並
-   釐清需求，不得自行拆分或省略表單欄位。
+2. **只從 Ophion 查找來源。** SQL 使用的每個來源表與欄位都必須由 Ophion 查得，
+   不可從名稱、截圖或其他場域的經驗猜測。依序使用 `overview` →
+   `search_knowledge`（多個同義詞以 OR 搜尋）→ `find_tables` →
+   `get_table_card` → `list_columns`。
 
-2. **Find the data in Ophion — and nowhere else.** Every table and column
-   that ends up in your SQL must be one you found through the ophion tools.
-   If Ophion does not have it, you may not use it: not from a name that looks
-   right, not from a label on their screenshot, not from how the same system
-   looked at another site. Work outward: `overview` → `search_knowledge` (pass
-   several synonyms; it ORs them) → `find_tables` → `get_table_card` →
-   `list_columns`.
+   卡片是索引，不是完整證據。`get_table_card` 與 `get_concept_card` 回傳的
+   相關 `ku_id` 都要用 `get_knowledge_unit` 展開後才可引用或採用。
+   `found=false` 時依 `suggestions` 改換詞彙；兩三組不同詞彙都未命中，
+   就明列知識缺口並進入步驟 4，不重複相同搜尋或自行補上猜測。
 
-   Two things about the cards, both load-bearing:
-   - **A card is an index, not the evidence.** `get_table_card` and
-     `get_concept_card` hand you one line plus a `ku_id` per fact. Fetch every
-     relevant `ku_id` with `get_knowledge_unit` before you build on it, and
-     never quote a card summary as the rule.
-   - **A miss is an answer.** `found=false` comes with `suggestions` — pivot on
-     those rather than retrying the same string. When two or three different
-     vocabularies all miss, treat it as "this workspace does not hold it" and
-     go to step 4. Do not fill the hole yourself.
+3. **逐欄查核後才寫入 SQL。** 對每個 `database.table.column` 呼叫
+   `get_column_card`，檢查型別、可否為空值、意義、來源註解、分層知識與
+   每個 `unit_type` 的數量、綁定值域，以及來源的 `access_mode`、`sql_name`。
 
-3. **Clear every column before it enters the SQL.** One call per column does
-   it: `get_column_card` with `database.table.column` returns the column's
-   type, nullability, best meaning, the source database's own comment, every
-   knowledge unit anchored on it (by layer, with a per-`unit_type` count), the
-   **value domains bound to it**, and its carrier relation's `access_mode` and
-   `sql_name`.
-
-   The wider views, when you want them:
-
-   | Want | Call |
+   | 查核需求 | 工具與判讀 |
    |---|---|
-   | Everything known about a table *and its columns*, by unit type | `list_units` with `subject=database.table` (add `exclude_columns=true` for the relation alone) |
-   | One type's units for that subject | the same call plus `unit_type=…` — `antipattern_trap`, `data_quality_issue`, `validity_rule` are the ones that change a `WHERE` |
-   | Whether the relation may be named in SQL at all | `get_table_card` → `access_mode`; `definition_required` and `blocked` never enter `FROM`/`JOIN` |
-   | Whether anything is contested | `list_conflicts` — cards only count conflicts |
+   | 資料表與欄位的各類知識 | `list_units(subject=database.table)`；只查資料表加 `exclude_columns=true` |
+   | 特定類型知識 | 加 `unit_type`，特別查 `antipattern_trap`、`data_quality_issue`、`validity_rule` |
+   | 是否可在 SQL 引用 | `get_table_card` 的 `access_mode`；`direct` 使用原樣 `sql_name`；`definition_required` 先讀 `declaration_source_refs`，不得放進 FROM／JOIN；`blocked` 解決衝突前不產生依賴它的 SQL |
+   | 實際衝突內容 | `list_conflicts`；卡片只列數量 |
 
-   Three things about reading these answers:
+   某類知識未記錄，只代表該主體沒有這類紀錄；「未記錄陷阱」不等於「沒有風險」。
+   綁定值域表示欄位使用代碼，所有篩選值都要經 `search_value_candidates` →
+   `plan_value_filter` 解析，不手填猜測的代碼。
 
-   - **A `unit_type` missing from a subject's inventory means the graph holds
-     no such knowledge *for that subject*.** That is a real answer — say which
-     you got: "no traps recorded for this column" is not "this column is
-     safe".
-   - **A bound value domain means the column is coded.** Its stored values are
-     not the meanings they look like; resolve every literal through
-     `search_value_candidates` → `plan_value_filter`, never by hand.
-   - **Knowledge can be mounted on a concept instead of a table or column, and
-     then the subject axis cannot see it.** In one real workspace a dozen
-     `antipattern_trap` units were anchored to concepts. So `find_concepts` →
-     `get_concept_card` for the metric's concepts is part of clearing a
-     column, not an optional extra.
+   概念上的知識不會出現在資料表／欄位查詢，必須再用 `find_concepts` →
+   `get_concept_card` 查核指標概念。採用欄位前先向使用者說明所有已發現陷阱
+   與來源證據，不另加逐項核准。每筆 `search_knowledge` 結果的 `subject`
+   是實際主體，`about` 是彙整的資料表頁面，可直接據此前往欄位卡片。
 
-   Report every trap you find to the person, with its provenance, **before**
-   you build on that column. A trap you found and did not mention becomes
-   their wrong dashboard.
+4. **無法由單一資料表回答時，依序處理。**
+   - 先查既定規則：各資料表以 `list_units(subject=database.table)` 逐類查
+     `business_rule`、`validity_rule`、`state_machine`、`event_lifecycle`，
+     再讀概念卡片。`governed_by` 包含概念本身及 `SAME_AS`、
+     `NORMALIZES_TO` 相關概念的規則。最後才用關鍵字擴大搜尋，不能只查關鍵字。
+     命中均用 `get_knowledge_unit` 展開；有規則就忠實實作並引用。
+   - 無規則但已查核欄位足夠時，提出明確標示為候選的推導，以中文說明欄位、
+     關聯、篩選及假設，不宣稱為 Ophion 規則。可繼續驗證 SQL，不另加核准；
+     定義與驗證結果放入最後同步確認，明確接受後才同步。有互斥解讀或必要
+     資訊不足時先釐清。
+   - 缺少必要資料時，列出指標需要的事實、應由哪個資料表／欄位承載、搜尋
+     詞彙與知識類型，以及未命中的結果。區分「Ophion 尚未收錄」與「來源
+     系統沒有記錄」。提出補入人工裁定知識、調整為資料可支援的指標或補充來源，
+     不交付看似合理的近似結果。
 
-   You do not need an extra lookup to know which column a keyword hit belongs
-   to: every `search_knowledge` hit carries `subject` (its precise anchor) and
-   `about` (the relation page it was lifted to), so a hit feeds straight into
-   `get_column_card`.
+5. **只使用 Trino SQL。** Plasma 透過 Trino 查詢，目的地不改變來源方言。
+   識別名稱採兩段式 `database.table`，workspace 已提供 catalog 範圍；
+   原樣使用 Ophion 的 `sql_name`，不重建來源路徑。一般 snake_case 名稱不需
+   引號；保留字或特殊字元用雙引號包住單一識別名稱，不包住整段含點號路徑。
+   字串使用單引號。
 
-4. **When no single table answers it, climb this ladder in order.** Do not
-   skip a rung, and do not jump to inventing SQL.
+   將步驟 3 的資料品質排除條件落實於 WHERE，不能只在對話提醒。
+   代碼篩選使用 `plan_value_filter` 的結果。
 
-   1. **Look for a rule that already defines it.** Per table in play:
-      `list_units` with `subject=<database.table>` and
-      `unit_type=business_rule`, then the same for `validity_rule`,
-      `state_machine`, `event_lifecycle`. Then `find_concepts` →
-      `get_concept_card`, whose `governed_by` carries rules mounted on the
-      concept *and* on its `SAME_AS` / `NORMALIZES_TO` siblings — a metric's
-      definition often lives there rather than on any one table, and the
-      subject axis cannot reach it. Keyword `search_knowledge` widens the net
-      afterwards; it is never the only check. Expand every hit with
-      `get_knowledge_unit`. If a rule exists, **that rule is the definition**
-      — implement it as written and cite it. Do not improve on it.
-   2. **No rule, but the pieces are there: compose a clearly labelled candidate.**
-      Derive it only from the `table.column` you have actually cleared. Explain
-      the columns, joins, filters and assumptions in Taiwan Traditional
-      Chinese, and label the derivation as a proposal rather than an Ophion
-      rule. Continue SQL validation without a separate approval round.
-      Include the proposed definition and its validation result in the final
-      sync confirmation; do not sync it until that definition is explicitly
-      accepted there. If required facts are missing or competing meanings
-      prevent a sound candidate, ask a focused clarification instead of guessing.
-   3. **The pieces are not there: name the gap.** Say plainly:
-      - what the metric needs that the workspace does not record;
-      - which table or column would have to carry it;
-      - what you searched (terms and `unit_types`) and what came back empty —
-        so they can tell "Ophion has not learned this" from "the source system
-        does not capture it".
-
-      Then offer the real options: get the answer adjudicated into Ophion so
-      it becomes knowledge, settle for a metric the data can support, or add
-      the missing source data. **Never** close this rung by shipping a
-      plausible-looking approximation.
-
-5. **Write the SQL — Trino, and only Trino.** Plasma executes through Trino;
-   there is no other dialect and no compatibility layer. SQL that would run in
-   PostgreSQL, MySQL, SQL Server, BigQuery, Oracle or Spark and happens to
-   resemble Trino is a defect, not a near miss.
-
-   Identifiers: two-segment `database.table` — the workspace is already the
-   catalog. Copy the name from Ophion's `sql_name` exactly and never
-   reconstruct a source path. Ordinary snake_case names need no quotes;
-   double-quote a *single* identifier only when it is a reserved word or holds
-   odd characters, never a whole dotted path. Double quotes delimit
-   identifiers, single quotes string literals — never one for the other.
-
-   Carry step 3's traps into the SQL itself: a `WHERE` that excludes the
-   known-bad rows beats a note in the chat, which nobody reads again once the
-   view exists. Filters on coded columns use what `plan_value_filter`
-   returned, not codes you typed.
-
-   The Trino rules that actually bite, all of them banned in the right-hand
-   column:
-
-   | Use | Never |
+   | 使用方式 | 避免方式 |
    |---|---|
    | `CAST(x AS type)` | `x::type` |
-   | `DATE '2026-01-31'`, `TIMESTAMP '2026-01-31 10:00:00'` | a quoted date string, which is VARCHAR |
-   | `date_diff('day', a, b)` for elapsed units | `b - a` expecting a number (it yields INTERVAL) |
-   | `date_add('day', 7, x)` or an `INTERVAL` literal | `DATEADD`, `DATE_SUB`, `x + 7` |
-   | `CURRENT_DATE`, `CURRENT_TIMESTAMP` | `NOW()`, `GETDATE()`, `SYSDATE`, or those names in quotes |
-   | `\|\|` or `concat()` | `+` for strings |
-   | `IS NULL` / `IS NOT NULL` | `= NULL`, `<> NULL`, `ISNULL()`, `NVL()` |
-   | `COALESCE` | `IFNULL`, `NVL` |
-   | `approx_percentile(x, 0.5)` | `PERCENTILE_CONT`, `MEDIAN`, `APPROX_QUANTILE` |
-   | `LOWER()` on both sides for case-insensitive matching | `ILIKE` |
+   | `DATE '2026-01-31'`、`TIMESTAMP '2026-01-31 10:00:00'` | 以一般 VARCHAR 字串當日期 |
+   | `date_diff('day', a, b)` 計算經過單位 | 將 `b - a` 的 INTERVAL 當數字 |
+   | `date_add('day', 7, x)` 或 INTERVAL 常值 | `DATEADD`、`DATE_SUB`、`x + 7` |
+   | `CURRENT_DATE`、`CURRENT_TIMESTAMP` | `NOW()`、`GETDATE()`、`SYSDATE` 或加引號的名稱 |
+   | `\|\|` 或 `concat()` | 用 `+` 串接字串 |
+   | `IS NULL`、`IS NOT NULL` | `= NULL`、`<> NULL`、`ISNULL()`、`NVL()` |
+   | `COALESCE` | `IFNULL`、`NVL` |
+   | `approx_percentile(x, 0.5)` | `PERCENTILE_CONT`、`MEDIAN`、`APPROX_QUANTILE` |
+   | 兩側用 `LOWER()` 不分大小寫比對 | `ILIKE` |
    | `COUNT(DISTINCT (a, b))` | `COUNT(DISTINCT a, b)` |
-   | `row_number() OVER (...)` in a CTE, filtered outside | `LIMIT` inside a per-group ranking, `TOP`, `ROWNUM` |
-   | `LIMIT n` | `TOP n`, `FETCH FIRST`, `ROWNUM <= n` |
-   | one statement, no semicolon | a trailing `;`, two statements, `SET` / `USE` / temp tables |
+   | CTE 中用 `row_number() OVER (...)`，外層篩選 | 用 LIMIT 代替組內排名、TOP、ROWNUM |
+   | `LIMIT n` | `TOP n`、`FETCH FIRST`、`ROWNUM <= n` |
+   | 單一陳述式，不附分號 | 尾端分號、多個陳述式、SET／USE／暫存資料表 |
 
-   Integer division truncates — cast an operand to `DOUBLE` when the metric is
-   a rate or an average. Compare `DATE` with `TIMESTAMP` only with an explicit
-   cast. Every non-aggregate expression in `SELECT` must appear in `GROUP BY`.
+   整數除法會截斷小數；比率或平均值將運算元轉為 DOUBLE。DATE 與 TIMESTAMP
+   比較時明確轉型。SELECT 的非聚合運算式都需列入 GROUP BY。
+   不確定函式是否支援時，先用 `run_query` 驗證，不把猜測放入正式定義。
 
-   If you are unsure whether a function exists in Trino, do not guess it into
-   a materialized view: `run_query` it in step 6 first — a view built on a
-   non-existent function fails on every sync, not on your screen.
-
-6. **Verify with `run_query` and show your work.** Validate the complete form's
-   SQL, report representative rows and data-quality findings in Taiwan
-   Traditional Chinese, and continue without asking for per-query approval.
-   `run_query` really executes a SELECT against the source through Trino; it
-   is not a dry run. It returns at most 100 rows, so use it as a shape check,
-   never as proof that the entire dataset has only that many rows. Compare
-   the result against the requested form, grain and definitions yourself.
-   Include any step 4.2 assumptions in the final sync summary.
+6. **執行 SQL 驗證並呈現結果。** 用 `run_query` 驗證整份表單的欄位、粒度與
+   定義，中文回報代表性資料及品質問題，不逐次要求查詢核准。這會實際透過
+   Trino 查詢來源，不是模擬；最多回傳 100 列，只能作為樣本，不代表完整筆數。
+   將步驟 4 的候選假設放入最後同步摘要。SQL 驗證完成後才建立 view／mview。
 
 7. **建立一個 mview，並在開始同步時確認。**
 
@@ -216,7 +140,7 @@ produces what they described, and hand back an endpoint.
    - 驗證方式：`api_key`、`basic_auth` 或 `none`；沿用使用者已指定的選擇。
      未指定時可以提出 `api_key` 的建議，於這次確認取得同意後才採用。
      `basic_auth` 需要 `secret_key=username:password`。
-   - 有效期限：明確列出 `expires_in`；不填代表不會自動到期。未指定時於同一
+   - 有效期限：明確列出 `expires_in`；未填時由 Plasma 決定，不能假設有期限。未指定時於同一
      份確認提出期限建議或詢問必要資訊，不能默默開成永久有效。
 
    確認文字須以台灣繁體中文說明，例如：
@@ -229,41 +153,19 @@ produces what they described, and hand back an endpoint.
    不需驗證即可讀取資料」，並在同一次開 API 確認取得明確同意。
    同意同步不等於同意開 API。
 
-9. **Publish and hand over.** Only after step 8's confirmation, call
-   `create_access_entry`, then `get_export_url` if needed. Deliver in Taiwan
-   Traditional Chinese: the URL, authentication details, expiry, a usable
-   `curl` example, connection instructions for the user's tool, and the
-   single backing mview with its refresh behavior. Retrieving an existing URL
-   does not require another publication confirmation. Keep API keys out of
-   repository files and shared progress logs.
+9. **發布並交付。** 完成步驟 8 的確認後呼叫 `create_access_entry`，必要時再用
+   `get_export_url`。以中文交付 URL、驗證資訊、有效期限、可用的 `curl` 範例、
+   使用者工具的連線方式，以及單一 mview 和更新方式。取回既有 URL 不需重新
+   確認發布；金鑰不得寫入儲存庫或共用進度紀錄。
 
-## Rules
+## 必須遵守的界線
 
-- **Ophion is the only admissible source.** A table or column that Ophion did
-  not give you does not go into SQL, however obvious it looks.
-- **Column clearance (step 3) is not optional.** `get_column_card` is one
-  call; skipping it to save a call is how a query that runs returns the wrong
-  number.
-- **Concept-anchored knowledge needs the concept card.** The table/column axis
-  cannot see it, so a clean column card is not a clean bill of health on its
-  own.
-- **"Search found nothing" and "the KB holds none of these" are different
-  answers.** Only the inventory count tells them apart; say which one you got.
-- **推導假設要在最後同步確認中取得明確同意。** 不增加步驟 4.2 的獨立確認關卡，
-  也不能把未確認假設當成既定規則同步成正式資料。
-- **A gap gets named, not filled.** "I could not find how this is derived, and
-  here is what I searched" is a real answer; an invented composition is not.
-- **No materialized view on unverified SQL.** Step 6 comes before step 7,
-  every time.
-- **`auth_type=none` 必須在開 API 的那次確認取得明確同意**，交付時再說明免驗證。
-- **一份表單／報表原則上對應一個 mview。** 不因指標、區塊或來源表數量拆分，
-  不用多個中繼 mview 代替一份完整結果；只有使用者明確要求才拆分。
-- **只在同步與開 API 的執行時點要求操作確認。** 不在查找、欄位查核、SELECT
-  驗證、建立 manual mview、輪詢狀態或取回既有 URL 時另加確認關卡。
-  宿主平台另有權限要求時照其介面處理，不宣稱 skill 可以繞過平台限制。
-- **Never present a 100-row sample as the answer.** It is on Plasma's ceiling.
-- **Trino only.** No `::`, no `NOW()`, no `ILIKE`, no `NVL`, no `TOP` — see the
-  table in step 5. Another dialect's syntax is a defect even when it parses.
-- One workspace at a time. Every tool answer names the workspace it used —
-  if that is not the one you meant, switch with `use_workspace` rather than
-  reinterpreting the result.
+- Ophion 是唯一來源依據，逐欄查核與概念查核不可省略；保留來源證據。
+- 搜尋未命中與知識清單沒有紀錄不同，明列缺口，不自行補造。
+- 候選推導在最後同步確認中接受，不另加獨立關卡，也不當成既定規則。
+- 原則上一份表單一個 mview，只在使用者明確要求時拆分。
+- 只在同步及開 API 時確認，不在查找、SELECT 驗證、建立手動 mview、
+  輪詢或取得既有 URL 時另加確認；宿主權限仍適用。
+- `auth_type=none` 必須在開 API 確認時取得明確同意，交付再說明免驗證。
+- 一次使用一個 workspace，檢查每筆回應標示；不符時用 `use_workspace` 切換。
+- 不把 100 列樣本當完整結果，不以其他 SQL 方言替代 Trino。

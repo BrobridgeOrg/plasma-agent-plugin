@@ -4,21 +4,26 @@ description: >-
   安裝完 plasma-plugin 後的第一件事，以及日後 Plasma 或 Ophion MCP 工具缺少、連線失敗或驗證失敗時使用。提供兩條設定路線：逐步問答直接寫入 config.env，或告知設定檔路徑由使用者自行填寫；另處理狀態檔、預編譯執行檔與錯誤診斷，並說明同步與開 API 的確認時點。全程台灣繁體中文。
 ---
 
-# Setting up and diagnosing the plugin
+# 設定與診斷外掛
 
 ## 共通互動原則
 
 - 所有對使用者的回覆都使用**台灣繁體中文**，包含進度、問題、結果、錯誤說明、確認文字及交付說明。工具名稱、SQL、欄位名稱、URL 與需忠實引用的原文保留原樣，並以台灣繁體中文解釋。
 - 在使用者已交付的任務範圍內，連續完成知識查找、欄位查核、SQL 驗證及不會啟動同步的 mview 建立；報告進度即可，不要每完成一步就問「是否繼續」。只有缺少會影響正確性的必要資訊時才釐清，釐清不等於每一步都要核准。
 - 確認集中在兩個執行時點：**開始同步拉資料**，以及同步成功後**開啟資料 API**。每次以中文清楚說明具體影響；同一動作不要先在對話問一次、又重複要求一次工具確認。若宿主提供符合需求的確認介面，使用該介面；否則以中文取得明確同意後再呼叫工具。
-- **原則上一份表單／報表建立一個 mview。** 不因不同區塊、指標、頁籤或來源表就拆成多個 mview；只有使用者明確要求拆分，才改變這個原則。
+- 資料 API 原則上一份表單建立一個 mview；指定 PG 資料表則使用 `plasma-postgres-export`，依 view → blueprint → PG 執行，不因不同區塊或來源自行拆分。
 
-安裝完 plugin 後，**這份 skill 是第一件該做的事**。設定沒完成之前，Plasma 與
+PG 匯出先從 Ophion 的已串接 DB 清單整理候選，反問使用者選擇 PG 連線，再用
+`list_pg_connections`／`get_pg_connection` 核對實際 DBC。`create_pg_blueprint`
+只建立定義；開始寫入 PG 的確認時點是 `spawn_blueprint_job`，需說明目標表與
+`append`／`overwrite`／`truncate` 的影響。PG 流程不需要開啟資料 API。
+
+安裝完外掛 後，**這份技能 是第一件該做的事**。設定沒完成之前，Plasma 與
 Ophion 的工具只會回認證或連線錯誤，先設定比先試工具快。
 
 ## 先看現況，再決定要做什麼
 
-設定檔與快取都在 plugin 目錄**之外**（marketplace 更新會整個換掉 plugin 目錄），
+設定檔與快取都在 外掛目錄**之外**（外掛市集更新會整個換掉 外掛目錄），
 由 `bin/plasma-config.sh` 這支小工具管理。第一步固定是：
 
 ```bash
@@ -47,7 +52,7 @@ Ophion 的工具只會回認證或連線錯誤，先設定比先試工具快。
 "$CLAUDE_PLUGIN_ROOT/bin/plasma-config.sh" init             # 建立目錄與設定檔
 "$CLAUDE_PLUGIN_ROOT/bin/plasma-config.sh" set KEY VALUE    # 寫入一個欄位
 "$CLAUDE_PLUGIN_ROOT/bin/plasma-config.sh" show             # 檢視（秘密只顯示長度）
-"$CLAUDE_PLUGIN_ROOT/bin/plasma-config.sh" probe            # 不帶認證測兩個 endpoint 通不通
+"$CLAUDE_PLUGIN_ROOT/bin/plasma-config.sh" probe            # 不帶認證測兩個端點 通不通
 ```
 
 問的順序，Plasma 一組、Ophion 一組，不要一個欄位發一則訊息：
@@ -55,13 +60,13 @@ Ophion 的工具只會回認證或連線錯誤，先設定比先試工具快。
 1. **Plasma**
    - `PLASMA_URL`：Plasma 的 API 位址，例如 `http://127.0.0.1:5001`。
    - 認證方式二選一，問使用者用哪一種：
-     - **帳號密碼**：`PLASMA_USERNAME` + `PLASMA_PASSWORD`，plugin 會自己登入並維護 JWT，過期會換新。
-     - **靜態 token**：`PLASMA_TOKEN`，原樣使用、永不更新，過期就得再換一次。
+     - **帳號密碼**：`PLASMA_USERNAME` + `PLASMA_PASSWORD`，外掛會自己登入並維護 JWT，過期會換新。
+     - **靜態權杖**：`PLASMA_TOKEN`，原樣使用、永不更新，過期就得再換一次。
    - 選定後把另一種的欄位清空（`set PLASMA_TOKEN ""`，或把 username 與 password 設成空字串），避免兩種認證同時存在時 token 悄悄優先。
 2. **Ophion**
    - `OPHION_URL`：Ophion query-mcp 位址，例如 `http://127.0.0.1:5101`。這是叢集內 API，工作站通常要先 port-forward：
      `kubectl -n <namespace> port-forward svc/ophion 5101:5101`。
-   - `OPHION_SERVICE_TOKEN`：Ophion 的 service token。
+   - `OPHION_SERVICE_TOKEN`：Ophion 的 服務權杖。
    - `OPHION_PROFILE` 預設 `all`，不必問；使用者主動要求才改成 `qa`、`text-to-sql`、`fhir` 或 `audit`。
 
 每收到一組答案就立刻寫入，寫完再問下一組，中途中斷也不會白填。
@@ -103,7 +108,7 @@ Ophion 的工具只會回認證或連線錯誤，先設定比先試工具快。
 用中文列出要填的欄位，各一句話說明用途：`PLASMA_URL`；`PLASMA_TOKEN`
 或 `PLASMA_USERNAME` + `PLASMA_PASSWORD` 擇一；`OPHION_URL`、
 `OPHION_SERVICE_TOKEN`；`OPHION_PROFILE` 預設 `all` 可不動。順帶提醒 Ophion
-通常要 port-forward，以及環境變數會蓋過檔案內容，所以單一 session 可以不改檔
+通常要 port-forward，以及環境變數會蓋過檔案內容，所以單次工作階段 可以不改檔
 就指向別的部署。
 
 使用者說填好了，跑 `check` 幫他驗一遍，再進「驗證」。填到一半改變主意想用問
@@ -111,21 +116,21 @@ Ophion 的工具只會回認證或連線錯誤，先設定比先試工具快。
 
 ## 驗證
 
-設定檔是在 **MCP server 啟動時**讀的。第一次設定完成後，請使用者重啟 Claude
-Code session（或以宿主的方式重新連線 MCP server），否則兩台 server 仍帶著舊
+設定檔是在 **MCP 伺服器啟動時**讀的。第一次設定完成後，請使用者重啟 Claude
+Code 工作階段（或以宿主的方式重新連線 MCP 伺服器），否則兩台伺服器仍帶著舊
 的、通常是空的設定在跑。
 
-重啟後叫 `whoami`：它一次報出兩個 endpoint、登入者與當下 workspace，那一次呼叫
+重啟後叫 `whoami`：它一次報出兩個端點、登入者與當下 workspace，那一次呼叫
 就是完整的健康檢查。若還沒選 workspace，用 `list_workspaces` 與 `use_workspace`
 選一個。失敗訊息對照下面的表。
 
 ## 執行檔安裝
 
-launcher 首次啟動會下載與 plugin 版本一致的預編譯執行檔，驗證 SHA-256 後快取
+啟動器首次啟動會下載與外掛版本一致的預編譯執行檔，驗證 SHA-256 後快取
 在 `~/.plasma-plugin/bin/v<version>/<os>-<arch>/`。使用者不需要 Go。支援
 macOS／Linux 的 arm64、amd64（Windows 走 WSL）。
 
-私有 repo 的下載需要已登入的 GitHub CLI（`gh auth login`）。或者從 GitHub
+私有儲存庫的下載需要已登入的 GitHub CLI（`gh auth login`）。或者從 GitHub
 Release 下載對應平台的壓縮檔與 `checksums.txt` 到同一個目錄，啟動 Claude Code
 時帶 `PLASMA_MCP_RELEASE_DIR=/absolute/path/to/that/directory`；離線安裝也用這個
 方式。該變數只在安裝尚未快取的版本時需要。
@@ -133,36 +138,36 @@ Release 下載對應平台的壓縮檔與 `checksums.txt` 到同一個目錄，�
 開發用途才需要 `make build` 並把 `PLASMA_MCP_BINARY` 指向 `bin/plasma-plugin-mcp`
 的絕對路徑。正常啟動不會編譯，也不會自己去用那顆開發用執行檔。
 
-## State
+## 狀態檔
 
 `~/.plasma-plugin/state.json`（權限 600）存當下 workspace、profile 與快取的
-JWT。兩台 server 每次呼叫都重讀，`use_workspace` 才能不重啟就讓 ophion 那台改
-道。它跨 session 保留，所以新 session 通常還在上次的 workspace。刪掉是安全
+JWT。兩台伺服器每次呼叫都重讀，`use_workspace` 才能不重啟就讓 ophion 那台改
+道。它跨工作階段保留，所以新工作階段通常還在上次的 workspace。刪掉是安全
 的：只會清掉選擇並強制重新登入。
 
-## Reading the failures
+## 錯誤診斷
 
-| What you see | What it means | What to do |
+| 錯誤或現象 | 原因 | 處理方式 |
 |---|---|---|
-| Session 開頭提示「尚未完成設定」 | SessionStart hook 發現必填欄位還缺 | 跑這份 skill，從「先看現況」開始 |
-| `Cannot download` / `Release download failed` | Release unavailable or GitHub access missing | Check access to `BrobridgeOrg/plasma-agent-plugin`, authenticate gh, or use `PLASMA_MCP_RELEASE_DIR` |
-| `Checksum mismatch` | Archive does not match the release checksums | Download both files again from the same release; do not bypass verification |
-| `no Plasma credentials` | Neither auth mode is configured | Set `PLASMA_TOKEN`, or username + password |
-| Plasma `401` after retry | Password rejected, or a static token expired | Re-check the credentials; a static token is never refreshed for you |
-| Plasma `403` | Authenticated, but not a member of this workspace | `list_workspaces` and pick one you belong to |
-| `no workspace selected` | Nothing selected yet | `use_workspace` |
-| Ophion `no published knowledge` (404) | The workspace exists but has no published generation | Nothing to fix here; the knowledge has to be generated first |
-| Ophion `rejected the service token` | `OPHION_SERVICE_TOKEN` wrong or unset | Fix it in `config.env` |
-| Ophion `unreachable` | Nothing listening at `OPHION_URL` | Start the port-forward, or point at the in-cluster URL |
-| `OPHION_URL is not set` | Ophion half-configured | Set it; the plugin refuses to guess an endpoint |
+| 工作階段開頭提示「尚未完成設定」 | SessionStart hook 發現必填欄位還缺 | 跑這份技能，從「先看現況」開始 |
+| `Cannot download` / `Release download failed` | 找不到發布版本，或缺少 GitHub 存取權限 | 檢查儲存庫存取權限、登入 `gh`，或使用 `PLASMA_MCP_RELEASE_DIR` |
+| `Checksum mismatch` | 壓縮檔與發布版本的校驗碼不符 | 重新下載同一版本的壓縮檔與校驗碼，不略過驗證 |
+| `no Plasma credentials` | 兩種驗證方式都尚未設定 | 設定 `PLASMA_TOKEN`，或帳號與密碼 |
+| Plasma 重試後仍回傳 `401` | 密碼遭拒，或靜態權杖已過期 | 重新檢查憑證；靜態權杖不會自動更新 |
+| Plasma `403` | 已通過驗證，但不是此 workspace 的成員 | 用 `list_workspaces` 選擇有權限的 workspace |
+| `no workspace selected` | 尚未選擇 workspace | `use_workspace` |
+| Ophion `no published knowledge` (404) | workspace 存在，但尚無已發布的知識版本 | 先產生並發布知識，不需修改連線設定 |
+| Ophion `rejected the service token` | `OPHION_SERVICE_TOKEN` 錯誤或未設定 | 在 `config.env` 修正 |
+| Ophion `unreachable` | `OPHION_URL` 沒有可連線的服務 | 啟動連接埠轉送，或改用叢集內部 URL |
+| `OPHION_URL is not set` | Ophion 設定不完整 | 填入正確位址，外掛不會猜測端點 |
 | `unknown profile` | `OPHION_PROFILE` 填了表列以外的值 | 只有 `all`、`qa`、`text-to-sql`、`fhir`、`audit`；留空等同 `all`。注意是連字號不是底線 |
-| 設定明明填了卻仍報缺值 | server 是在 session 啟動時讀設定的 | 重啟 session 後再叫 `whoami` |
+| 設定明明填了卻仍報缺值 | 伺服器在工作階段啟動時讀取設定 | 重啟工作階段後再叫 `whoami` |
 | 同步或開 API 的確認 | `sync_view`、會立即同步的 scheduled `create_view`、`create_access_entry` 需要確認 | 以台灣繁體中文說明：sync 會開始拉取資料並寫入 mview；開 API 會讓符合存取條件的呼叫者讀取資料 |
 | 查詢或建立 manual mview 仍逐次跳出確認 | 可能仍在使用舊版 hook／binary，或宿主另設了工具權限 | 檢查安裝版本與宿主設定；目前流程不額外強制這兩步確認，不能以關閉所有同步／API 確認來排障 |
 
-## Changing deployment
+## 切換部署
 
 把 `PLASMA_URL` / `OPHION_URL` 指向另一套部署（`plasma-config.sh set`，或直接
-編輯設定檔），然後重啟 session——MCP server 只在啟動時讀設定。接著重新
+編輯設定檔），然後重啟工作階段——MCP 伺服器只在啟動時讀設定。接著重新
 `use_workspace`：舊部署的 workspace id 在新部署上解不出來，工具會直接說不
 存在，而不是去動別人的 workspace。

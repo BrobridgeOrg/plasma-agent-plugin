@@ -125,8 +125,8 @@ type createViewInput struct {
 	Name              string         `json:"name"`
 	Type              string         `json:"type" jsonschema:"view or materialized_view"`
 	ViewSQL           string         `json:"view_sql" jsonschema:"the SELECT (or WITH) that defines the view"`
-	SyncMode          string         `json:"sync_mode,omitempty" jsonschema:"manual (default) or scheduled"`
-	SchedulerSettings map[string]any `json:"scheduler_settings,omitempty" jsonschema:"Plasma scheduler settings; required when sync_mode is scheduled"`
+	SyncMode          string         `json:"sync_mode,omitempty" jsonschema:"mview 使用 manual（預設）或 scheduled；一般 view 請省略"`
+	SchedulerSettings map[string]any `json:"scheduler_settings,omitempty" jsonschema:"mview 的 Plasma 排程設定；scheduled 必填，一般 view 不適用"`
 	Description       string         `json:"description,omitempty"`
 }
 
@@ -180,6 +180,7 @@ type exportURLOutput struct {
 }
 
 func (s *server) register(srv *mcp.Server) {
+	s.registerBlueprints(srv)
 	mcp.AddTool(srv, readOnly(&mcp.Tool{
 		Name: "whoami",
 		Description: "Report the Plasma deployment, the authenticated user, the selected " +
@@ -216,9 +217,9 @@ func (s *server) register(srv *mcp.Server) {
 
 	mcp.AddTool(srv, costly(&mcp.Tool{
 		Name: "create_view",
-		Description: "Create a view or materialized view. With sync_mode=scheduled and " +
-			"scheduler_settings, Plasma creates the view, its blueprint and its schedule " +
-			"in one call and runs the first sync immediately.",
+		Description: "建立 view 或 mview。type=view 建立一般 view 定義，可供 blueprint 選取後匯出至 PG，" +
+			"不使用 mview 同步或排程。type=materialized_view 搭配 sync_mode=scheduled 與 " +
+			"scheduler_settings 時，會一併建立 mview、blueprint 與排程，並立即啟動首次同步。",
 	}), s.createView)
 
 	mcp.AddTool(srv, costly(&mcp.Tool{
@@ -477,6 +478,9 @@ func (s *server) createView(ctx context.Context, _ *mcp.CallToolRequest, in crea
 	if err := guardReadOnlySQL(in.ViewSQL); err != nil {
 		return nil, createViewOutput{}, fmt.Errorf("view_sql: %w", err)
 	}
+	if in.Type == "view" && (in.SyncMode != "" && in.SyncMode != "manual" || len(in.SchedulerSettings) > 0) {
+		return nil, createViewOutput{}, fmt.Errorf("一般 view 不使用 mview 同步或排程；請省略 sync_mode 與 scheduler_settings，改由 blueprint 設定 PG 匯出")
+	}
 	syncMode := in.SyncMode
 	if syncMode == "" {
 		syncMode = "manual"
@@ -494,6 +498,9 @@ func (s *server) createView(ctx context.Context, _ *mcp.CallToolRequest, in crea
 		Name: in.Name, Description: in.Description, ViewSQL: strings.TrimSpace(in.ViewSQL),
 		Type: in.Type, SyncMode: syncMode,
 	}
+	if in.Type == "view" {
+		req.SyncMode = ""
+	}
 	if len(in.SchedulerSettings) > 0 {
 		encoded, err := json.Marshal(in.SchedulerSettings)
 		if err != nil {
@@ -508,6 +515,9 @@ func (s *server) createView(ctx context.Context, _ *mcp.CallToolRequest, in crea
 	next := "call get_view to watch last_sync_status reach synced"
 	if in.Type == "materialized_view" && syncMode == "manual" {
 		next = "call sync_view to run the first sync, then get_view to check it"
+	}
+	if in.Type == "view" {
+		next = "view 已建立；先從 Ophion 列出已串接 DB 並請使用者選擇 PG 目的地，核對 DBC 後用 create_pg_blueprint 選取此 view。確認同步後再呼叫 spawn_blueprint_job，不要對一般 view 呼叫 sync_view。"
 	}
 	out := createViewOutput{Workspace: st.WorkspaceID, View: view, NextStep: next}
 	return textResult(
