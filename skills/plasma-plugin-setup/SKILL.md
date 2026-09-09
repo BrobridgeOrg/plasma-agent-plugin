@@ -62,7 +62,7 @@ Ophion 的工具只會回認證或連線錯誤，先設定比先試工具快。
    - `OPHION_URL`：Ophion query-mcp 位址，例如 `http://127.0.0.1:5101`。這是叢集內 API，工作站通常要先 port-forward：
      `kubectl -n <namespace> port-forward svc/ophion 5101:5101`。
    - `OPHION_SERVICE_TOKEN`：Ophion 的 service token。
-   - `OPHION_PROFILE` 預設 `all`，不必問；使用者主動要求才改成 `qa`、`text_to_sql`、`fhir` 或 `audit`。
+   - `OPHION_PROFILE` 預設 `all`，不必問；使用者主動要求才改成 `qa`、`text-to-sql`、`fhir` 或 `audit`。
 
 每收到一組答案就立刻寫入，寫完再問下一組，中途中斷也不會白填。
 
@@ -155,6 +155,7 @@ JWT。兩台 server 每次呼叫都重讀，`use_workspace` 才能不重啟就�
 | Ophion `rejected the service token` | `OPHION_SERVICE_TOKEN` wrong or unset | Fix it in `config.env` |
 | Ophion `unreachable` | Nothing listening at `OPHION_URL` | Start the port-forward, or point at the in-cluster URL |
 | `OPHION_URL is not set` | Ophion half-configured | Set it; the plugin refuses to guess an endpoint |
+| `unknown profile` | `OPHION_PROFILE` 填了表列以外的值 | 只有 `all`、`qa`、`text-to-sql`、`fhir`、`audit`；留空等同 `all`。注意是連字號不是底線 |
 | 設定明明填了卻仍報缺值 | server 是在 session 啟動時讀設定的 | 重啟 session 後再叫 `whoami` |
 | 同步或開 API 的確認 | `sync_view`、會立即同步的 scheduled `create_view`、`create_access_entry` 需要確認 | 以台灣繁體中文說明：sync 會開始拉取資料並寫入 mview；開 API 會讓符合存取條件的呼叫者讀取資料 |
 | 查詢或建立 manual mview 仍逐次跳出確認 | 可能仍在使用舊版 hook／binary，或宿主另設了工具權限 | 檢查安裝版本與宿主設定；目前流程不額外強制這兩步確認，不能以關閉所有同步／API 確認來排障 |

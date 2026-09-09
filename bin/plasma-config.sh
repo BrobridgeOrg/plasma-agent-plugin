@@ -10,6 +10,9 @@ set -euo pipefail
 KEYS=(PLASMA_URL PLASMA_TOKEN PLASMA_USERNAME PLASMA_PASSWORD
       OPHION_URL OPHION_SERVICE_TOKEN OPHION_PROFILE)
 SECRETS=(PLASMA_TOKEN PLASMA_PASSWORD OPHION_SERVICE_TOKEN)
+# The profile goes straight into Ophion's URL path, so a typo surfaces as a
+# bare 404 from the far end that names neither the profile nor this setting.
+PROFILES=(all qa text-to-sql fhir audit)
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # An unlocatable home is not fatal here: session-start has to stay quiet in an
@@ -127,6 +130,10 @@ cmd_set() {
   [[ -n "$key" ]] || fail "usage: plasma-config.sh set KEY VALUE"
   require_key "$key"
   [[ "$value" != *$'\n'* ]] || fail "value for $key must be a single line"
+  # An empty profile stays legal: it is how the caller returns to the default.
+  if [[ "$key" == OPHION_PROFILE && -n "$value" ]] && ! contains "$value" "${PROFILES[@]}"; then
+    fail "unknown profile: $value (known profiles: ${PROFILES[*]}; empty means ${PROFILES[0]})"
+  fi
   upsert "$key" "$value"
   if contains "$key" "${SECRETS[@]}"; then
     echo "$key written (${#value} characters)"

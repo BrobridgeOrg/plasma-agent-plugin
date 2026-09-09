@@ -87,6 +87,27 @@ class ConfigTests(unittest.TestCase):
         self.assertIn('unknown key', result.stderr)
         self.assertNotIn('SAUCE', self.config.read_text())
 
+    def test_unknown_profile_is_refused(self):
+        self.run_config('init')
+        result = self.run_config('set', 'OPHION_PROFILE', 'text_to_sql')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('unknown profile', result.stderr)
+        self.assertIn('text-to-sql', result.stderr)
+        self.assertNotIn('text_to_sql', self.config.read_text())
+
+    def test_known_profiles_are_accepted(self):
+        self.run_config('init')
+        for profile in ('all', 'qa', 'text-to-sql', 'fhir', 'audit'):
+            self.assertEqual(self.run_config('set', 'OPHION_PROFILE', profile).returncode, 0)
+            self.assertIn(f'OPHION_PROFILE={profile}', self.config.read_text())
+
+    def test_empty_profile_returns_to_the_default(self):
+        self.configure(OPHION_PROFILE='qa')
+        self.assertEqual(self.run_config('set', 'OPHION_PROFILE', '').returncode, 0)
+        lines = [l for l in self.config.read_text().splitlines()
+                 if l.startswith('OPHION_PROFILE=')]
+        self.assertEqual(lines, ['OPHION_PROFILE='])
+
     def test_show_reports_values_but_never_secrets(self):
         self.complete()
         out = self.run_config('show').stdout
