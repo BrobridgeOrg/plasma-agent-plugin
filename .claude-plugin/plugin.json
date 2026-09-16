@@ -2,7 +2,7 @@
   "name": "plasma-plugin",
   "displayName": "Plasma + Ophion",
   "description": "以 Ophion 知識查核來源與 SQL，建立 mview 資料 API，或透過 view → blueprint → PG 匯出至使用者選定的資料表。",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"

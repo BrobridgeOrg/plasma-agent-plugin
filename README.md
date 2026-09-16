@@ -59,9 +59,11 @@ Claude Code 不會在 session 中重連 MCP server，所以「動態」不靠改
 設定還沒填完時，每個 session 開頭的 SessionStart hook 會提醒先做設定，填完就
 不再出現。設定檔是 MCP server **啟動時**讀的，第一次設定完成請重啟 session。
 
-**不需要安裝 Go、Node.js 或 Docker。** 支援 macOS／Linux 的 arm64、amd64；
-Windows 請使用 WSL。首次啟動會下載與 plugin 版本一致的 GitHub Release 執行檔，
-驗證 SHA-256 後快取到 `~/.plasma-plugin/bin/<version>/<os>-<arch>/`，後續直接執行。
+**不需要安裝 Go、Node.js 或 Docker。** 支援 macOS、Linux、Windows 的 arm64、
+amd64。Windows 的執行檔（`plasma-plugin-mcp.exe`）由 Git Bash（Git for Windows）
+或 MSYS2／Cygwin 啟動；WSL 則沿用 linux 版本。首次啟動會下載與 plugin 版本一致
+的 GitHub Release 執行檔，驗證 SHA-256 後快取到
+`~/.plasma-plugin/bin/<version>/<os>-<arch>/`，後續直接執行。
 需要 Bash、tar、curl，以及 shasum 或 sha256sum；下載訊息只寫到 stderr。
 
 私有 repo 的自動下載使用已登入的 GitHub CLI（`gh auth login`）。若不想安裝 gh，

@@ -18,7 +18,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Windows binaries are cross-compiled on Linux, so prove one actually installs
+  # and runs under Git Bash before anything is published.
+  smoke-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Validate release tag
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Expected an existing version tag such as v0.1.1" >&2
+            exit 1
+          }
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build the Windows asset
+        run: |
+          GITHUB_REF_NAME="$RELEASE_TAG" PLASMA_RELEASE_TARGETS=windows/amd64 \
+            bash scripts/build-release.sh
+      - name: Smoke test packaged Windows binary
+        run: |
+          # MSYS-style paths only; RUNNER_TEMP is a backslash Windows path.
+          export PLASMA_PLUGIN_HOME="$(mktemp -d)/plasma-release-smoke"
+          export PLASMA_MCP_RELEASE_DIR="$(pwd)/dist/$RELEASE_TAG"
+          test -f "$PLASMA_MCP_RELEASE_DIR/plasma-plugin-mcp_${RELEASE_TAG#v}_windows_amd64.tar.gz"
+          printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"mcp__plasma__sync_view"}' |
+            bash bin/plasma-mcp.sh hook > hook.json
+          grep -q '"permissionDecision":"ask"' hook.json
+          test -x "$PLASMA_PLUGIN_HOME/bin/$RELEASE_TAG/windows-amd64/plasma-plugin-mcp.exe"
+
   release:
+    needs: smoke-windows
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}

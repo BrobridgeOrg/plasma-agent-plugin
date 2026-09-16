@@ -14,10 +14,13 @@ if [[ -n "${PLASMA_MCP_BINARY:-}" ]]; then
   exec "$PLASMA_MCP_BINARY" "$@"
 fi
 
+# Windows runs this launcher under Git Bash, MSYS2 or Cygwin; WSL reports Linux.
+exe=""
 case "$(uname -s)" in
   Darwin) os=darwin ;;
   Linux) os=linux ;;
-  *) fail "Unsupported OS. Release binaries support macOS and Linux." ;;
+  MINGW*|MSYS*|CYGWIN*) os=windows; exe=".exe" ;;
+  *) fail "Unsupported OS. Release binaries support macOS, Linux and Windows." ;;
 esac
 case "$(uname -m)" in
   arm64|aarch64) arch=arm64 ;;
@@ -27,7 +30,7 @@ esac
 
 plugin_home="${PLASMA_PLUGIN_HOME:-${HOME:?HOME must be set}/.plasma-plugin}"
 cache="$plugin_home/bin/v$version/$os-$arch"
-binary="$cache/plasma-plugin-mcp"
+binary="$cache/plasma-plugin-mcp$exe"
 if [[ ! -x "$binary" ]]; then
   umask 077
   mkdir -p "$cache"
@@ -66,11 +69,14 @@ if [[ ! -x "$binary" ]]; then
   fi
   [[ "${actual%% *}" == "$expected" ]] || fail "Checksum mismatch for $asset; refusing to install."
 
-  tar -xzf "$staging/$asset" -C "$staging" plasma-plugin-mcp
-  [[ -f "$staging/plasma-plugin-mcp" && ! -L "$staging/plasma-plugin-mcp" ]] || fail "Invalid release archive."
-  chmod 700 "$staging/plasma-plugin-mcp"
+  tar -xzf "$staging/$asset" -C "$staging" "plasma-plugin-mcp$exe"
+  [[ -f "$staging/plasma-plugin-mcp$exe" && ! -L "$staging/plasma-plugin-mcp$exe" ]] ||
+    fail "Invalid release archive."
+  chmod 700 "$staging/plasma-plugin-mcp$exe"
   # Unique staging directories and an atomic rename allow simultaneous MCP starts.
-  mv -f "$staging/plasma-plugin-mcp" "$binary"
+  # Windows locks the running executable, so a rename losing that race is fine.
+  mv -f "$staging/plasma-plugin-mcp$exe" "$binary" 2>/dev/null || [[ -x "$binary" ]] ||
+    fail "Cannot install $binary."
   rm -rf "$staging"
   trap - EXIT INT TERM
 fi

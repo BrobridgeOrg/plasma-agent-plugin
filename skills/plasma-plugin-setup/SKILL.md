@@ -128,7 +128,8 @@ Code 工作階段（或以宿主的方式重新連線 MCP 伺服器），否則�
 
 啟動器首次啟動會下載與外掛版本一致的預編譯執行檔，驗證 SHA-256 後快取
 在 `~/.plasma-plugin/bin/v<version>/<os>-<arch>/`。使用者不需要 Go。支援
-macOS／Linux 的 arm64、amd64（Windows 走 WSL）。
+macOS、Linux、Windows 的 arm64、amd64。Windows 在 Git Bash／MSYS2／Cygwin 下
+取用 `plasma-plugin-mcp.exe`，走 WSL 則沿用 linux 版本。
 
 私有儲存庫的下載需要已登入的 GitHub CLI（`gh auth login`）。或者從 GitHub
 Release 下載對應平台的壓縮檔與 `checksums.txt` 到同一個目錄，啟動 Claude Code
