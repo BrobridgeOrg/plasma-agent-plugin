@@ -58,7 +58,8 @@ if [[ ! -x "$binary" ]]; then
     done
   fi
 
-  expected="$(awk -v name="$asset" '$2 == name {print $1}' "$staging/checksums.txt")"
+  # sha256sum in binary mode (the MSYS default) marks the name with a '*'.
+  expected="$(awk -v name="$asset" '{sub(/^\*/, "", $2)} $2 == name {print $1}' "$staging/checksums.txt")"
   [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || fail "Missing or invalid checksum for $asset."
   if command -v sha256sum >/dev/null 2>&1; then
     actual="$(sha256sum "$staging/$asset")"

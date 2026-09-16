@@ -30,9 +30,10 @@ for target in $targets; do
   rm -f "$staging/$binary"
 done
 cd "$dist"
+# Normalise the binary-mode '*' that MSYS sha256sum puts before each name.
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum plasma-plugin-mcp_"${version}"_*.tar.gz > checksums.txt
+  sha256sum plasma-plugin-mcp_"${version}"_*.tar.gz
 else
-  shasum -a 256 plasma-plugin-mcp_"${version}"_*.tar.gz > checksums.txt
-fi
+  shasum -a 256 plasma-plugin-mcp_"${version}"_*.tar.gz
+fi | sed 's/^\([0-9a-f]\{64\}\) \*/\1  /' > checksums.txt
 echo "Release assets: $dist" >&2
