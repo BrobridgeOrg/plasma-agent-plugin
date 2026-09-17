@@ -1,8 +1,8 @@
 {
   "name": "plasma-plugin",
-  "displayName": "Plasma + Ophion",
-  "description": "以 Ophion 知識查核來源與 SQL，建立 mview 資料 API，或透過 view → blueprint → PG 匯出至使用者選定的資料表。",
-  "version": "0.1.7",
+  "displayName": "Plasma workflows",
+  "description": "Plasma 的工作流 skill 與同步／開 API 前的人工確認閘。MCP 工具由 plasma-backend 的 mcp_gateway 提供，用 /mcp add 連上即可。",
+  "version": "0.2.0",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"
@@ -13,19 +13,5 @@
     "data-api",
     "materialized-view",
     "knowledge"
-  ],
-  "mcpServers": {
-    "plasma": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/plasma-mcp.sh",
-      "args": [
-        "plasma"
-      ]
-    },
-    "ophion": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/plasma-mcp.sh",
-      "args": [
-        "ophion"
-      ]
-    }
-  }
+  ]
 }

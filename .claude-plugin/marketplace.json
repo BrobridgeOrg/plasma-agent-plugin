@@ -6,7 +6,7 @@
     {
       "name": "plasma-plugin",
       "source": "./",
-      "description": "Plasma 操作工具與 Ophion 知識，包含兩台 MCP server 與四份 skill，支援資料 API 及 view → blueprint → PG 匯出。"
+      "description": "Plasma 的工作流 skill 與人工確認閘。MCP 工具（含 Ophion 知識）由 plasma-backend 的 mcp_gateway 提供，不由這個 plugin 啟動。"
     }
   ]
 }
