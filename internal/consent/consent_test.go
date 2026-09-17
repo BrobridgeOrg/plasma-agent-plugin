@@ -67,7 +67,7 @@ func TestReasonNamesTheCostOfTheSpecificTool(t *testing.T) {
 	cases := map[string]string{
 		"mcp__plugin_plasma-plugin_plasma__sync_view":           "從來源系統拉取資料",
 		"mcp__plugin_plasma-plugin_plasma__create_access_entry": "驗證方式及有效期限",
-		"mcp__plugin_plasma-plugin_plasma__spawn_blueprint_job": "使用者選定的 PG 資料表",
+		"mcp__plugin_plasma-plugin_plasma__spawn_blueprint_job": "使用者選定的外部資料表",
 	}
 	for tool, want := range cases {
 		specific := hookOutput(t, decide(t, tool))

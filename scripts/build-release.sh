@@ -13,7 +13,7 @@ mkdir -p "$dist"
 staging="$(mktemp -d "$dist/.build.XXXXXXXX")"
 trap 'rm -rf "$staging"' EXIT
 module="github.com/BrobridgeOrg/plasma-plugin"
-ldflags="-s -w -X $module/internal/plasmamcp.Version=$version -X $module/internal/ophionproxy.Version=$version"
+ldflags="-s -w"
 # CI can narrow this to one platform; a release always builds every target.
 targets="${PLASMA_RELEASE_TARGETS:-darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/amd64 windows/arm64}"
 for target in $targets; do

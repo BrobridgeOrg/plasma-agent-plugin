@@ -91,7 +91,7 @@ class LauncherTests(unittest.TestCase):
         for tool, args, message in [
             ('create_view', {'sync_mode': 'scheduled'}, '立即開始'),
             ('create_access_entry', {'auth_type': 'none'}, '不需驗證即可讀取'),
-            ('spawn_blueprint_job', {'blueprint_id': 'bp-1'}, '使用者選定的 PG 資料表')
+            ('spawn_blueprint_job', {'blueprint_id': 'bp-1'}, '使用者選定的外部資料表')
         ]:
             with self.subTest(tool=tool):
                 payload = json.dumps({'hook_event_name': 'PreToolUse',
@@ -102,7 +102,7 @@ class LauncherTests(unittest.TestCase):
                 reason = json.loads(result.stdout)['hookSpecificOutput']['permissionDecisionReason']
                 self.assertIn(message, reason)
 
-    def test_pg_spawn_matches_confirmation_hook(self):
+    def test_spawn_matches_confirmation_hook(self):
         hooks = json.loads((ROOT / 'hooks/hooks.json').read_text())['hooks']['PreToolUse']
         for name in ['mcp__plasma__spawn_blueprint_job',
                      'mcp__plugin_plasma-plugin_plasma__spawn_blueprint_job']:
@@ -175,33 +175,17 @@ echo "download progress" >&2
         self.assertIn('gh auth login', result.stderr)
         self.assertFalse(self.binary.exists())
 
-    def test_stdio_initialize_uses_release_version(self):
-        self.env.update(PLASMA_URL='http://127.0.0.1:1', PLASMA_TOKEN='test-only')
-        request = {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {
-            'protocolVersion': '2025-03-26', 'capabilities': {},
-            'clientInfo': {'name': 'launcher-test', 'version': '1'}}}
+    def test_retired_server_modes_point_at_the_gateway(self):
+        # Both MCP servers moved into plasma-backend's mcp_gateway. An install
+        # still configured for them has to be told where they went, on stderr,
+        # without writing anything to stdout that a client would try to parse.
         for mode in ['plasma', 'ophion']:
             with self.subTest(mode=mode):
-                # Keep stdin open until the server responds, then close cleanly.
-                with subprocess.Popen(['/bin/bash', str(ROOT / 'bin/plasma-mcp.sh'), mode],
-                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE, text=True, env=self.env) as proc:
-                    try:
-                        proc.stdin.write(json.dumps(request) + '\n')
-                        proc.stdin.flush()
-                        import select
-                        ready, _, _ = select.select([proc.stdout], [], [], 15)
-                        self.assertTrue(ready, 'MCP initialize timed out')
-                        response = json.loads(proc.stdout.readline())
-                        self.assertEqual(response['id'], 1)
-                        self.assertEqual(response['result']['serverInfo']['version'], VERSION)
-                    finally:
-                        proc.stdin.close()
-                        try:
-                            proc.wait(timeout=5)
-                        except subprocess.TimeoutExpired:
-                            proc.kill()
-                            proc.wait()
+                result = subprocess.run(['/bin/bash', str(ROOT / 'bin/plasma-mcp.sh'), mode],
+                                        input='', capture_output=True, text=True, env=self.env)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, '')
+                self.assertIn('mcp_gateway', result.stderr)
 
 
 if __name__ == '__main__':

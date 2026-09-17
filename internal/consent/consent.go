@@ -4,6 +4,12 @@
 // Queries and manual view definitions are preparation and do not need this
 // gate. Scheduled creation also needs confirmation because it starts syncing
 // immediately. The host displays the tool arguments alongside the Chinese reason.
+//
+// This is the whole reason the plugin still exists. Plasma's MCP gateway
+// grants scopes once, when the user links the connection, and never asks
+// again — so the moment before data actually moves is only reachable from the
+// client side. The gate matches the bare tool name behind the host's
+// namespacing, so it covers those tools whichever server serves them.
 package consent
 
 import (
@@ -15,8 +21,8 @@ import (
 // gated maps a tool to why it needs a human. The reason is what the operator
 // reads in the prompt, so it names the cost, not the mechanism.
 var gated = map[string]string{
-	"spawn_blueprint_job": "即將執行 blueprint，從 view 拉取資料並寫入使用者選定的 PG 資料表，會使用查詢與同步資源。" +
-		"請確認來源、PG 連線、資料庫、schema、資料表與寫入方式：append 新增資料；overwrite 替換資料表，可能刪除後重建；truncate 清空既有資料後寫入。是否確認開始同步？",
+	"spawn_blueprint_job": "即將執行 blueprint，從 view 拉取資料並寫入使用者選定的外部資料表，會使用查詢與同步資源。" +
+		"請確認來源、目的地連線、資料庫、schema、資料表與寫入方式：append 新增資料；overwrite 替換資料表，可能刪除後重建；truncate 清空既有資料後寫入。是否確認開始同步？",
 	"sync_view": "執行 sync 後，系統就會開始依照 mview 的 SQL 從來源系統拉取資料，" +
 		"並寫入或更新 mview，會使用查詢與同步資源。同步成功後，開啟資料 API 前會另外確認。是否確認開始同步？",
 	"create_access_entry": "即將開啟資料 API，讓可連線到此端點且符合驗證設定的呼叫者讀取這個 view 的資料。" +
