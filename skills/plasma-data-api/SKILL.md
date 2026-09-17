@@ -1,7 +1,7 @@
 ---
 name: plasma-data-api
 description: >-
-  當使用者想把表單、報表、BI 畫面或指定指標做成 Plasma 資料 API 時使用。以 Ophion 查核來源與定義，驗證 Trino SQL，原則上一份表單建立一個 mview；全程使用台灣繁體中文，只在開始同步拉資料及後續開啟 API 時確認，最後交付 URL、驗證方式與有效期限。直接寫入 PG 指定資料表時改用 plasma-postgres-export。
+  當使用者想把表單、報表、BI 畫面或指定指標做成 Plasma 資料 API 時使用。以 Ophion 查核來源與定義，驗證 Trino SQL，原則上一份表單建立一個 mview；全程使用台灣繁體中文，只在開始同步拉資料及後續開啟 API 時確認，最後交付 URL、驗證方式與有效期限。直接寫入外部資料庫指定資料表時改用 plasma-export。
 ---
 
 # 從資料需求建立可呼叫的 API
@@ -14,7 +14,7 @@ description: >-
 - **原則上一份表單／報表建立一個 mview。** 不因不同區塊、指標、頁籤或來源表就拆成多個 mview；只有使用者明確要求拆分，才改變這個原則。
 
 使用者不需要熟悉資料結構。協助找到來源、驗證 SQL 符合整份需求，再交付端點。
-若目標是直接寫入 PostgreSQL 指定資料表，改用 `plasma-postgres-export` 的 view → blueprint → PG 流程。
+若目標是直接寫入外部資料庫的指定資料表，改用 `plasma-export` 的 view → blueprint → 目的地流程。
 
 ## 執行流程
 
@@ -167,5 +167,6 @@ description: >-
 - 只在同步及開 API 時確認，不在查找、SELECT 驗證、建立手動 mview、
   輪詢或取得既有 URL 時另加確認；宿主權限仍適用。
 - `auth_type=none` 必須在開 API 確認時取得明確同意，交付再說明免驗證。
-- 一次使用一個 workspace，檢查每筆回應標示；不符時用 `use_workspace` 切換。
+- workspace 是連結這個 MCP server 時選定的，寫在連線的憑證裡，**沒有任何工具能
+  切換它**。`whoami` 會說明目前是哪一個；不是預期的那個就請使用者重新連結。
 - 不把 100 列樣本當完整結果，不以其他 SQL 方言替代 Trino。

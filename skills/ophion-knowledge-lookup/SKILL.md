@@ -1,7 +1,7 @@
 ---
 name: ophion-knowledge-lookup
 description: >-
-  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，支援資料 API 或 view → blueprint → PG 流程。
+  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，支援資料 API 或 view → blueprint → 外部資料庫流程。知識工具由 Plasma MCP server 一併提供。
 ---
 
 # 查找與判讀 Ophion 知識
@@ -13,13 +13,16 @@ description: >-
 - 在已交付範圍內連續完成知識查找、欄位查核及 SQL 驗證，不逐步詢問是否繼續。
   只釐清影響正確性的必要資訊，查到假設時標明並納入最後同步確認。
 - 以整份表單為查找單位，不因區塊、指標或來源表不同而自行拆分交付物。
-  資料 API 由 `plasma-data-api` 建立一個 mview；指定 PG 資料表由
-  `plasma-postgres-export` 建立一個 view，再透過 blueprint 匯出。
+  資料 API 由 `plasma-data-api` 建立一個 mview；指定外部資料表由
+  `plasma-export` 建立一個 view，再透過 blueprint 匯出。
 
 Ophion 保存來源系統的設計知識：資料表與欄位意義、業務規則、代碼、推導、
 品質陷阱及設計意圖，**不保存實際資料列**。特定紀錄的數值不能從設計知識猜測。
 
-工具使用 Plasma 目前選定的 workspace，每次回覆都標示範圍，必須核對。
+這些知識工具與 Plasma 的 view／blueprint 工具**在同一台 MCP server 上**，
+由 Plasma 的 MCP gateway 轉發過來，讀的是同一個 workspace —— 就是連結這個
+連線時選定的那一個。沒有切換 workspace 的工具，`whoami` 會說明目前是哪一個。
+
 彙整整份表單所有欄位／指標的來源、粒度、關聯與規則，供後續組成一份完整 SQL。
 多個來源或概念不代表要建立多個 view／mview。
 
@@ -30,7 +33,9 @@ Ophion 保存來源系統的設計知識：資料表與欄位意義、業務規�
 3. `find_tables`／`get_table_card`／`list_columns`：找到承載概念的資料表，
    查核卡片上的陷阱。卡片是索引，相關 `ku_id` 要以 `get_knowledge_unit` 展開。
 4. `get_column_card`：逐欄查核型別、意義、空值、來源註解、知識與值域。
-   概念上的規則另用 `find_concepts`／`get_concept_card` 查核，不可省略。
+   概念層級的工具（`find_concepts`／`get_concept_card`）只在 `all`、`qa`、
+   `fhir`、`audit` profile 下提供；預設的 `text-to-sql` 沒有它們，此時概念
+   規則改由 `search_knowledge` 與 `get_knowledge_unit` 查核，不可省略。
 5. `get_value_domain`／`search_value_candidates`／`plan_value_filter`：
    代碼欄位的篩選必須查明值域，不從欄位名稱或代碼外觀手寫條件。
 6. `trace_lineage`：查看衍生數值依賴的來源。
@@ -54,10 +59,14 @@ PG 流程只共用這些查核步驟，不接續建立 mview 或發布 API。
 
 ## 工具缺少或失敗
 
-呼叫 `ophion_context`，確認 workspace 與 Ophion 狀態：
+呼叫 `whoami`，它的 `Knowledge` 一行會說明是哪一種狀況：
 
-- 未選 workspace：使用 Plasma 的 `use_workspace`。
-- `404`／`no published knowledge`：尚無已發布知識版本，需先產生並發布，
-  不是設定錯誤。
-- 無法連線：Ophion 的 query-mcp 是叢集內部 API，工作站通常需要連接埠轉送。
-  依 `plasma-plugin-setup` 排查。
+- **未設定**：這個 Plasma 部署沒有接上知識服務，沒有知識工具可用。
+  據實告訴使用者，不要改用猜測的欄位語意繼續。
+- **沒有 `knowledge:read`**：這個連線沒有被授予知識權限。告訴使用者需要這個
+  權限，並重新連結一次 MCP server；不要重試。
+- **無法連線**：知識服務暫時不可用。Plasma 自己的 view／blueprint 工具不受
+  影響，但在知識恢復前不要憑推測寫 SQL。
+- **`404`／`no published knowledge`**：這個 workspace 尚無已發布的知識版本，
+  需先產生並發布，不是設定錯誤。
+- workspace 不對：它是連結時選定的，無法從工具變更；要換請重新連結。
