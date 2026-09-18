@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "plasma": {
+      "type": "remote",
+      "url": "http://mcp.example.internal/mcp",
+      "enabled": true,
+      "oauth": {
+        "scope": "views:read knowledge:read query:run views:write"
+      }
+    }
+  }
+}

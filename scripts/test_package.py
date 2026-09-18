@@ -9,19 +9,29 @@ import zipfile
 from package_plugin import ROOT, build
 
 
+SKILL_NAMES = {'plasma-create-view', 'plasma-mcp-setup', 'ophion-knowledge-lookup'}
+
+
+def by_host(archives):
+    """Index archives by the host segment of their filename."""
+    return {path.name.rsplit('_', 1)[1].removesuffix('.zip'): path for path in archives}
+
+
 class PackageTest(unittest.TestCase):
     def test_both_hosts_have_identical_skills_and_no_runtime(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict('os.environ', {'GITHUB_REF_NAME': ''}):
             archives = build(output=directory)
+            indexed = by_host(archives)
             skill_sets = []
-            for archive, folder in zip(archives, ('.codex-plugin', '.claude-plugin')):
+            for archive, folder in ((indexed['chatgpt'], '.codex-plugin'),
+                                    (indexed['claude'], '.claude-plugin')):
                 with zipfile.ZipFile(archive) as zf:
                     names = zf.namelist()
                     manifest = f'plasma-plugin/{folder}/plugin.json'
                     self.assertIn(manifest, names)
                     skills = {n: zf.read(n) for n in names if '/skills/' in n}
                     self.assertEqual({Path(n).parent.name for n in skills if n.endswith('/SKILL.md')},
-                                     {'plasma-create-view', 'plasma-mcp-setup', 'ophion-knowledge-lookup'})
+                                     SKILL_NAMES)
                     self.assertEqual(set(names), {manifest, *skills})
                     # Links between skills must resolve within the actual archive.
                     for name, content in skills.items():
@@ -33,9 +43,41 @@ class PackageTest(unittest.TestCase):
             first = [p.read_bytes() for p in archives]
             self.assertEqual(first, [p.read_bytes() for p in build(output=directory)])
 
+    def test_opencode_archive_carries_the_config_fragment_and_no_manifest(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict('os.environ', {'GITHUB_REF_NAME': ''}):
+            indexed = by_host(build(output=directory))
+            self.assertIn('opencode', indexed)
+
+            with zipfile.ZipFile(indexed['opencode']) as zf:
+                names = set(zf.namelist())
+                skills = {n: zf.read(n) for n in names if '/skills/' in n}
+                self.assertEqual({Path(n).parent.name for n in skills if n.endswith('/SKILL.md')},
+                                 SKILL_NAMES)
+                # opencode reads neither manifest; shipping one would only be a
+                # second place for the version to drift.
+                self.assertFalse([n for n in names if n.endswith('plugin.json')])
+                self.assertEqual(names, {'plasma-plugin/opencode.json',
+                                         'plasma-plugin/INSTALL.md', *skills})
+
+                config = json.loads(zf.read('plasma-plugin/opencode.json'))
+                server = config['mcp']['plasma']
+                self.assertEqual(server['type'], 'remote')
+                # No headers: this host authenticates by OAuth, and a bearer
+                # header would switch that off.
+                self.assertNotIn('headers', server)
+                self.assertIn('views:read', server['oauth']['scope'])
+                # A real deployment address must not ship inside the package.
+                self.assertIn('example', server['url'])
+
+            # Same skills in every archive, whatever shape the archive is.
+            with zipfile.ZipFile(indexed['claude']) as claude_zf:
+                claude_skills = {n: claude_zf.read(n) for n in claude_zf.namelist() if '/skills/' in n}
+            self.assertEqual(skills, claude_skills)
+
     def test_app_binding_is_only_in_linked_chatgpt_archive(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict('os.environ', {'GITHUB_REF_NAME': ''}):
-            chatgpt, claude = build(output=directory, app_id='asdk_app_testfixture')
+            indexed = by_host(build(output=directory, app_id='asdk_app_testfixture'))
+            chatgpt, claude = indexed['chatgpt-linked'], indexed['claude']
             with zipfile.ZipFile(chatgpt) as zf:
                 app = json.loads(zf.read('plasma-plugin/.app.json'))
                 self.assertEqual(app['apps']['plasma'], {'id': 'asdk_app_testfixture', 'required': True})

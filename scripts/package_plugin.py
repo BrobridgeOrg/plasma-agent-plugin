@@ -11,6 +11,14 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 HOSTS = {"chatgpt": ".codex-plugin", "claude": ".claude-plugin"}
 
+# opencode is packaged differently because it works differently: it has no
+# plugin manifest and no marketplace, it discovers skills as directories, and
+# it takes its MCP server from the user's own config file. So its archive
+# carries the same skills plus a config fragment to merge and the steps to
+# merge it — there is nothing for a manifest to declare.
+OPENCODE_DIR = ".opencode-plugin"
+OPENCODE_FILES = ("opencode.json", "INSTALL.md")
+
 
 def manifest_files(root):
     version = (root / "VERSION").read_text().strip()
@@ -39,7 +47,7 @@ def build(root=ROOT, output=None, app_id=None):
     skills = sorted((root / "skills").rglob("*.md"))
     if not skills:
         raise ValueError("No skills found")
-    archives = []
+    payloads = {}
     for host, folder in HOSTS.items():
         manifest = manifests[host]
         files = {str(p.relative_to(root)): p.read_bytes() for p in skills}
@@ -49,7 +57,22 @@ def build(root=ROOT, output=None, app_id=None):
             files[".app.json"] = encode({"apps": {"plasma": {"id": app_id, "required": True}}})
         files[f"{folder}/plugin.json"] = encode(manifest)
         suffix = "-linked" if host == "chatgpt" and app_id else ""
-        archive = output / f"plasma-plugin_{version}_{host}{suffix}.zip"
+        payloads[f"{host}{suffix}"] = files
+
+    # The opencode archive ships the config fragment at the top level rather
+    # than under a dotted directory: the user opens it and merges it by hand,
+    # so it has to be visible.
+    opencode = {str(p.relative_to(root)): p.read_bytes() for p in skills}
+    for name in OPENCODE_FILES:
+        source = root / OPENCODE_DIR / name
+        if not source.is_file():
+            raise ValueError(f"opencode package is missing {OPENCODE_DIR}/{name}")
+        opencode[name] = source.read_bytes()
+    payloads["opencode"] = opencode
+
+    archives = []
+    for host, files in payloads.items():
+        archive = output / f"plasma-plugin_{version}_{host}.zip"
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
             for name, content in sorted(files.items()):
                 # Fixed timestamps and modes make repeated packages reproducible.

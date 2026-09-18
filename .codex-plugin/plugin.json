@@ -1,6 +1,6 @@
 {
   "name": "plasma-plugin",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "以 Ophion 知識查核 SQL，建立並核對 Plasma view／mview 定義的工作流程。使用已連結的遠端 Plasma MCP 工具。",
   "author": {
     "name": "Brobridge",
