@@ -1,12 +1,15 @@
 {
   "name": "plasma-plugin-local",
-  "owner": { "name": "Brobridge", "email": "bbgai@brobridge.com" },
+  "owner": {
+    "name": "Brobridge",
+    "email": "bbgai@brobridge.com"
+  },
   "description": "Local development marketplace for plasma-plugin. Add this directory with /plugin marketplace add <path to this repo>.",
   "plugins": [
     {
       "name": "plasma-plugin",
       "source": "./",
-      "description": "Plasma 的工作流 skill 與人工確認閘。MCP 工具（含 Ophion 知識）由 plasma-backend 的 mcp_gateway 提供，不由這個 plugin 啟動。"
+      "description": "以 Ophion 查核來源與 SQL，建立 view／mview 定義後結束。使用共用遠端 MCP，無本機執行依賴。"
     }
   ]
 }

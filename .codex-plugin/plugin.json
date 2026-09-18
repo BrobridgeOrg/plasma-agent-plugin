@@ -1,0 +1,33 @@
+{
+  "name": "plasma-plugin",
+  "version": "0.3.1",
+  "description": "以 Ophion 知識查核 SQL，建立並核對 Plasma view／mview 定義的工作流程。使用已連結的遠端 Plasma MCP 工具。",
+  "author": {
+    "name": "Brobridge",
+    "email": "bbgai@brobridge.com"
+  },
+  "skills": "./skills/",
+  "keywords": [
+    "plasma",
+    "ophion",
+    "view",
+    "materialized-view",
+    "knowledge"
+  ],
+  "interface": {
+    "displayName": "Plasma workflows",
+    "shortDescription": "查核資料知識並建立 view／mview",
+    "longDescription": "透過已連結的 Plasma MCP gateway 查核 Ophion 知識與 Trino SQL，建立 view 或 manual mview，核對並交付定義後結束。",
+    "developerName": "Brobridge",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "檢查 Plasma 連線、workspace 與目前權限。",
+      "幫我將這份報表建立成 Plasma view。",
+      "幫我查核 SQL 並建立 manual mview 定義。"
+    ]
+  }
+}

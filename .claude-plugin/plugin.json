@@ -1,8 +1,7 @@
 {
   "name": "plasma-plugin",
-  "displayName": "Plasma workflows",
-  "description": "Plasma 的工作流 skill 與同步／開 API 前的人工確認閘。MCP 工具由 plasma-backend 的 mcp_gateway 提供，用 /mcp add 連上即可。",
-  "version": "0.2.0",
+  "description": "以 Ophion 知識查核 SQL，建立並核對 Plasma view／mview 定義的工作流程。使用已連結的遠端 Plasma MCP 工具。",
+  "version": "0.3.1",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"
@@ -10,7 +9,7 @@
   "keywords": [
     "plasma",
     "ophion",
-    "data-api",
+    "view",
     "materialized-view",
     "knowledge"
   ]

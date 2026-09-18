@@ -1,7 +1,7 @@
 ---
 name: ophion-knowledge-lookup
 description: >-
-  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，支援資料 API 或 view → blueprint → 外部資料庫流程。知識工具由 Plasma MCP server 一併提供。
+  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，供建立 view／mview 使用。知識工具由 Plasma MCP server 一併提供。
 ---
 
 # 查找與判讀 Ophion 知識
@@ -9,17 +9,16 @@ description: >-
 ## 共通互動原則
 
 - 所有進度、問題、結果、錯誤與交付均使用台灣繁體中文；系統功能名稱如 view、
-  mview、blueprint、workspace、PG，以及工具名稱、SQL、欄位名稱與 URL 保留原樣。
+  view、mview、workspace，以及工具名稱、SQL、欄位名稱與 URL 保留原樣。
 - 在已交付範圍內連續完成知識查找、欄位查核及 SQL 驗證，不逐步詢問是否繼續。
-  只釐清影響正確性的必要資訊，查到假設時標明並納入最後同步確認。
+  只釐清影響正確性的必要資訊，查到假設時標明，建立定義前確認必要假設。
 - 以整份表單為查找單位，不因區塊、指標或來源表不同而自行拆分交付物。
-  資料 API 由 `plasma-data-api` 建立一個 mview；指定外部資料表由
-  `plasma-export` 建立一個 view，再透過 blueprint 匯出。
+  由 `plasma-create-view` 建立一個 view／mview，核對定義後結束。
 
 Ophion 保存來源系統的設計知識：資料表與欄位意義、業務規則、代碼、推導、
 品質陷阱及設計意圖，**不保存實際資料列**。特定紀錄的數值不能從設計知識猜測。
 
-這些知識工具與 Plasma 的 view／blueprint 工具**在同一台 MCP server 上**，
+這些知識工具與 Plasma 的 view 工具**在同一台 MCP server 上**，
 由 Plasma 的 MCP gateway 轉發過來，讀的是同一個 workspace —— 就是連結這個
 連線時選定的那一個。沒有切換 workspace 的工具，`whoami` 會說明目前是哪一個。
 
@@ -54,8 +53,8 @@ Ophion 保存來源系統的設計知識：資料表與欄位意義、業務規�
 - 查到陷阱時先向使用者說明影響與證據，再落實到 SQL；不逐張卡片要求核准。
 
 完整的逐欄查核、概念規則、無單一來源時的推導順序與 Trino 驗證方式，
-依 [資料 API 技能的步驟 1–6](../plasma-data-api/SKILL.md) 執行。
-PG 流程只共用這些查核步驟，不接續建立 mview 或發布 API。
+依 [建立 view 技能的步驟 1–6](../plasma-create-view/SKILL.md) 執行。
+知識查核結果用於建立定義，沒有後續匯出或發布流程。
 
 ## 工具缺少或失敗
 
@@ -64,8 +63,9 @@ PG 流程只共用這些查核步驟，不接續建立 mview 或發布 API。
 - **未設定**：這個 Plasma 部署沒有接上知識服務，沒有知識工具可用。
   據實告訴使用者，不要改用猜測的欄位語意繼續。
 - **沒有 `knowledge:read`**：這個連線沒有被授予知識權限。告訴使用者需要這個
-  權限，並重新連結一次 MCP server；不要重試。
-- **無法連線**：知識服務暫時不可用。Plasma 自己的 view／blueprint 工具不受
+  權限，依 `plasma-mcp-setup` 的追加授權流程處理；以 `whoami` 核對授權結果，
+  不保證單純重連就能取得，不重試遭拒呼叫。
+- **無法連線**：知識服務暫時不可用。Plasma 自己的 view 工具不受
   影響，但在知識恢復前不要憑推測寫 SQL。
 - **`404`／`no published knowledge`**：這個 workspace 尚無已發布的知識版本，
   需先產生並發布，不是設定錯誤。

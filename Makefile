@@ -1,28 +1,13 @@
-BINARY := bin/plasma-plugin-mcp
-VERSION := $(shell cat VERSION)
-MODULE := github.com/BrobridgeOrg/plasma-plugin
+PYTHON ?= python3
 
-.PHONY: build test fmt vet check clean release test-launcher
+.PHONY: check test build release
 
-build:
-	go build -o $(BINARY) ./cmd/plasma-plugin-mcp
-
-release:
-	bash scripts/build-release.sh
-
-test-launcher: build
-	python3 scripts/test-launcher.py
+check: test
 
 test:
-	go test ./...
+	$(PYTHON) -m unittest discover -s scripts -p 'test_*.py'
 
-fmt:
-	gofmt -l -w cmd internal
+build: release
 
-vet:
-	go vet ./...
-
-check: fmt vet test test-launcher
-
-clean:
-	rm -f $(BINARY)
+release:
+	$(PYTHON) scripts/package_plugin.py

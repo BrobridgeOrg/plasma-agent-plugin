@@ -1,102 +1,133 @@
-# plasma-plugin
+# Plasma workflows
 
-一個 Claude Code plugin：**工作流 skill，加上資料真的要動之前的那一次確認。**
+供 **ChatGPT 網頁版與 Claude** 使用的共用工作流程 plugin。
+以 Ophion 知識查核來源與 SQL，建立 view／manual mview 並核對定義後結束。
+兩種宿主共用同一份 skills，分別提供原生 manifest 與 ZIP。
 
-MCP 工具不在這裡。Plasma 的 view／blueprint／job／資料 API 工具，以及知識工具
-（`overview`、`get_table_card`、`get_column_card`…），**都由 plasma-backend 的
-`mcp_gateway` 提供** —— 一台用 URL 連上的 HTTP MCP server，前面擋著它自己的
-OAuth 2.1。知識那半是 gateway 向 Ophion 轉發的。
+唯一流程：**查核來源 → 驗證 SQL → 建立 view／mview → 核對定義並交付**。
+
+**Plugin 是工作流程；遠端 MCP gateway 是工具服務；MCP client 由宿主提供。**
+安裝 plugin 不會自動建立 MCP 連線或授予服務權限。
 
 ```text
-Claude Code
-├─ MCP「plasma」───HTTP + OAuth 2.1──> mcp_gateway ─┬─REST──> Plasma /apis/v1
-│   （一台，使用者只加這個 URL）                     └─MCP───> Ophion query-mcp
-│
-└─ 這個 plugin
-   ├─ skills（4 份）
-   └─ PreToolUse hook：同步／開 API 前的人工確認
+ChatGPT / Claude
+├─ Plasma plugin：共用 skills
+└─ 宿主的 MCP client ── HTTPS + OAuth ──> plasma-backend /mcp
+                                         ├─ Plasma REST API
+                                         └─ Ophion 知識工具
 ```
 
-## 為什麼還需要這個 plugin
-
-**gateway 的授權是一次性的。** 使用者連結時同意一組 scope，之後 `sync_view`、
-`spawn_blueprint_job`、`create_access_entry` 都不會再問。真正要花資源、要寫進別人
-資料表、要把資料送到 Plasma 之外的那一刻，確認只能從用戶端這側來 —— 就是這個 hook。
-
-它比對的是去掉命名空間後的工具名，所以不綁定哪一台 server 提供這些工具。
-
-## 內容
+## 功能與平台相容性
 
 | Skill | 用途 |
 |---|---|
-| `plasma-mcp-setup` | 怎麼連上 Plasma MCP、怎麼確認連到哪個 workspace、診斷 |
+| `plasma-mcp-setup` | 連結服務、核對 workspace／scopes、診斷 |
 | `ophion-knowledge-lookup` | 查核來源、欄位、代碼、業務規則 |
-| `plasma-data-api` | 建立 mview、同步並發布資料 API |
-| `plasma-export` | 建立 view，供 blueprint 匯出至指定的外部資料表 |
+| `plasma-create-view` | 建立 view／manual mview，核對定義後結束 |
 
-一個 hook：`create_view(sync_mode=scheduled)`、`sync_view`、`create_access_entry`、
-`spawn_blueprint_job` 之前跳出中文確認。查找、`run_query` 驗證、建立不啟動同步的
-view 或手動 mview 不攔 —— 那些是準備工作。
+兩個版本均無本機 hooks、Bash launcher、Go binary、下載快取、環境變數或狀態檔依賴。
+`scripts/` 僅供維護者封裝與測試，不會放進安裝包；使用者不需要 Python 或 Go。
+歷史 `releases/` 記錄舊版本，不代表目前仍提供那些功能。
 
-## 安裝
+全程台灣繁體中文。查核、驗證與建立工作依使用者交付範圍連續完成，宿主權限仍適用。
+一般 view 不傳同步設定；mview 使用 `sync_mode=manual`，建立後不啟動同步。
+不建立 blueprint、不匯出檔案或外部資料庫、不發布資料 API，也不安排同步排程。
+後端若仍暴露其他工具，本 plugin 不把它們納入流程；伺服器工具權限由後端管理。
 
-```bash
+## ChatGPT 網頁版
+
+### 先連結 Plasma 工具
+
+管理員需提供可達的 HTTPS MCP endpoint，例如 `https://mcp.example.com/mcp`。
+在帳號及工作區政策允許時，開啟 developer mode，在 Plugins 建立遠端 MCP 連線，
+完成 OAuth 登入、選 workspace、同意 scopes，並將連線加入對話。
+已由管理員配置 Plasma app 時，直接連結該 app。以目前產品 UI 為準。
+
+開始使用後先呼叫 `whoami`，確認 workspace、scopes 與知識服務狀態。
+詳見 [官方連線測試指南](https://developers.openai.com/plugins/deploy/connect-chatgpt)。
+
+### 安裝 workflows
+
+- **工作區 GitHub 匯入**：支援此能力的工作區由管理員在 Admin → Plugins 匯入本
+  repository；現有 Claude-compatible marketplace 可供匯入。成員仍須另外連結
+  Plasma app，並在對話啟用。匯入不代表已授權後端。
+- **ChatGPT 原生封裝**：`make release` 產生 `plasma-plugin_0.3.1_chatgpt.zip`，
+  內含 `.codex-plugin/plugin.json` 與三份 skills，供支援該格式的安裝／匯入流程使用。
+  這是未綁定 app 的 workflow 包，不是已上架或已完成工具連線的 plugin。
+- **綁定既有工作區 app**：取得真實 app ID 後，執行：
+
+  ```bash
+  python3 scripts/package_plugin.py --app-id "$PLASMA_CHATGPT_APP_ID"
+  ```
+
+  環境變數僅用來將真實 ID 傳給維護者封裝指令，執行 plugin 不需要它。
+  會產生額外的 `plasma-plugin_0.3.1_chatgpt-linked.zip`，包含 `.app.json` 與
+  manifest 的 app 引用，且不修改 repository 的共用 manifest。
+  支援 ID 前綴 `asdk_app_`、`connector_`、`templated_apps_`；不能使用 `plugin_` ID。
+  此指令只做封裝，不會註冊 app、驗證其存在、安裝或授予權限。
+- **公開 plugin 發布**：使用 OpenAI 的 **With MCP** 流程提交正式 endpoint，並在
+  同一 draft 加入 skills；不能以 skills-only 提交代替本專案需要的 MCP 整合。
+  `.app.json` 的工作區引用也不能代替公開 MCP 提交。
+
+不要為了綁定網頁版工具而新增 `.mcp.json`、`mcp.json` 或 inline `mcpServers`：
+官方工作區匯入會把這類 plugin 標示為 Desktop only，即使 URL 是 HTTPS。
+參考 [官方工作區 plugin 管理](https://learn.chatgpt.com/docs/enterprise/plugin-management)
+與 [Claude plugin 移植／提交指南](https://developers.openai.com/plugins/guides/submit-claude-plugin)。
+
+目前沒有預填 endpoint 或 app ID。完整連線與寫入流程仍須完成後端項目並在真實
+ChatGPT 帳號驗收，見 [後端修改清單](docs/backend-integration.md)。
+
+## Claude Code
+
+保留既有 plugin 名稱與 marketplace，方便原使用者更新：
+
+```text
 /plugin marketplace add BrobridgeOrg/plasma-agent-plugin
 /plugin install plasma-plugin@plasma-plugin-local
 ```
 
-**這個 plugin 沒有任何設定。** 沒有 `config.env`，沒有 endpoint、帳密或狀態檔。
-
-接著加 MCP server —— 只需要一個 URL：
+透過 Claude Code 加入同一個遠端 MCP server（將 URL 換成真實部署）：
 
 ```bash
-claude mcp add --transport http plasma https://<gateway>/mcp
+claude mcp add --transport http plasma https://mcp.example.com/mcp
 ```
 
-用戶端會自己走完授權：登入 → 選 workspace → 同意。全程不需要複製貼上 token。
-細節與診斷見 `/plasma-plugin:plasma-mcp-setup`。
+完成授權後開新 session，先呼叫 `whoami`。不再安裝或執行任何 plugin binary。
+Claude 安裝包為 `plasma-plugin_0.3.1_claude.zip`；保留相同的三份 skills，無 hooks。
+其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
 
-連上之後**第一個呼叫一律是 `whoami`**：它會說明這個連線綁定的 workspace、
-授權的帳號、拿到哪些權限，以及知識工具現在可不可用。
+## 升級自舊版
 
-### workspace 是憑證的一部分
+更新 plugin 後重新開啟對話／session，讓宿主移除舊 hook 註冊及舊版 skills。
+`plasma-data-api` 與 `plasma-export` 已移除，統一使用 `plasma-create-view`。
+不要沿用舊對話載入的匯出／發布指示；新包中只有三份 skills。
+若曾手動將舊 hook 複製到宿主設定，請在該宿主刪除該自訂設定；新版不會執行舊 binary。
+本次不自動修改使用者家目錄、既有 MCP 連線或其他宿主設定。
+workspace 綁定於後端授權；換 workspace 要重新授權，plugin 不保存選擇。
 
-使用者在同意頁選的 workspace 寫進連線的憑證，**沒有工具能切換它**。要換 workspace
-或增加權限，就是重新連結一次。這也是 Plasma 與知識兩半不可能被指到不同 workspace
-的原因 —— 它們讀的是同一張 token。
+## 從 GitHub Actions 取得安裝包
 
-## 開發
+在 GitHub 開啟 **Actions → Package plugins → Run workflow**，選擇要封裝的分支，
+`tag` 留空即可。完成後在該次執行頁面的 **Artifacts** 下載
+`plasma-plugin-<版本>`，解壓縮後可取得 ChatGPT ZIP、Claude ZIP 與
+SHA-256 `checksums.txt`。Artifact 保留 30 天。
+
+手動執行且 tag 留空只產生安裝包，不建立 GitHub Release。
+推送 `v*` tag，或手動指定既有 tag，會封裝該 tag 的程式，並同時將安裝包附加到
+新建的 GitHub Release；tag 必須與 `VERSION` 及兩份 manifest 一致。
+工作流程檔須先推送到 GitHub 預設分支，才會顯示手動執行入口。
+
+## 維護者本機驗證
 
 ```bash
-make check     # fmt + vet + Go tests + build + launcher tests
-make test
+make check
+make release
 ```
 
-開發者才需要 Go（版本見 `go.mod`）與 Python 3（launcher 測試）。正常啟動不會
-自動 build，也不會自動採用 repo 內可能過期的 binary。要測試本機修改：
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.3.1/`，包括兩個 ZIP
+與 SHA-256 `checksums.txt`。安裝包只收錄對應宿主 manifest 與共用 Markdown skills，
+避免將開發工具、本機功能或後端修改清單帶入執行環境。
 
-```bash
-make build
-PLASMA_MCP_BINARY="$PWD/bin/plasma-plugin-mcp" claude --plugin-dir "$PWD"
-```
-
-binary 保留 `plasma-plugin-mcp` 這個名字（發佈資產與啟動腳本都用它定址），
-但它現在只有一個模式：`hook`。以 `plasma` 或 `ophion` 呼叫會明確報錯並指向
-gateway，而不是含糊的「unknown mode」—— 沒更新設定的安裝會撞到這個。
-
-## ChatGPT／Codex
-
-匯入時不能依賴 hook 的 `permissionDecision: "ask"`，應使用宿主支援的工具確認設定。
-未有適用確認介面時，skill 會在同步與開 API 前用中文取得明確同意，不在前置步驟
-另加確認。
-
-## 發佈
-
-更新 `VERSION`、`.claude-plugin/plugin.json` 的版本及 `releases/v<version>.md`，
-提交後推送對應的 `v<version>` tag。GitHub Actions 會執行檢查、建置四種平台的
-執行檔，並在目前 repo 發佈 Release 與 `checksums.txt`。本機可用 `make release`
-產生相同格式的資產，輸出在 `dist/v<version>/`。
-
-既有 tag 若未觸發發佈，可在 GitHub 的 **Actions → Release → Run workflow**
-選擇 `main`，並在 `tag` 填入版本（例如 `v0.1.1`）。手動執行仍會 checkout 該
-tag 的原始碼並驗證版本，不會拿目前 main 的程式替換已標記的版本。
+更新 `VERSION`、兩份 manifest 與對應的 `releases/vX.Y.Z.md`，再依團隊流程提交
+及推送 tag。正式安裝包由 GitHub Actions 驗證、封裝並上傳，不再跨平台編譯 binary。
+本機產生 ZIP 不會自動推送 tag、發 GitHub Release 或上架 ChatGPT。
