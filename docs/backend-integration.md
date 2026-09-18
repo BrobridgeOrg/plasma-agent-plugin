@@ -1,8 +1,13 @@
-# ChatGPT 網頁版：後端修改與驗收清單
+# 後端修改與驗收清單
 
 評估日期：2026-09-17。目標 repository：`plasma-backend`。
-本文件列的是 **backend 要補的項目**；plugin v0.3.1 僅調整封裝與 skills，沒有修改後端。
-MCP server 繼續由 Claude 與 ChatGPT 共用，不建立第二套工具服務。
+本文件列的是 **backend 要補的項目**。
+
+**目前的連線路徑是 B7 的存取權杖核發**，plugin 的 skills 與 README 只描述這一條。
+B1、B5 與下方部署章節中屬於 ChatGPT 網頁版的項目暫緩：網頁版由 OpenAI 伺服器連出，
+連不到內網 gateway，要支援得先有對外可達的 HTTPS endpoint。保留這些條目是因為
+它們記錄了後端尚未完成的工作，不代表 plugin 目前支援該宿主。
+B2、B4 與 Claude Code／Codex CLI 同樣相關。
 
 v0.3.1 範圍更新：唯一流程是建立並核對 view／manual mview 定義，沒有後續同步、
 blueprint、匯出或 API 發布。先前 B3（blueprint 輸出）與 B6（目的地／job 追蹤）
@@ -83,6 +88,49 @@ plugin 只呼叫 `whoami`、知識查核工具、`list_views`、`get_view`、`ru
 
 驗收：建立一般 view 和 manual mview 後無同步 job、無 blueprint／匯出／發布；
 若啟用受限 profile，直接呼叫範圍外工具或傳 scheduled 也必須被後端拒絕。
+
+## 已完成項目
+
+### B7 — 內網部署的權杖核發
+
+位置：`oauth_pat.go`（新增）、`oauth_pat_test.go`、`web/pat.html`、`web/consent.html`、
+`routes.go`、`module.go`、`oauth_jwt.go`、`render.go`、`models/oauth.go`。
+
+問題：MCP client 完成 OAuth 需要瀏覽器轉址，而內網 gateway 常沒有用戶端信任的
+HTTPS 憑證。ChatGPT 網頁版另有一層限制——它由 OpenAI 伺服器連出，連不到內網位址，
+與憑證無關，這條路徑無法用本項解決。
+
+作法：新增 `GET /oauth/pat`，重用既有的登入、workspace、同意三頁，只改最後一步——
+不簽發 authorization code 轉址回 client，而是建立 grant 並把長效 access token
+顯示在頁面上，由使用者貼進宿主設定。權杖以既有的 `verifyToken` 驗證，沒有第二條
+驗證路徑；grant 一樣綁 user、workspace 與 scopes，一樣存加密的 upstream refresh token，
+一樣能用 `/oauth/revoke` 立即撤銷。
+
+設定：
+
+```toml
+[mcp_gateway]
+pat_enabled = true          # 預設 false，未開啟時路由不存在
+pat_token_ttl = "2160h"     # 預設 90 天，上限 365 天
+```
+
+與 OAuth 的差異，開啟前要確認可以接受：
+
+- 沒有 PKCE、沒有一次性 code、沒有 refresh rotation 與重放偵測。
+- 權杖長效且靜態，存在使用者機器的環境變數或設定檔，有被 commit 或轉貼的風險。
+- `public_url` 仍是 `http://` 時，權杖與查詢內容在網路上是明文，只能靠網段隔離。
+- 過期沒有自動更新，要重走一次核發流程。
+
+未放寬的部分：身分仍由 plasma-backend 的 `/auth/login` 驗證，workspace 仍只能從
+`MyWorkspaces` 的結果選，權限仍要在同意頁逐項勾選。PAT 的 grant 使用保留的
+`client_id = "pat"`，不參與 OAuth 重新連結時的 scope 累積，因此新核發的權杖不會
+繼承舊權杖的權限；該 client 註冊的 redirect 清單是空的，無法被拿來走轉址流程。
+
+驗收：`go test ./pkg/mcp_gateway/ -run TestPAT` 涵蓋路由預設關閉、權杖可用於 `/mcp`、
+audience／workspace 綁定、TTL、錯誤密碼與非成員 workspace、CSRF、取消、
+profile 外 scope 被丟棄、不繼承舊權杖權限、撤銷後立即失效。
+尚未在真實 Claude Code 與 Codex CLI 上驗證：Codex 的 rmcp client 是否接受
+`http://` URL 未實測，若被擋則需在該機器以 loopback 轉發。
 
 ## 條件式項目與可用性改善
 
