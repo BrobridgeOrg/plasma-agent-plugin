@@ -1,12 +1,28 @@
 ---
 name: plasma-mcp-setup
 description: >-
-  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。以宿主內建的 OAuth 完成授權，核對 workspace 與 scopes；適用 opencode、Claude Code 與 Codex。全程台灣繁體中文。
+  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。以宿主內建的 OAuth 完成授權，核對 workspace 與 scopes；適用 opencode、Claude Code 與 Codex。OAuth 開啟系統瀏覽器後立即結束當前回合，不使用 browser 或 computer use 工具。全程台灣繁體中文。
 ---
 
 # 連結 Plasma 與診斷
 
 全程使用台灣繁體中文；工具名稱、SQL、識別名稱與 URL 保留原樣。
+
+## OAuth 交接是本回合終點
+
+這項規則優先於本文件其餘步驟。宿主原生 OAuth 入口一旦開啟系統預設瀏覽器，或產生
+需要使用者開啟的授權 URL，本回合就到達交接點：
+
+- **立即結束本回合，將操作權交還使用者。**
+- 下一個且唯一的 assistant action 必須是回覆使用者並結束本回合，不得先送出進度訊息後繼續工作。
+- 本回合不得再呼叫任何工具，包括 Browser、computer use、內建瀏覽器、其他 UI 自動化、
+  shell 輪詢／等待、狀態查詢與 `whoami`。
+- 不查看、不操作、不代填授權頁，也不把同一個 URL 開到第二個瀏覽器或分頁。
+- 若宿主沒有自動開啟瀏覽器，只把當次 URL 提供給使用者自行開啟，然後結束本回合；
+  代理不得代開。
+- 只有使用者在**後續新訊息**確認已完成授權後，才開始新回合並呼叫 `whoami` 核對。
+
+交接時只需回覆：「授權頁已交由系統預設瀏覽器開啟；請完成登入與 workspace 選擇後告訴我。」
 
 設定連線時只回報要使用者做什麼、以及做完的結果。不要解說 OAuth 或 MCP 的運作原理，
 不要列出你讀過或檢查過哪些檔案，也不要在完成後補一段說明。
@@ -22,21 +38,13 @@ description: >-
 不需要手動複製任何憑證。
 
 1. 工具已可用時，先呼叫 `whoami` 核對連線，不重新要求設定或登入。
-2. 工具尚未出現時，依宿主完成下面對應的設定，再回到 `whoami`。
+2. 工具尚未出現時，依宿主完成下面對應的設定；使用者在後續新訊息確認授權完成後，
+   才回到 `whoami`。
 
 workspace 是授權的一部分，沒有 `use_workspace` 工具；換 workspace 要重新授權。
 
-### OAuth 開啟規則
-
-每次授權只透過**一個宿主原生入口啟動一次**。宿主已經開啟系統預設瀏覽器後：
-
-- 不得再用 Codex／ChatGPT 內建瀏覽器、Browser、computer use、網頁工具或第二個分頁開啟授權網址
-- 不得同時混用桌面應用的 Authenticate、CLI 登入命令或其他宿主入口
-- 停下並等待使用者在系統預設瀏覽器完成登入與 workspace 選擇，再用 `whoami` 核對
-
-若宿主未能自動開啟瀏覽器，只提供**當次**授權網址讓使用者自行開啟。只有使用者明確要求時，
-代理才可用作業系統預設瀏覽器代開一次，仍不得使用內建瀏覽器。重新啟動授權前先結束原流程，
-避免同時存在兩組 state。
+每次授權只透過一個宿主原生入口啟動一次，不得同時混用桌面應用的 Authenticate、
+CLI 登入命令或其他宿主入口。重新啟動授權前先結束原流程，避免同時存在兩組 state。
 
 ## opencode
 
@@ -58,8 +66,8 @@ workspace 是授權的一部分，沒有 `use_workspace` 工具；換 workspace 
 opencode mcp auth plasma
 ```
 
-它會印出授權網址並開啟瀏覽器。登入後選 workspace 即完成，回到終端機開新 session，
-呼叫 `whoami` 核對。
+它會印出授權網址並開啟瀏覽器；此時依〈OAuth 交接是本回合終點〉立即結束本回合。
+使用者完成後，回到終端機開新 session 並呼叫 `whoami` 核對。
 
 - 狀態查詢：`opencode mcp list`
 - 重新授權：`opencode mcp logout plasma` 後再 auth 一次
@@ -74,8 +82,8 @@ opencode mcp auth plasma
 claude mcp add --transport http plasma <gateway>/mcp
 ```
 
-加入後在對話中輸入 `/mcp`，選 plasma → Authenticate，瀏覽器登入並選 workspace 即完成。
-接著開新 session，呼叫 `whoami`。
+加入後在對話中輸入 `/mcp`，選 plasma → Authenticate；瀏覽器開啟時立即結束本回合。
+使用者登入並選完 workspace 後，再開新 session 呼叫 `whoami`。
 
 ## Codex
 
@@ -93,8 +101,8 @@ experimental_use_rmcp_client = true
 - Codex CLI：執行 `codex mcp login plasma` 一次
 - IDE extension：在 MCP server 清單的 plasma 連線選 Authenticate 一次
 
-入口會啟動 OAuth 並開啟系統預設瀏覽器。開啟後遵守〈OAuth 開啟規則〉，不要再替使用者
-開一次授權網址。完成後開新對話呼叫 `whoami`。
+入口會啟動 OAuth 並開啟系統預設瀏覽器。開啟後依〈OAuth 交接是本回合終點〉立即結束
+本回合；不得等待完成或呼叫其他工具。使用者完成後，再於新對話呼叫 `whoami`。
 
 ## 核對連線
 
