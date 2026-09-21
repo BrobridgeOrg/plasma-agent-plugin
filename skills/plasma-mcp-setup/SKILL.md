@@ -1,7 +1,7 @@
 ---
 name: plasma-mcp-setup
 description: >-
-  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。以宿主內建的 OAuth 完成授權，核對 workspace 與 scopes；適用 opencode、Claude Code 與 Codex CLI。全程台灣繁體中文。
+  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。以宿主內建的 OAuth 完成授權，核對 workspace 與 scopes；適用 opencode、Claude Code 與 Codex。全程台灣繁體中文。
 ---
 
 # 連結 Plasma 與診斷
@@ -25,6 +25,18 @@ description: >-
 2. 工具尚未出現時，依宿主完成下面對應的設定，再回到 `whoami`。
 
 workspace 是授權的一部分，沒有 `use_workspace` 工具；換 workspace 要重新授權。
+
+### OAuth 開啟規則
+
+每次授權只透過**一個宿主原生入口啟動一次**。宿主已經開啟系統預設瀏覽器後：
+
+- 不得再用 Codex／ChatGPT 內建瀏覽器、Browser、computer use、網頁工具或第二個分頁開啟授權網址
+- 不得同時混用桌面應用的 Authenticate、CLI 登入命令或其他宿主入口
+- 停下並等待使用者在系統預設瀏覽器完成登入與 workspace 選擇，再用 `whoami` 核對
+
+若宿主未能自動開啟瀏覽器，只提供**當次**授權網址讓使用者自行開啟。只有使用者明確要求時，
+代理才可用作業系統預設瀏覽器代開一次，仍不得使用內建瀏覽器。重新啟動授權前先結束原流程，
+避免同時存在兩組 state。
 
 ## opencode
 
@@ -65,7 +77,7 @@ claude mcp add --transport http plasma <gateway>/mcp
 加入後在對話中輸入 `/mcp`，選 plasma → Authenticate，瀏覽器登入並選 workspace 即完成。
 接著開新 session，呼叫 `whoami`。
 
-## Codex CLI
+## Codex
 
 在 `~/.codex/config.toml` 加入：
 
@@ -75,7 +87,14 @@ url = "<gateway>/mcp"
 experimental_use_rmcp_client = true
 ```
 
-首次使用時依宿主提示完成瀏覽器授權，再開新對話呼叫 `whoami`。
+依目前所在介面選一個入口，不要混用：
+
+- ChatGPT 桌面應用：在 Settings → MCP servers 的 plasma 連線選 Authenticate 一次
+- Codex CLI：執行 `codex mcp login plasma` 一次
+- IDE extension：在 MCP server 清單的 plasma 連線選 Authenticate 一次
+
+入口會啟動 OAuth 並開啟系統預設瀏覽器。開啟後遵守〈OAuth 開啟規則〉，不要再替使用者
+開一次授權網址。完成後開新對話呼叫 `whoami`。
 
 ## 核對連線
 

@@ -1,6 +1,6 @@
 # Plasma workflows
 
-供 **opencode、Claude Code 與 Codex CLI** 使用的共用工作流程 plugin。
+供 **opencode、Claude Code 與 Codex** 使用的共用工作流程 plugin。
 以 Ophion 知識查核來源與 SQL，建立 view／manual mview 並核對定義後結束。
 三種宿主共用同一份 skills，分別提供對應的 manifest／設定檔與 ZIP。
 
@@ -10,7 +10,7 @@
 安裝 plugin 不會自動建立 MCP 連線或授予服務權限。
 
 ```text
-opencode / Claude Code / Codex CLI
+opencode / Claude Code / Codex
 ├─ Plasma plugin：共用 skills
 └─ 宿主的 MCP client ──── OAuth ────> plasma-backend /mcp
                                       ├─ Plasma REST API
@@ -26,7 +26,7 @@ opencode / Claude Code / Codex CLI
 |---|---|---|
 | **opencode** | `opencode.json` 的 `mcp` 區塊 | `opencode mcp auth plasma` |
 | **Claude Code** | `claude mcp add --transport http` | 對話中 `/mcp` → Authenticate |
-| **Codex CLI** | `~/.codex/config.toml` | 首次使用時依提示授權 |
+| **Codex** | `~/.codex/config.toml` | 桌面應用／IDE 選 Authenticate，或執行 `codex mcp login plasma` |
 
 ChatGPT 網頁版不支援：它由 OpenAI 伺服器連出，連不到內網的 gateway 位址。
 
@@ -108,10 +108,10 @@ claude mcp add --transport http plasma https://mcp.example.internal/mcp
 接著在對話中輸入 `/mcp`，選 plasma → Authenticate，瀏覽器完成授權。
 token 存進系統憑證庫並自動更新。
 
-Claude 安裝包為 `plasma-plugin_0.5.0_claude.zip`；三個版本的 skills 完全相同，無 hooks。
+Claude 安裝包為 `plasma-plugin_0.5.1_claude.zip`；三個版本的 skills 完全相同，無 hooks。
 其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
 
-## Codex CLI
+## Codex
 
 `~/.codex/config.toml`：
 
@@ -121,8 +121,10 @@ url = "https://mcp.example.internal/mcp"
 experimental_use_rmcp_client = true
 ```
 
-skills 使用 `plasma-plugin_0.5.0_chatgpt.zip`，依該宿主的匯入流程安裝。
-首次使用時依提示完成瀏覽器授權，再開新對話呼叫 `whoami`。
+skills 使用 `plasma-plugin_0.5.1_chatgpt.zip`，依該宿主的匯入流程安裝。
+桌面應用或 IDE 在 MCP server 清單選 Authenticate；CLI 執行 `codex mcp login plasma`。
+三種入口擇一使用一次。宿主開啟系統預設瀏覽器後，不要再從桌面內建瀏覽器或第二個分頁
+開啟授權網址。完成授權後，再開新對話呼叫 `whoami`。
 
 ## 升級自舊版
 
@@ -153,10 +155,14 @@ make check
 make release
 ```
 
-僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.5.0/`，包括三個 ZIP
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.5.1/`，包括三個 ZIP
 與 SHA-256 `checksums.txt`。安裝包只收錄對應宿主 manifest 與共用 Markdown skills，
 避免將開發工具、本機功能或後端修改清單帶入執行環境。
 
 更新 `VERSION`、兩份 manifest 與對應的 `releases/vX.Y.Z.md`，再依團隊流程提交
 及推送 tag。正式安裝包由 GitHub Actions 驗證、封裝並上傳，不再跨平台編譯 binary。
 本機產生 ZIP 不會自動推送 tag 或發 GitHub Release。
+
+Release notes 採一般專案的變更紀錄格式：以使用者可觀察的新增、修正與相容性影響為主，
+每項簡短條列。不要寫開發過程、對作者的解釋、對話語氣或未採用方案；只有實際需要操作時
+才加入升級或部署提醒。
