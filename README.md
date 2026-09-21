@@ -108,7 +108,7 @@ claude mcp add --transport http plasma https://mcp.example.internal/mcp
 接著在對話中輸入 `/mcp`，選 plasma → Authenticate，瀏覽器完成授權。
 token 存進系統憑證庫並自動更新。
 
-Claude 安裝包為 `plasma-plugin_0.5.2_claude.zip`；三個版本的 skills 完全相同，無 hooks。
+Claude 安裝包為 `plasma-plugin_0.5.3_claude.zip`；三個版本的 skills 完全相同，無 hooks。
 其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
 
 ## Codex
@@ -121,7 +121,7 @@ url = "https://mcp.example.internal/mcp"
 experimental_use_rmcp_client = true
 ```
 
-skills 使用 `plasma-plugin_0.5.2_chatgpt.zip`，依該宿主的匯入流程安裝。
+skills 使用 `plasma-plugin_0.5.3_chatgpt.zip`，依該宿主的匯入流程安裝。
 桌面應用或 IDE 在 MCP server 清單選 Authenticate；CLI 執行 `codex mcp login plasma`。
 三種入口擇一使用一次。宿主開啟系統預設瀏覽器後，agent 立即結束當前回合，不等待授權、
 不呼叫 `whoami`，也不使用 Browser、computer use 或桌面內建瀏覽器。使用者完成授權並在
@@ -156,7 +156,7 @@ make check
 make release
 ```
 
-僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.5.2/`，包括三個 ZIP
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.5.3/`，包括三個 ZIP
 與 SHA-256 `checksums.txt`。安裝包只收錄對應宿主 manifest 與共用 Markdown skills，
 避免將開發工具、本機功能或後端修改清單帶入執行環境。
 
