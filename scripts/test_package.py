@@ -65,7 +65,10 @@ class PackageTest(unittest.TestCase):
                 # No headers: this host authenticates by OAuth, and a bearer
                 # header would switch that off.
                 self.assertNotIn('headers', server)
-                self.assertIn('views:read', server['oauth']['scope'])
+                # No scope either. The gateway's 401 challenge settles what a
+                # client asks for, ahead of anything configured locally, so a
+                # scope here would only look like a knob that works.
+                self.assertNotIn('oauth', server)
                 # A real deployment address must not ship inside the package.
                 self.assertIn('example', server['url'])
 

@@ -3,7 +3,11 @@
 評估日期：2026-09-17。目標 repository：`plasma-backend`。
 本文件列的是 **backend 要補的項目**。
 
-**目前的連線路徑是 B7 的存取權杖核發**，plugin 的 skills 與 README 只描述這一條。
+**目前的連線路徑是 OAuth**，plugin 的 skills 與 README 只描述這一條。
+先前的手動權杖核發（舊 B7）已在 backend 撤回，plugin 也已移除相關說明。
+**B8（challenge scope）已完成**：授權流程改為選定 workspace 即完成，一次授予完整權限。
+仍然擋住可用性的是 **B9（HTTPS）**。
+
 B1、B5 與下方部署章節中屬於 ChatGPT 網頁版的項目暫緩：網頁版由 OpenAI 伺服器連出，
 連不到內網 gateway，要支援得先有對外可達的 HTTPS endpoint。保留這些條目是因為
 它們記錄了後端尚未完成的工作，不代表 plugin 目前支援該宿主。
@@ -89,48 +93,63 @@ plugin 只呼叫 `whoami`、知識查核工具、`list_views`、`get_view`、`ru
 驗收：建立一般 view 和 manual mview 後無同步 job、無 blueprint／匯出／發布；
 若啟用受限 profile，直接呼叫範圍外工具或傳 scheduled 也必須被後端拒絕。
 
-## 已完成項目
+### B8 — 401 challenge 的 scope 壓過一切（擋住 OAuth 可用性）
 
-### B7 — 內網部署的權杖核發
+位置：`mcp_server.go` 的 `mcpHandler`，`auth.RequireBearerTokenOptions.Scopes`。
 
-位置：`oauth_pat.go`（新增）、`oauth_pat_test.go`、`web/pat.html`、`web/consent.html`、
-`routes.go`、`module.go`、`oauth_jwt.go`、`render.go`、`models/oauth.go`。
+現況：該欄位同時扮演兩個角色——middleware 對每個請求強制檢查的最低 scope，
+以及 401 回應裡 `WWW-Authenticate` 的 scope 提示。目前是 `views:read`。
 
-問題：MCP client 完成 OAuth 需要瀏覽器轉址，而內網 gateway 常沒有用戶端信任的
-HTTPS 憑證。ChatGPT 網頁版另有一層限制——它由 OpenAI 伺服器連出，連不到內網位址，
-與憑證無關，這條路徑無法用本項解決。
+問題：MCP 用戶端以 challenge 的 scope 為最高優先。TypeScript SDK 1.29.0 的
+`authInternal` 寫死這個順序（SEP-835）：
 
-作法：新增 `GET /oauth/pat`，重用既有的登入、workspace、同意三頁，只改最後一步——
-不簽發 authorization code 轉址回 client，而是建立 grant 並把長效 access token
-顯示在頁面上，由使用者貼進宿主設定。權杖以既有的 `verifyToken` 驗證，沒有第二條
-驗證路徑；grant 一樣綁 user、workspace 與 scopes，一樣存加密的 upstream refresh token，
-一樣能用 `/oauth/revoke` 立即撤銷。
-
-設定：
-
-```toml
-[mcp_gateway]
-pat_enabled = true          # 預設 false，未開啟時路由不存在
-pat_token_ttl = "2160h"     # 預設 90 天，上限 365 天
+```js
+// 1. WWW-Authenticate scope  2. PRM scopes_supported  3. Client metadata scope
+const resolvedScope = scope || resourceMetadata?.scopes_supported?.join(' ') || provider.clientMetadata.scope;
 ```
 
-與 OAuth 的差異，開啟前要確認可以接受：
+所以 challenge 一旦帶了 `views:read`，就蓋掉 protected-resource metadata 宣告的四個
+scope，也蓋掉使用者在宿主設定檔寫的 `oauth.scope`。實測 opencode：設定檔填了四個
+scope，實際送出的授權請求仍是 `scope=views:read`，同意頁只顯示一項，
+拿到的 token 也只有讀取權——無法查知識、跑查詢或建立 view。
+**這在 plugin 或宿主設定端都無法覆蓋。**
 
-- 沒有 PKCE、沒有一次性 code、沒有 refresh rotation 與重放偵測。
-- 權杖長效且靜態，存在使用者機器的環境變數或設定檔，有被 commit 或轉貼的風險。
-- `public_url` 仍是 `http://` 時，權杖與查詢內容在網路上是明文，只能靠網段隔離。
-- 過期沒有自動更新，要重走一次核發流程。
+修改：把「強制檢查的最低 scope」與「challenge 的提示」分開。最小做法是讓 challenge
+不帶 scope，用戶端便退回 PRM 的 `scopes_supported`（已正確列出四項）。tool 層的
+`caller.require` 仍逐項把關，granular scope 的設計不受影響。
 
-未放寬的部分：身分仍由 plasma-backend 的 `/auth/login` 驗證，workspace 仍只能從
-`MyWorkspaces` 的結果選，權限仍要在同意頁逐項勾選。PAT 的 grant 使用保留的
-`client_id = "pat"`，不參與 OAuth 重新連結時的 scope 累積，因此新核發的權杖不會
-繼承舊權杖的權限；該 client 註冊的 redirect 清單是空的，無法被拿來走轉址流程。
+驗收：`curl -i -X POST <gateway>/mcp` 的 `WWW-Authenticate` 不再出現
+`scope="views:read"`；opencode 首次授權時同意頁顯示四項可勾選，
+`whoami` 回報的 scopes 與使用者所選一致。
 
-驗收：`go test ./pkg/mcp_gateway/ -run TestPAT` 涵蓋路由預設關閉、權杖可用於 `/mcp`、
-audience／workspace 綁定、TTL、錯誤密碼與非成員 workspace、CSRF、取消、
-profile 外 scope 被丟棄、不繼承舊權杖權限、撤銷後立即失效。
-尚未在真實 Claude Code 與 Codex CLI 上驗證：Codex 的 rmcp client 是否接受
-`http://` URL 未實測，若被擋則需在該機器以 loopback 轉發。
+### B9 — gateway 需要用戶端信任的 HTTPS 憑證（擋住 OAuth 可用性）
+
+現況：`public_url` 為 `http://`，`allow_insecure_public_url = true`。
+ingress 雖然監聽 443，但用的是 nginx 預設自簽憑證
+（`CN=Kubernetes Ingress Controller Fake Certificate`），不受用戶端信任，
+且 discovery 仍宣告 `http://` 的 issuer 與 endpoints。
+
+問題：OAuth 最後一步是從 gateway 導回 `http://127.0.0.1:<port>` 的本機接收埠。
+Chrome 自 142 起實施 Local Network Access，涵蓋 top-level navigation，
+會擋下由內網位址導向 loopback 的跳轉；而請求該權限的資格**僅限 HTTPS 頁面**，
+所以 http 的 gateway 連權限提示都不會出現。實測結果：使用者按下「同意並連結」後
+gateway 正常回 302、backend 記錄 `Authorization granted`，但瀏覽器不跟隨，
+用戶端的 callback 永遠收不到 code。同一頁面上 `fetch('http://127.0.0.1:…')`
+直接被擋（`Failed to fetch`）。
+
+此外部分宿主的 MCP SDK 會拒絕非 TLS 位址上的 OAuth token endpoint
+（SDK 新版的 `assertSecureTokenEndpoint`，SEP-2207），這條也只有 HTTPS 能解。
+
+修改：為 gateway 配置用戶端信任的憑證（內部 CA 簽發並將 CA 佈到用戶端，
+或使用可申請公信憑證的網域），`public_url` 改為 `https://`，
+並移除 `allow_insecure_public_url`。
+
+過渡期可由 IT 以 Chrome 政策 `LoopbackNetworkAccessAllowedForUrls` 放行該來源，
+但那需要逐台佈署，不能當長期方案。
+
+驗收：`curl`（不加 `-k`）能取得 `https://<gateway>/healthz`；discovery 的 issuer
+與 endpoints 皆為 https；在 Chrome 完成一次完整授權，瀏覽器出現本機網路權限提示，
+同意後用戶端成功收到 code 並換到 token。
 
 ## 條件式項目與可用性改善
 

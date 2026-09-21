@@ -3,11 +3,8 @@
   "mcp": {
     "plasma": {
       "type": "remote",
-      "url": "http://mcp.example.internal/mcp",
-      "enabled": true,
-      "oauth": {
-        "scope": "views:read knowledge:read query:run views:write"
-      }
+      "url": "https://mcp.example.internal/mcp",
+      "enabled": true
     }
   }
 }

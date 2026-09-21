@@ -12,23 +12,35 @@
 ```text
 opencode / Claude Code / Codex CLI
 ├─ Plasma plugin：共用 skills
-└─ 宿主的 MCP client ── OAuth 或存取權杖 ──> plasma-backend /mcp
-                                            ├─ Plasma REST API
-                                            └─ Ophion 知識工具
+└─ 宿主的 MCP client ──── OAuth ────> plasma-backend /mcp
+                                      ├─ Plasma REST API
+                                      └─ Ophion 知識工具
 ```
 
-連線認證依宿主而異，伺服器兩條都支援：
+連線一律走 **OAuth**：在宿主設定 MCP server，由宿主開啟瀏覽器完成授權。
+使用者以自己的 Plasma 帳號登入、選 workspace，**選定即完成授權**——沒有額外的權限
+確認頁，每次授權都取得該部署支援的完整權限。token 由宿主保管並自動更新，
+不需要手動核發或複製任何憑證。
 
-| 宿主 | 認證 | 使用者要做的事 |
+| 宿主 | 設定 | 授權 |
 |---|---|---|
-| **opencode** | OAuth | 設定檔加一段，`opencode mcp auth plasma`，瀏覽器登入完成 |
-| **Claude Code**、**Codex CLI** | 存取權杖 | 到 `<gateway>/oauth/pat` 核發、存進環境變數、設定連線 |
-
-差別在用戶端不在伺服器：Claude Code 與 Codex CLI 的 MCP SDK 不接受非 TLS 位址上的
-OAuth token endpoint，所以在只有 http 的部署上只能走權杖。gateway 換上用戶端信任的
-HTTPS 憑證之後，兩者也可以改用 OAuth。
+| **opencode** | `opencode.json` 的 `mcp` 區塊 | `opencode mcp auth plasma` |
+| **Claude Code** | `claude mcp add --transport http` | 對話中 `/mcp` → Authenticate |
+| **Codex CLI** | `~/.codex/config.toml` | 首次使用時依提示授權 |
 
 ChatGPT 網頁版不支援：它由 OpenAI 伺服器連出，連不到內網的 gateway 位址。
+
+### 部署前提
+
+OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**gateway 必須提供
+用戶端信任的 HTTPS 憑證**，否則：
+
+- Chrome 142 之後會擋下這個跨網段導轉，且不顯示任何提示（要求該權限的資格僅限
+  HTTPS 頁面），使用者選完 workspace 後只會看到頁面不動
+- 部分宿主的 MCP SDK 會直接拒絕非 TLS 位址上的 OAuth token endpoint
+
+自簽而未將 CA 佈到用戶端不算受信任。詳見
+[後端修改清單](docs/backend-integration.md)。
 
 ## 功能與平台相容性
 
@@ -63,67 +75,54 @@ cp -R skills/* ~/.config/opencode/skills/
   "mcp": {
     "plasma": {
       "type": "remote",
-      "url": "http://mcp.example.internal/mcp",
-      "enabled": true,
-      "oauth": { "scope": "views:read knowledge:read query:run views:write" }
+      "url": "https://mcp.example.internal/mcp",
+      "enabled": true
     }
   }
 }
 ```
 
 ```bash
-opencode mcp auth plasma      # 開瀏覽器登入、選 workspace、確認權限
+opencode mcp auth plasma      # 開瀏覽器登入、選 workspace，選定即完成
 opencode mcp list             # 查看授權狀態
 ```
 
 token 由 opencode 保管在 `~/.local/share/opencode/mcp-auth.json` 並自動更新，
 使用者不需要保存任何字串。完整步驟見安裝包內的 `INSTALL.md`。
 
-## Claude Code 與 Codex CLI:先核發存取權杖
+## Claude Code
 
-管理員需提供可達的 MCP gateway 位址，並在後端開啟 `pat_enabled`。
-使用者到 `<gateway>/oauth/pat` 用自己的 Plasma 帳號登入、選 workspace、
-逐項勾選權限，核發一張存取權杖；該頁只顯示權杖一次。
-
-把權杖放進環境變數後設定連線：
-
-```bash
-export PLASMA_MCP_TOKEN='<權杖>'
-
-# Claude Code
-claude mcp add --transport http plasma http://mcp.internal:5002/mcp \
-  --header 'Authorization: Bearer ${PLASMA_MCP_TOKEN}'
-```
-
-單引號與 `${...}` 讓 Claude Code 讀取設定時才展開，權杖不會寫進 `~/.claude.json`。
-
-```toml
-# Codex CLI — ~/.codex/config.toml
-[mcp_servers.plasma]
-url = "http://mcp.internal:5002/mcp"
-bearer_token_env_var = "PLASMA_MCP_TOKEN"
-experimental_use_rmcp_client = true
-```
-
-開新對話後先呼叫 `whoami`，確認 workspace、scopes 與知識服務狀態。
-權杖到期不會自動更新，重新核發一張即可；外洩時用 `<gateway>/oauth/revoke` 撤銷。
-
-身分驗證、workspace 綁定與權限勾選都由 gateway 的核發頁執行，
-權杖本身則是長效憑證，沒有 PKCE 與輪替。取捨與後端設定見
-[後端修改清單](docs/backend-integration.md) 的 B7。
-
-### 安裝 Claude Code 的 workflows
-
-保留既有 plugin 名稱與 marketplace，方便原使用者更新：
+安裝 workflows（保留既有 plugin 名稱與 marketplace，方便原使用者更新）：
 
 ```text
 /plugin marketplace add BrobridgeOrg/plasma-agent-plugin
 /plugin install plasma-plugin@plasma-plugin-local
 ```
 
-設定完成後開新 session，先呼叫 `whoami`。不再安裝或執行任何 plugin binary。
-Claude 安裝包為 `plasma-plugin_0.4.0_claude.zip`；三個版本的 skills 完全相同，無 hooks。
+加入 MCP server 並授權：
+
+```bash
+claude mcp add --transport http plasma https://mcp.example.internal/mcp
+```
+
+接著在對話中輸入 `/mcp`，選 plasma → Authenticate，瀏覽器完成授權。
+token 存進系統憑證庫並自動更新。
+
+Claude 安裝包為 `plasma-plugin_0.5.0_claude.zip`；三個版本的 skills 完全相同，無 hooks。
 其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
+
+## Codex CLI
+
+`~/.codex/config.toml`：
+
+```toml
+[mcp_servers.plasma]
+url = "https://mcp.example.internal/mcp"
+experimental_use_rmcp_client = true
+```
+
+skills 使用 `plasma-plugin_0.5.0_chatgpt.zip`，依該宿主的匯入流程安裝。
+首次使用時依提示完成瀏覽器授權，再開新對話呼叫 `whoami`。
 
 ## 升級自舊版
 
@@ -132,7 +131,7 @@ Claude 安裝包為 `plasma-plugin_0.4.0_claude.zip`；三個版本的 skills �
 不要沿用舊對話載入的匯出／發布指示；新包中只有三份 skills。
 若曾手動將舊 hook 複製到宿主設定，請在該宿主刪除該自訂設定；新版不會執行舊 binary。
 本次不自動修改使用者家目錄、既有 MCP 連線或其他宿主設定。
-workspace 綁在權杖上；換 workspace 要重新核發一張，plugin 不保存選擇。
+workspace 綁在授權上；換 workspace 要重新授權一次，plugin 不保存選擇。
 
 ## 從 GitHub Actions 取得安裝包
 
@@ -154,7 +153,7 @@ make check
 make release
 ```
 
-僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.4.0/`，包括三個 ZIP
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.5.0/`，包括三個 ZIP
 與 SHA-256 `checksums.txt`。安裝包只收錄對應宿主 manifest 與共用 Markdown skills，
 避免將開發工具、本機功能或後端修改清單帶入執行環境。
 

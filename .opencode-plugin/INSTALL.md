@@ -31,19 +31,15 @@ opencode 也會讀 `~/.claude/skills/`，已經在 Claude Code 裝過的話那�
   "mcp": {
     "plasma": {
       "type": "remote",
-      "url": "http://mcp.example.internal/mcp",
-      "enabled": true,
-      "oauth": {
-        "scope": "views:read knowledge:read query:run views:write"
-      }
+      "url": "https://mcp.example.internal/mcp",
+      "enabled": true
     }
   }
 }
 ```
 
-`scope` 是這次連線要請求的權限，會出現在授權頁讓你逐項確認：
-讀 view 定義、查資料知識、執行唯讀查詢、建立 view／mview 定義。
-用不到的可以刪掉，之後需要時重新授權即可。
+權限由 gateway 決定，設定檔不必（也無法）指定：每次授權都會取得該部署支援的
+完整權限——讀 view 定義、查資料知識、執行唯讀查詢、建立 view／mview 定義。
 
 ## 3. 授權
 
@@ -51,8 +47,8 @@ opencode 也會讀 `~/.claude/skills/`，已經在 Claude Code 裝過的話那�
 opencode mcp auth plasma
 ```
 
-瀏覽器會開啟 gateway 的授權頁：輸入 Plasma 帳密、選 workspace、確認權限。
-完成後回到終端機即可，token 由 opencode 保管。
+瀏覽器會開啟 gateway 的授權頁：輸入 Plasma 帳密、選 workspace。
+選定即完成授權，沒有額外的確認頁。回到終端機即可，token 由 opencode 保管。
 
 確認狀態：
 
@@ -66,6 +62,25 @@ skills 要下一個 session 才會載入。
 ## 之後
 
 - 換 workspace：`opencode mcp logout plasma` 再 `opencode mcp auth plasma`，重選一次。
-- 權限不足：修改設定裡的 `scope`，重新授權。
+- 權限不足：重新授權一次即可，權限由 gateway 決定。
 - 撤銷：`opencode mcp logout plasma` 清掉本機憑證；
   要讓伺服器端也失效，請管理員在 gateway 撤銷該授權。
+- 診斷：`opencode mcp debug plasma`
+
+## 常見問題
+
+**一定要用 `mcp auth` 當次印出的網址。** 每次執行都會產生新的一組 state，
+用到先前留著的分頁或自行拼湊的網址，會被判定為 CSRF 而失敗
+（頁面顯示 `Invalid or expired state parameter`）。
+
+**按下「同意並連結」後頁面不動。** OAuth 最後一步要從 gateway 導回本機的
+`127.0.0.1:19876`。當 gateway 位於內網位址而且不是 HTTPS 時，Chrome 142 之後
+會擋掉這個跨網段導轉，而且不會顯示任何提示——因為要求該權限的資格僅限 HTTPS 頁面。
+
+這需要管理員處理，擇一：
+
+- 為 gateway 配置用戶端信任的 HTTPS 憑證（自簽而未把 CA 佈到用戶端不算）
+- 或由 IT 以 Chrome 政策 `LoopbackNetworkAccessAllowedForUrls` 放行該來源
+
+**舊連線只有部分權限。** 在 gateway 改為一次授予全部之前建立的連線會是這樣，
+`opencode mcp logout plasma` 後重新授權一次即可。

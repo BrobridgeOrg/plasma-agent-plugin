@@ -1,41 +1,34 @@
 ---
 name: plasma-mcp-setup
 description: >-
-  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。opencode 走 OAuth，Claude Code 與 Codex CLI 走存取權杖；核對 workspace 與 scopes。全程台灣繁體中文。
+  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。以宿主內建的 OAuth 完成授權，核對 workspace 與 scopes；適用 opencode、Claude Code 與 Codex CLI。全程台灣繁體中文。
 ---
 
 # 連結 Plasma 與診斷
 
 全程使用台灣繁體中文；工具名稱、SQL、識別名稱與 URL 保留原樣。
 
-設定連線時只回報要使用者做什麼、以及做完的結果。不要解說 OAuth、權杖或
-MCP 的運作原理，不要列出你讀過或檢查過哪些檔案，也不要在完成後補一段說明。
-使用者要的是「下一步做什麼」與「好了沒有」。
+設定連線時只回報要使用者做什麼、以及做完的結果。不要解說 OAuth 或 MCP 的運作原理，
+不要列出你讀過或檢查過哪些檔案，也不要在完成後補一段說明。
 
 ## 連線方式
 
 本流程使用的 Plasma view 工具與 Ophion 知識工具，都由同一台遠端 MCP gateway 提供。
 安裝 plugin 不等於已連結服務。連線 URL 必須由使用者或管理員提供，不猜測部署位址。
 
+連線一律走 **OAuth**：在宿主設定 MCP server，由宿主開啟瀏覽器完成授權。
+使用者以自己的 Plasma 帳號登入、選 workspace，**選定即完成授權**，沒有額外的權限確認頁。
+每次授權都會取得這個部署支援的完整權限，token 由宿主保管並自動更新，
+不需要手動複製任何憑證。
+
 1. 工具已可用時，先呼叫 `whoami` 核對連線，不重新要求設定或登入。
-2. 工具尚未出現時，依宿主選一條：
-
-| 宿主 | 連線方式 |
-|---|---|
-| **opencode** | OAuth：opencode 自動開瀏覽器完成授權，見〈opencode〉 |
-| **Claude Code**、**Codex CLI** | 存取權杖：使用者自行核發後貼進設定，見〈Claude Code 與 Codex CLI〉 |
-
-差別在用戶端，不在伺服器：gateway 兩條路都支援。Claude Code 與 Codex CLI 的
-MCP SDK 不接受非 TLS 位址上的 OAuth token endpoint，所以在只有 http 的部署上
-只能用權杖；gateway 換上用戶端信任的 HTTPS 憑證後，兩者也可改用 OAuth。
-
-ChatGPT 網頁版不支援：它由 OpenAI 伺服器連出，連不到內網的 gateway 位址。
+2. 工具尚未出現時，依宿主完成下面對應的設定，再回到 `whoami`。
 
 workspace 是授權的一部分，沒有 `use_workspace` 工具；換 workspace 要重新授權。
 
 ## opencode
 
-在 `~/.config/opencode/opencode.json` 的 `mcp` 區塊加入連線，URL 換成實際位址：
+在 `~/.config/opencode/opencode.json`（或既有的 `.jsonc`）的 `mcp` 區塊加入連線：
 
 ```json
 {
@@ -43,60 +36,46 @@ workspace 是授權的一部分，沒有 `use_workspace` 工具；換 workspace 
     "plasma": {
       "type": "remote",
       "url": "<gateway>/mcp",
-      "enabled": true,
-      "oauth": { "scope": "views:read knowledge:read query:run views:write" }
+      "enabled": true
     }
   }
 }
 ```
 
-`scope` 只列本次需要的權限，授權頁會逐項顯示。接著請使用者執行：
-
 ```bash
 opencode mcp auth plasma
 ```
 
-瀏覽器會開啟 gateway 授權頁：輸入 Plasma 帳密、選 workspace、確認權限。
-帳密不透過對話收集。完成後開新 session，呼叫 `whoami` 核對。
+它會印出授權網址並開啟瀏覽器。登入後選 workspace 即完成，回到終端機開新 session，
+呼叫 `whoami` 核對。
 
 - 狀態查詢：`opencode mcp list`
-- 換 workspace 或改權限：`opencode mcp logout plasma` 後修改 `scope`，再 auth 一次
-- token 由 opencode 保管並自動更新，不需要使用者保存任何字串
+- 重新授權：`opencode mcp logout plasma` 後再 auth 一次
+- 診斷：`opencode mcp debug plasma`
 
-## Claude Code 與 Codex CLI
+**授權網址一定要用 `mcp auth` 當次印出的那一個**，不要沿用先前的分頁或自行拼湊：
+每次執行都會換一組 state，用到舊的會被判定為 CSRF 而失敗。
 
-逐步帶使用者完成，一次一步，等他回報再進行下一步。
-其中兩步只能由使用者親手做：核發要輸入 Plasma 密碼，權杖本身不該經過對話。
+## Claude Code
 
-1. 取得 gateway 位址。沒有確切位址時不要猜，也不要試探常見網址。
-2. **（使用者自己做）** 在瀏覽器開啟 `<gateway>/oauth/pat`，登入、選 workspace、
-   勾選權限並核發。先問清楚本次任務需要哪些 scope 再請他勾：建立 view 要
-   `views:write`，查知識要 `knowledge:read`，執行查詢要 `query:run`。
-   頁面只顯示權杖一次；不要求使用者把權杖貼給你。
-3. **（使用者自己做）** `export PLASMA_MCP_TOKEN='<權杖>'`，再開新的終端機。
-4. 設定連線。Claude Code 可以由你代為執行：
+```bash
+claude mcp add --transport http plasma <gateway>/mcp
+```
 
-   ```bash
-   claude mcp add --transport http plasma <gateway>/mcp \
-     --header 'Authorization: Bearer ${PLASMA_MCP_TOKEN}'
-   ```
+加入後在對話中輸入 `/mcp`，選 plasma → Authenticate，瀏覽器登入並選 workspace 即完成。
+接著開新 session，呼叫 `whoami`。
 
-   單引號與 `${...}` 是刻意的：Claude Code 讀取設定時才展開，權杖不會寫進
-   `~/.claude.json`。用雙引號會讓 shell 先展開，把權杖明文留在設定檔裡。
+## Codex CLI
 
-   Codex CLI 請使用者自己在 `~/.codex/config.toml` 加入：
+在 `~/.codex/config.toml` 加入：
 
-   ```toml
-   [mcp_servers.plasma]
-   url = "<gateway>/mcp"
-   bearer_token_env_var = "PLASMA_MCP_TOKEN"
-   experimental_use_rmcp_client = true
-   ```
+```toml
+[mcp_servers.plasma]
+url = "<gateway>/mcp"
+experimental_use_rmcp_client = true
+```
 
-5. 請使用者重新開啟對話，再呼叫 `whoami` 核對。工具要等宿主重新載入才會出現。
-
-權杖到期不會自動更新，重新核發一次即可，不要建議改用其他憑證或放寬伺服器設定。
-外洩或不再需要時，用 gateway 的 `/oauth/revoke` 撤銷，撤銷後立即失效。
+首次使用時依宿主提示完成瀏覽器授權，再開新對話呼叫 `whoami`。
 
 ## 核對連線
 
@@ -112,26 +91,39 @@ Plasma 與 Ophion 的工具均使用該連線；不要混用不同連線的物�
 | `query:run` | 執行唯讀查詢，最多 100 列 |
 | `views:write` | 本流程用於建立 view／mview 定義；後端此 scope 可能還允許其他操作 |
 
-以 `whoami` 的實際 scopes 為準，不假定授權時給了哪些。缺少權限時說明具體 scope，
-請使用者依所用宿主重新授權並選上該項，再次用 `whoami` 核對；
-若仍缺少，停止該操作並請管理員檢查 gateway。不要重複呼叫遭拒工具。
-
-opencode 重新授權時，既有權限會一併保留；權杖路徑則不繼承，該勾的要當下勾。
+授權一次會取得上表全部權限，所以正常情況不會缺 scope。仍以 `whoami` 的實際
+scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部分權限。
+遇到工具回報缺少 scope 時，請使用者重新授權一次即可，不要重複呼叫遭拒工具。
 
 ## 診斷
 
 | 症狀 | 處理 |
 |---|---|
 | 安裝後沒有工具 | 確認連線已設定且該 session 重新載入過；skills 要下一個 session 才生效 |
+| 選完 workspace 後頁面停在原地 | 瀏覽器擋住了導回本機的那一步，見下節 |
+| 授權頁顯示「授權流程已結束／已逾時」 | 用的是舊分頁，改用當次 `mcp auth` 印出的網址 |
+| 舊連線只有部分權限 | 在改為一次授予全部之前建立的，重新授權一次即可 |
+| 回到宿主仍顯示未授權 | 確認瀏覽器已看到成功頁；再用 `opencode mcp debug plasma` 之類的指令查狀態 |
 | 工具缺少 scope | 依上節重新授權；plugin 不能代替 gateway 授予權限 |
-| 連線回 `401` | opencode 重跑 `mcp auth`；權杖路徑檢查是否過期、被撤銷或變數沒展開 |
-| opencode 不開瀏覽器 | 手動執行 `opencode mcp auth plasma`；仍無反應時用 `opencode mcp list` 看狀態 |
-| 授權頁或核發頁打不開 | 確認 gateway 位址可達，由管理員檢查部署 |
 | Plasma `403` | 與缺少 scope 不同，由 Plasma 管理員檢查 workspace 成員與權限 |
 | 有 Plasma 工具但沒有知識工具 | 用 `whoami` 區分未配置 Ophion、缺 `knowledge:read` 或服務不可用 |
 | 知識工具 `404`／尚無已發布知識 | 由管理員產生並發布該 workspace 的知識版本 |
 | workspace 不符 | 重新授權並選擇正確 workspace；不自行替換參數繞過 |
 | 連線只使用舊式 SSE | 使用支援 Streamable HTTP 的連線方式 |
+
+### 瀏覽器擋住導回本機
+
+OAuth 最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。
+當 gateway 位於內網位址而且不是 HTTPS 時，Chrome 142 之後會擋掉這個跨網段導轉，
+而且**不會顯示任何提示**——因為要求該權限的資格僅限 HTTPS 頁面。
+症狀是按下「授權並連結」後頁面不動，宿主一直停在等待授權。
+
+這不是 plugin 或 gateway 能修的，請管理員擇一處理：
+
+- 為 gateway 配置用戶端信任的 HTTPS 憑證（自簽而未佈署 CA 不算）
+- 或由 IT 以 Chrome 政策 `LoopbackNetworkAccessAllowedForUrls` 放行該來源
+
+使用者端可暫時改用未套用此限制的瀏覽器。不要建議關閉瀏覽器安全設定作為常態做法。
 
 知識恢復前，不憑欄位名稱推測語意或編寫來源 SQL。缺少資訊要據實說明。
 
