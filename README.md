@@ -1,10 +1,12 @@
 # Plasma workflows
 
 供 **opencode、Claude Code 與 Codex** 使用的共用工作流程 plugin。
-以 Ophion 知識查核來源與 SQL，建立 view／manual mview 並核對定義後結束。
+以 Ophion 查核來源與 SQL，在 mview 完成運算，再以 pview 提供參數篩選。
+只有使用者明確指定 mview 為最終目標時，才停在 mview。
 三種宿主共用同一份 skills，分別提供對應的 manifest／設定檔與 ZIP。
 
-唯一流程：**查核來源 → 驗證 SQL → 建立 view／mview → 核對定義並交付**。
+預設流程：**查核來源 → 驗證 SQL → manual mview → 使用者確認同步／排程 → 同步與排程核對 → pview 篩選 → 驗證並交付**。
+指定 mview 時，在同步與排程核對後交付 mview。資料 API 由使用者自行建立。
 
 **Plugin 是工作流程；遠端 MCP gateway 是工具服務；MCP client 由宿主提供。**
 Codex 與 Claude plugin 直接內含 `.mcp.json`，安裝後由宿主載入連線，再完成 OAuth。
@@ -55,16 +57,30 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 |---|---|
 | `plasma-mcp-setup` | 連結服務、核對 workspace／scopes、診斷 |
 | `ophion-knowledge-lookup` | 查核來源、欄位、代碼、業務規則 |
-| `plasma-create-view` | 建立 view／manual mview，核對定義後結束 |
+| `plasma-create-pview` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview |
 
 三個版本均無本機 hooks、Bash launcher、Go binary、下載快取或狀態檔依賴。
 `scripts/` 僅供維護者封裝與測試，不會放進安裝包；使用者不需要 Python 或 Go。
 歷史 `releases/` 記錄舊版本，不代表目前仍提供那些功能。
 
-全程台灣繁體中文。查核、驗證與建立工作依使用者交付範圍連續完成，宿主權限仍適用。
-一般 view 不傳同步設定；mview 使用 `sync_mode=manual`，建立後不啟動同步。
-不建立 blueprint、不匯出檔案或外部資料庫、不發布資料 API，也不安排同步排程。
-後端若仍暴露其他工具，本 plugin 不把它們納入流程；伺服器工具權限由後端管理。
+全程台灣繁體中文。查核、驗證與建立依交付範圍連續完成，宿主權限仍適用。
+新建 mview 先使用 `sync_mode=manual`，同步前呈現來源、資料範圍與排程，
+等待使用者明確確認後才執行 `sync_view`／`set_view_schedule`。
+確認是 **skill 軟限制**，不是後端強制核准；OAuth 授權不代表已確認同步。
+使用者指定只建立定義時不啟動同步；拒絕同步時保留定義並回報未完成項目。
+
+mview 負責 JOIN、清理、計算與聚合；pview 只選欄位與設定參數化 WHERE。
+mview 須保留篩選欄位與足夠歷史範圍；無法以預先計算結果正確回答的區間指標，
+先釐清需求，不以近似值交付。先 mview 再 pview 是 plugin 預設，不是後端來源限制。
+
+本流程不建立 access entry、export API、匯出 blueprint 或外部資料庫輸出；
+API 由使用者在 Plasma 自行建立。後端 mview 初始化使用的內部同步 blueprint 維持系統既有行為。
+新 skill 內附 [API／工具格式](skills/plasma-create-pview/references/api.md)，
+包含 pview 參數、執行回應、同步與排程格式，三個宿主安裝包都會收錄。
+
+新版 gateway 啟動後直接提供 pview、mview 同步與排程工具，不需要設定 `tool_profile`。
+使用 views:read、knowledge:read、query:run、views:write，不提供 API 發布／匯出工具。
+詳見 [後端整合與驗收](docs/backend-integration.md)。
 
 ## opencode
 
@@ -110,12 +126,12 @@ token 由 opencode 保管在 `~/.local/share/opencode/mcp-auth.json` 並自動�
 在對話中輸入 `/mcp`，選 plugin 的 plasma 連線 → Authenticate，瀏覽器完成授權。
 token 存進系統憑證庫並自動更新。
 
-Claude 安裝包為 `plasma-plugin_0.6.0_claude.zip`；三個版本的 skills 完全相同，無 hooks。
+Claude 安裝包為 `plasma-plugin_0.7.0_claude.zip`；三個版本的 skills 完全相同，無 hooks。
 其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
 
 ## Codex
 
-使用 `plasma-plugin_0.6.0_chatgpt.zip`，依宿主的原生 plugin 流程安裝。
+使用 `plasma-plugin_0.7.0_chatgpt.zip`，依宿主的原生 plugin 流程安裝。
 Manifest 已宣告 `mcpServers: "./.mcp.json"`；無額外安裝工具，不需 Python。
 安裝後開新對話說「幫我登入 Plasma」，skill 會使用宿主可呼叫的授權入口。
 若宿主未提供可呼叫入口，請在 MCP server 清單選該 plugin 的連線並按 Authenticate。
@@ -127,11 +143,13 @@ CLI 先確認 `codex mcp list --json` 列出 plugin 連線，再以其實際名�
 ## 升級自舊版
 
 原有手動設定的 `plasma` MCP 可能與 plugin 連線重複，請檢查並選用 plugin 提供的連線。
-本分支為 v0.6.0 功能測試，尚未建立新 tag。既有同名 tag／Release 並非此分支產物；
+本分支為 v0.7.0 功能測試，尚未建立 tag 或發布 Release；
 請使用本分支建置的 ZIP，或在 GitHub Actions 選本分支、tag 留空取得測試安裝包。
 
 更新 plugin 後重新開啟對話／session，讓宿主移除舊 hook 註冊及舊版 skills。
-`plasma-data-api` 與 `plasma-export` 已移除，統一使用 `plasma-create-view`。
+`plasma-create-view` 已由 `plasma-create-pview` 取代，仍維持三份 skills；
+手動複製安裝的使用者需移除舊 `plasma-create-view` 目錄，避免舊流程同時載入。
+`plasma-data-api` 與 `plasma-export` 維持移除，資料 API 由使用者自行建立。
 不要沿用舊對話載入的匯出／發布指示；新包中只有三份 skills。
 若曾手動將舊 hook 複製到宿主設定，請在該宿主刪除該自訂設定；新版不會執行舊 binary。
 本次不自動修改使用者家目錄、既有 MCP 連線或其他宿主設定。
@@ -160,10 +178,10 @@ make release
 本分支測試包可使用獨立目錄，避免混入先前同版本的本機產物：
 
 ```bash
-python3 scripts/package_plugin.py --output dist/v0.6.0-bundled-mcp
+python3 scripts/package_plugin.py --output dist/v0.7.0-pview-bi
 ```
 
-僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.6.0/`，包括三個 ZIP
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.7.0/`，包括三個 ZIP
 與 SHA-256 `checksums.txt`。Codex／Claude 安裝包收錄對應 manifest、`.mcp.json` 與共用 Markdown skills，
 避免將開發工具、本機功能或後端修改清單帶入執行環境。
 

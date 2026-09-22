@@ -9,7 +9,7 @@
     {
       "name": "plasma-plugin",
       "source": "./",
-      "description": "以 Ophion 查核來源與 SQL，建立 view／mview 定義後結束。使用共用遠端 MCP，無本機執行依賴。"
+      "description": "以 Ophion 查核 SQL，預設建立 mview 運算層與 pview 篩選層；同步前需確認，API 由使用者自行建立。"
     }
   ]
 }
