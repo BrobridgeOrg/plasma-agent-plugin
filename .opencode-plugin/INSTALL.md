@@ -23,7 +23,7 @@ opencode 也會讀 `~/.claude/skills/`，已經在 Claude Code 裝過的話那�
 ## 2. 設定連線
 
 把 `opencode.json` 的 `mcp` 區塊合併進 `~/.config/opencode/opencode.json`，
-**把 `url` 換成管理員給的實際 gateway 位址**（結尾是 `/mcp`）：
+URL 已預設為公開 Plasma gateway，不需另外填寫：
 
 ```json
 {
@@ -31,7 +31,7 @@ opencode 也會讀 `~/.claude/skills/`，已經在 Claude Code 裝過的話那�
   "mcp": {
     "plasma": {
       "type": "remote",
-      "url": "https://mcp.example.internal/mcp",
+      "url": "https://plasma-mcp.bbg-x.top/mcp",
       "enabled": true
     }
   }

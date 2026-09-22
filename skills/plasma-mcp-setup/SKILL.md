@@ -30,9 +30,11 @@ description: >-
 ## 連線方式
 
 本流程使用的 Plasma view 工具與 Ophion 知識工具，都由同一台遠端 MCP gateway 提供。
-安裝 plugin 不等於已連結服務。連線 URL 必須由使用者或管理員提供，不猜測部署位址。
+Codex 與 Claude plugin 已內含遠端 MCP 宣告，endpoint 為
+`https://plasma-mcp.bbg-x.top/mcp`。安裝後只需完成 OAuth，不再要求填 URL、
+手動新增相同 MCP server 或安裝其他 client。安裝 plugin 不等於已完成授權。
 
-連線一律走 **OAuth**：在宿主設定 MCP server，由宿主開啟瀏覽器完成授權。
+連線一律走 **OAuth**：使用 plugin 提供的連線，由宿主開啟瀏覽器完成授權。
 使用者以自己的 Plasma 帳號登入、選 workspace，**選定即完成授權**，沒有額外的權限確認頁。
 每次授權都會取得這個部署支援的完整權限，token 由宿主保管並自動更新，
 不需要手動複製任何憑證。
@@ -55,7 +57,7 @@ CLI 登入命令或其他宿主入口。重新啟動授權前先結束原流程�
   "mcp": {
     "plasma": {
       "type": "remote",
-      "url": "<gateway>/mcp",
+      "url": "https://plasma-mcp.bbg-x.top/mcp",
       "enabled": true
     }
   }
@@ -78,28 +80,23 @@ opencode mcp auth plasma
 
 ## Claude Code
 
-```bash
-claude mcp add --transport http plasma <gateway>/mcp
-```
-
-加入後在對話中輸入 `/mcp`，選 plasma → Authenticate；瀏覽器開啟時立即結束本回合。
+宿主會載入 plugin 根目錄的 `.mcp.json`，不需執行 `claude mcp add`。
+在對話中輸入 `/mcp`，選該 plugin 的 plasma 連線 → Authenticate；瀏覽器開啟時立即結束本回合。
 使用者登入並選完 workspace 後，再開新 session 呼叫 `whoami`。
 
 ## Codex
 
-在 `~/.codex/config.toml` 加入：
+宿主依 plugin manifest 的 `mcpServers` 載入 `.mcp.json`，不再修改 `config.toml`
+新增重複連線。使用者說「幫我登入 Plasma／連結 Plasma」時：
 
-```toml
-[mcp_servers.plasma]
-url = "<gateway>/mcp"
-experimental_use_rmcp_client = true
-```
-
-依目前所在介面選一個入口，不要混用：
-
-- ChatGPT 桌面應用：在 Settings → MCP servers 的 plasma 連線選 Authenticate 一次
-- Codex CLI：執行 `codex mcp login plasma` 一次
-- IDE extension：在 MCP server 清單的 plasma 連線選 Authenticate 一次
+- 已授權且工具可用時，以 `whoami` 核對，不重新開啟 OAuth。
+- 需要登入時，優先使用宿主實際提供的 MCP／plugin 授權工具，傳入實際 server ID，
+  不猜工具名稱或假設 plugin 連線名稱就是 `plasma`。
+- CLI 可先以 `codex mcp list --json` 查詢；確實列出該連線時，才執行
+  `codex mcp login <實際 server 名稱>` 一次。
+- 無可呼叫入口時，請使用者在 MCP server 清單選該 plugin 的連線並按 Authenticate，
+  然後結束回合。不得改用 Computer Use 操作設定頁或另建手動連線。
+- 如果宿主沒有載入 plugin MCP，回報安裝／相容性問題，不重複啟動登入。
 
 入口會啟動 OAuth 並開啟系統預設瀏覽器。開啟後依〈OAuth 交接是本回合終點〉立即結束
 本回合；不得等待完成或呼叫其他工具。使用者完成後，再於新對話呼叫 `whoami`。
@@ -127,6 +124,7 @@ scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部�
 | 症狀 | 處理 |
 |---|---|
 | 安裝後沒有工具 | 確認連線已設定且該 session 重新載入過；skills 要下一個 session 才生效 |
+| OAuth 導向內網或舊網域 | 請管理員修正 gateway 公開 base URL 與 OAuth discovery 中的 issuer／endpoints；plugin 不自行覆寫授權網址 |
 | 選完 workspace 後頁面停在原地 | 瀏覽器擋住了導回本機的那一步，見下節 |
 | 授權頁顯示「授權流程已結束／已逾時」 | 用的是舊分頁，改用當次 `mcp auth` 印出的網址 |
 | 舊連線只有部分權限 | 在改為一次授予全部之前建立的，重新授權一次即可 |
