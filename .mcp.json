@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "plasma": {
+      "type": "http",
+      "url": "https://plasma-mcp.bbg-x.top/mcp"
+    }
+  }
+}

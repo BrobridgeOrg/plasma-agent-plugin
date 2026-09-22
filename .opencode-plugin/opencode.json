@@ -3,7 +3,7 @@
   "mcp": {
     "plasma": {
       "type": "remote",
-      "url": "https://mcp.example.internal/mcp",
+      "url": "https://plasma-mcp.bbg-x.top/mcp",
       "enabled": true
     }
   }

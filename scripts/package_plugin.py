@@ -29,14 +29,20 @@ def manifest_files(root):
         manifest = json.loads((root / folder / "plugin.json").read_text())
         if manifest.get("name") != "plasma-plugin" or manifest.get("version") != version:
             raise ValueError(f"{host} name/version does not match VERSION")
-        if any(key in manifest for key in ("mcpServers", "hooks", "apps")):
-            raise ValueError("Source manifests must not include runtime or deployment bindings")
+        if any(key in manifest for key in ("hooks", "apps")):
+            raise ValueError("Source manifests must not include hooks or app bindings")
+        if manifest.get("mcpServers") != "./.mcp.json":
+            raise ValueError("Source manifests must declare ./.mcp.json")
         manifests[host] = manifest
     return version, manifests
 
 
 def build(root=ROOT, output=None, app_id=None):
     version, manifests = manifest_files(root)
+    mcp = json.loads((root / ".mcp.json").read_text())
+    server = mcp["mcpServers"]["plasma"]
+    if server.get("type") != "http" or not server.get("url", "").startswith("https://"):
+        raise ValueError("Plasma MCP must declare an HTTPS endpoint")
     if app_id is not None and not re.fullmatch(r"(?:asdk_app_|connector_|templated_apps_)[A-Za-z0-9_-]+", app_id):
         raise ValueError("Use a real registered app ID, not a plugin ID or URL")
     tag = os.environ.get("GITHUB_REF_NAME", "")
@@ -49,8 +55,9 @@ def build(root=ROOT, output=None, app_id=None):
         raise ValueError("No skills found")
     payloads = {}
     for host, folder in HOSTS.items():
-        manifest = manifests[host]
+        manifest = dict(manifests[host])
         files = {str(p.relative_to(root)): p.read_bytes() for p in skills}
+        files[".mcp.json"] = encode(mcp)
         # Keep developer docs, tooling, hooks and executables out of both packages.
         if host == "chatgpt" and app_id:
             manifest["apps"] = "./.app.json"

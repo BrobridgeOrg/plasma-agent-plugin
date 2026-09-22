@@ -22,6 +22,7 @@ class PackageTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.dict('os.environ', {'GITHUB_REF_NAME': ''}):
             archives = build(output=directory)
             indexed = by_host(archives)
+            self.assertEqual(set(indexed), {'chatgpt', 'claude', 'opencode'})
             skill_sets = []
             for archive, folder in ((indexed['chatgpt'], '.codex-plugin'),
                                     (indexed['claude'], '.claude-plugin')):
@@ -32,7 +33,11 @@ class PackageTest(unittest.TestCase):
                     skills = {n: zf.read(n) for n in names if '/skills/' in n}
                     self.assertEqual({Path(n).parent.name for n in skills if n.endswith('/SKILL.md')},
                                      SKILL_NAMES)
-                    self.assertEqual(set(names), {manifest, *skills})
+                    self.assertEqual(set(names), {manifest, 'plasma-plugin/.mcp.json', *skills})
+                    self.assertEqual(json.loads(zf.read(manifest))['mcpServers'], './.mcp.json')
+                    self.assertEqual(json.loads(zf.read('plasma-plugin/.mcp.json')), {
+                        'mcpServers': {'plasma': {'type': 'http',
+                            'url': 'https://plasma-mcp.bbg-x.top/mcp'}}})
                     # Links between skills must resolve within the actual archive.
                     for name, content in skills.items():
                         for target in re.findall(r'\]\(([^)]+\.md)\)', content.decode()):
@@ -69,8 +74,7 @@ class PackageTest(unittest.TestCase):
                 # client asks for, ahead of anything configured locally, so a
                 # scope here would only look like a knob that works.
                 self.assertNotIn('oauth', server)
-                # A real deployment address must not ship inside the package.
-                self.assertIn('example', server['url'])
+                self.assertEqual(server['url'], 'https://plasma-mcp.bbg-x.top/mcp')
 
             # Same skills in every archive, whatever shape the archive is.
             with zipfile.ZipFile(indexed['claude']) as claude_zf:
@@ -86,7 +90,7 @@ class PackageTest(unittest.TestCase):
                 self.assertEqual(app['apps']['plasma'], {'id': 'asdk_app_testfixture', 'required': True})
                 manifest = json.loads(zf.read('plasma-plugin/.codex-plugin/plugin.json'))
                 self.assertEqual(manifest['apps'], './.app.json')
-                self.assertNotIn('mcpServers', manifest)
+                self.assertEqual(manifest['mcpServers'], './.mcp.json')
             with zipfile.ZipFile(claude) as zf:
                 self.assertNotIn('plasma-plugin/.app.json', zf.namelist())
             self.assertFalse((ROOT / '.app.json').exists())
