@@ -3,7 +3,7 @@
 本文件描述 MCP 工具對應的既有 Plasma REST 契約，供組合參數與理解結果使用。
 **實際操作一律呼叫 MCP 工具**；workspace 與 Plasma 憑證由 gateway 的授權連線處理，
 不要求使用者提供 token，不自行以 shell／HTTP 改走 REST。
-部署需提供 `bi` profile（或包含相同工具的 full profile），實際工具 schema 優先。
+新版 gateway 直接提供本流程工具，不需模式設定；實際工具 schema 優先。
 本流程不建立／發布資料 API；access entry／export API 由使用者自行建立。
 
 ## 工具對照

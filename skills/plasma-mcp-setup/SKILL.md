@@ -129,7 +129,7 @@ scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部�
 | 授權頁顯示「授權流程已結束／已逾時」 | 用的是舊分頁，改用當次 `mcp auth` 印出的網址 |
 | 舊連線只有部分權限 | 在改為一次授予全部之前建立的，重新授權一次即可 |
 | 回到宿主仍顯示未授權 | 確認瀏覽器已看到成功頁；再用 `opencode mcp debug plasma` 之類的指令查狀態 |
-| 缺少 pview／sync／排程工具 | 管理員需部署新版 gateway 並設定 tool_profile=bi（或 full）；definitions 不提供新流程工具，重新登入不會補出未註冊工具 |
+| 缺少 pview／sync／排程工具 | 管理員需部署新版 gateway 並重啟，宿主刷新工具清單；無須模式設定，重新登入不會補出舊版尚未實作的工具 |
 | 工具缺少 scope | 依上節重新授權；plugin 不能代替 gateway 授予權限 |
 | Plasma `403` | 與缺少 scope 不同，由 Plasma 管理員檢查 workspace 成員與權限 |
 | 有 Plasma 工具但沒有知識工具 | 用 `whoami` 區分未配置 Ophion、缺 `knowledge:read` 或服務不可用 |

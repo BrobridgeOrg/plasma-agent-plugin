@@ -1,6 +1,6 @@
 # pview 工作流程：後端整合與驗收
 
-更新日期：2026-09-22。Plugin v0.7.0 對應 `plasma-backend` 的 MCP gateway BI profile。
+更新日期：2026-09-22。Plugin v0.7.0 對應 `plasma-backend` 的 MCP gateway pview／mview 工作流程。
 本次後端程式修改限於 `pkg/mcp_gateway`；沿用既有 REST API、pview 引擎、mview 同步與排程。
 不新增來源限制、資料模型、核准機制或資料 API 發布能力。
 
@@ -34,18 +34,12 @@ execute_pview 預設每頁 10 列、最大 100 列；保留後端的 total、tot
 
 ## 部署設定
 
-```toml
-[mcp_gateway]
-tool_profile = "bi"
-```
+部署新版 backend 並重新啟動 gateway，即提供完整 pview／mview 工具組，無須設定 `tool_profile`。
+舊設定若仍有此欄位，可移除；它不再控制工具能力。
+宿主刷新工具清單／重開 session，權限不足時再重新授權。
 
-- `definitions`：保留舊版 view／manual mview 定義建立功能，仍為後端預設。
-- `bi`：加上 pview、同步、排程；不註冊發布／匯出／blueprint／job 工具。
-- `full`：保留共用服務既有工具，另提供本次 pview 與排程工具。
-
-BI 支援 views:read、knowledge:read、query:run、views:write，不需要 data-api:publish 或 export scopes。
-修改部署設定後重新啟動 gateway，宿主刷新工具清單／重開 session；權限不足再重新授權。
-只重新登入無法補出 definitions profile 沒有註冊的工具。
+Gateway 只提供新流程的建立、查詢、同步與排程工具，不提供發布／匯出／blueprint／job 工具。
+支援 views:read、knowledge:read、query:run、views:write，不需要 data-api:publish 或 export scopes。
 本次程式提交不修改部署環境或 config.toml 的個人連線設定。
 
 公開 MCP endpoint 為 https://plasma-mcp.bbg-x.top/mcp。
@@ -70,7 +64,7 @@ OAuth 授權、工具 metadata 與一般報表需求均不視為使用者已確�
 
 ## 驗收
 
-自動化：gateway 的 REST 路由／參數、使用者 token、scope 拒絕、profile 工具隔離、
+自動化：gateway 的 REST 路由／參數、使用者 token、scope 拒絕、工具清單與範圍外呼叫拒絕、
 pview 參數與截斷回應、排程 enabled/null 與錯誤回傳、既有 OAuth／view 工具回歸。
 Plugin 驗證三宿主 skills 與 reference 文件一致、連結可解析、舊 skill 不再封裝。
 

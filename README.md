@@ -78,9 +78,9 @@ API 由使用者在 Plasma 自行建立。後端 mview 初始化使用的內部�
 新 skill 內附 [API／工具格式](skills/plasma-create-pview/references/api.md)，
 包含 pview 參數、執行回應、同步與排程格式，三個宿主安裝包都會收錄。
 
-新版 gateway 需設定 `[mcp_gateway].tool_profile = "bi"`。預設 `definitions` 仍只提供舊版定義建立能力；
-重新登入不會補出未部署的工具。BI 使用 views:read、knowledge:read、query:run、views:write，
-不開放 API 發布／匯出工具。詳見 [後端整合與驗收](docs/backend-integration.md)。
+新版 gateway 啟動後直接提供 pview、mview 同步與排程工具，不需要設定 `tool_profile`。
+使用 views:read、knowledge:read、query:run、views:write，不提供 API 發布／匯出工具。
+詳見 [後端整合與驗收](docs/backend-integration.md)。
 
 ## opencode
 
