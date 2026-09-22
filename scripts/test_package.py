@@ -9,7 +9,7 @@ import zipfile
 from package_plugin import ROOT, build
 
 
-SKILL_NAMES = {'plasma-create-view', 'plasma-mcp-setup', 'ophion-knowledge-lookup'}
+SKILL_NAMES = {'plasma-create-pview', 'plasma-mcp-setup', 'ophion-knowledge-lookup'}
 
 
 def by_host(archives):

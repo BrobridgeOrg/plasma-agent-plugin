@@ -110,10 +110,10 @@ Plasma 與 Ophion 的工具均使用該連線；不要混用不同連線的物�
 
 | scope | 允許的操作 |
 |---|---|
-| `views:read` | 讀取 view／mview；每次授權都會包含這項 |
+| `views:read` | 讀取 view／mview／pview 與同步排程；每次授權都會包含這項 |
 | `knowledge:read` | 查資料表／欄位意義、值域與 lineage |
-| `query:run` | 執行唯讀查詢，最多 100 列 |
-| `views:write` | 本流程用於建立 view／mview 定義；後端此 scope 可能還允許其他操作 |
+| `query:run` | 執行唯讀 SQL 與 pview 驗證查詢；回傳樣本不代表完整資料 |
+| `views:write` | 建立 mview／pview、啟動同步與設定排程；同步仍需 skill 個別確認 |
 
 授權一次會取得上表全部權限，所以正常情況不會缺 scope。仍以 `whoami` 的實際
 scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部分權限。
@@ -129,6 +129,7 @@ scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部�
 | 授權頁顯示「授權流程已結束／已逾時」 | 用的是舊分頁，改用當次 `mcp auth` 印出的網址 |
 | 舊連線只有部分權限 | 在改為一次授予全部之前建立的，重新授權一次即可 |
 | 回到宿主仍顯示未授權 | 確認瀏覽器已看到成功頁；再用 `opencode mcp debug plasma` 之類的指令查狀態 |
+| 缺少 pview／sync／排程工具 | 管理員需部署新版 gateway 並設定 tool_profile=bi（或 full）；definitions 不提供新流程工具，重新登入不會補出未註冊工具 |
 | 工具缺少 scope | 依上節重新授權；plugin 不能代替 gateway 授予權限 |
 | Plasma `403` | 與缺少 scope 不同，由 Plasma 管理員檢查 workspace 成員與權限 |
 | 有 Plasma 工具但沒有知識工具 | 用 `whoami` 區分未配置 Ophion、缺 `knowledge:read` 或服務不可用 |
@@ -154,7 +155,11 @@ OAuth 最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。
 
 ## 流程範圍
 
-連線確認後依 [建立 view 技能](../plasma-create-view/SKILL.md) 查核來源、驗證 SQL、
-建立 view／manual mview 並核對定義，到此結束。本流程不要求匯出或 API 發布權限。
+連線確認後依 [建立 pview 技能](../plasma-create-pview/SKILL.md) 執行。
+預設輸出 pview，明確指定 mview 時停在 mview；同步及排程前由 skill 等待使用者確認。
+本流程不要求匯出或 API 發布權限，API 由使用者自行建立。
+所需工具：whoami、list_views、get_view、run_query、create_view、sync_view、
+get_view_schedule、set_view_schedule、list_pviews、get_pview、create_pview、execute_pview，
+以及 Ophion 知識工具。缺少任一所需能力時回報缺口，不靜默退回舊流程。
 宿主顯示其他後端工具或授權帶有較廣 scopes，不代表 plugin 應接續使用。
-plugin 不提供本機 hook；建立操作依使用者交付範圍與授權權限執行。
+plugin 不提供本機 hook；同步確認是 skill 軟限制，不是 gateway 強制核准。
