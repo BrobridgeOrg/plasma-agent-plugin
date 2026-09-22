@@ -1,8 +1,8 @@
 {
   "name": "plasma-plugin",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "mcpServers": "./.mcp.json",
-  "description": "以 Ophion 知識查核 SQL，建立並核對 Plasma view／mview 定義的工作流程。使用已連結的遠端 Plasma MCP 工具。",
+  "description": "以 Ophion 查核資料與 SQL，在 mview 完成運算並預設輸出參數化 pview；同步與排程前請使用者確認。",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"
@@ -13,12 +13,13 @@
     "ophion",
     "view",
     "materialized-view",
-    "knowledge"
+    "knowledge",
+    "parameterized-view"
   ],
   "interface": {
     "displayName": "Plasma workflows",
-    "shortDescription": "查核資料知識並建立 view／mview",
-    "longDescription": "透過已連結的 Plasma MCP gateway 查核 Ophion 知識與 Trino SQL，建立 view 或 manual mview，核對並交付定義後結束。",
+    "shortDescription": "查核知識、同步 mview 並建立 pview",
+    "longDescription": "透過 Plasma MCP 在 mview 完成資料運算，確認同步與排程後，以 pview 提供最後的參數篩選；明確指定 mview 時以 mview 為最終輸出。資料 API 由使用者自行建立。",
     "developerName": "Brobridge",
     "category": "Productivity",
     "capabilities": [
@@ -27,8 +28,8 @@
     ],
     "defaultPrompt": [
       "幫我登入 Plasma 並核對 workspace。",
-      "幫我將這份報表建立成 Plasma view。",
-      "幫我查核 SQL 並建立 manual mview 定義。"
+      "幫我將這份報表建立成可指定日期區間的 pview。",
+      "這份報表以 mview 為最終輸出，同步前先讓我確認。"
     ]
   }
 }

@@ -16,6 +16,8 @@ mkdir -p ~/.config/opencode/skills
 cp -R skills/* ~/.config/opencode/skills/
 ```
 
+升級時先移除原安裝位置的舊 `plasma-create-view` skill 目錄，避免與新版流程同時載入。
+
 只想在單一專案使用時，改放到該專案的 `.opencode/skills/`。
 opencode 也會讀 `~/.claude/skills/`，已經在 Claude Code 裝過的話那份也算數，
 但兩邊同名會重複載入，擇一即可。
@@ -39,7 +41,8 @@ URL 已預設為公開 Plasma gateway，不需另外填寫：
 ```
 
 權限由 gateway 決定，設定檔不必（也無法）指定：每次授權都會取得該部署支援的
-完整權限——讀 view 定義、查資料知識、執行唯讀查詢、建立 view／mview 定義。
+完整權限——讀取 mview／pview、查資料知識、執行查詢、建立定義及操作同步／排程。
+新版工作流程需要 gateway 的 bi profile；同步前仍由 skill 等待使用者確認。
 
 ## 3. 授權
 
@@ -84,3 +87,9 @@ skills 要下一個 session 才會載入。
 
 **舊連線只有部分權限。** 在 gateway 改為一次授予全部之前建立的連線會是這樣，
 `opencode mcp logout plasma` 後重新授權一次即可。
+
+## 建立流程
+
+三份 skills 為 plasma-mcp-setup、ophion-knowledge-lookup、plasma-create-pview。
+預設建立 mview 運算層與 pview 篩選層；提示詞明確指定 mview 時以 mview 為最終輸出。
+同步與排程必須先在對話確認；這是 skill 軟限制。資料 API 請在 Plasma 自行建立。

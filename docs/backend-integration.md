@@ -1,194 +1,84 @@
-# 後端修改與驗收清單
+# pview 工作流程：後端整合與驗收
 
-評估日期：2026-09-17。目標 repository：`plasma-backend`。
-本文件列的是 **backend 要補的項目**。
+更新日期：2026-09-22。Plugin v0.7.0 對應 `plasma-backend` 的 MCP gateway BI profile。
+本次後端程式修改限於 `pkg/mcp_gateway`；沿用既有 REST API、pview 引擎、mview 同步與排程。
+不新增來源限制、資料模型、核准機制或資料 API 發布能力。
 
-**目前的連線路徑是 OAuth**，plugin 的 skills 與 README 只描述這一條。
-先前的手動權杖核發（舊 B7）已在 backend 撤回，plugin 也已移除相關說明。
-**B8（challenge scope）已完成**：授權流程改為選定 workspace 即完成，一次授予完整權限。
-仍然擋住可用性的是 **B9（HTTPS）**。
+## 工作流程與責任
 
-B1、B5 與下方部署章節中屬於 ChatGPT 網頁版的項目暫緩：網頁版由 OpenAI 伺服器連出，
-連不到內網 gateway，要支援得先有對外可達的 HTTPS endpoint。保留這些條目是因為
-它們記錄了後端尚未完成的工作，不代表 plugin 目前支援該宿主。
-B2、B4 與 Claude Code／Codex CLI 同樣相關。
+Plugin 維持三份 skills：setup、Ophion 查核與 plasma-create-pview。
+預設：知識查核 → SQL 驗證 → manual mview → 使用者確認 → 首次同步成功 → 定期排程 → pview → 驗證交付。
+使用者明確指定 mview 為最終目標時，於同步／排程核對後交付 mview。
+只建立定義或拒絕同步時不執行同步，交付已建立定義與尚未完成項目。
 
-v0.3.1 範圍更新：唯一流程是建立並核對 view／manual mview 定義，沒有後續同步、
-blueprint、匯出或 API 發布。先前 B3（blueprint 輸出）與 B6（目的地／job 追蹤）
-已退出本 plugin 需求，不再列為接入待辦。後端既有 API 本次未刪除。
+運算在 mview 完成，pview 只做最後的參數化 WHERE；mview 保留必要欄位、粒度與歷史範圍。
+這是 plugin 預設，不能在 gateway／domain manager 強制 pview 只能引用 mview。
+資料 API、access entry、export API 由使用者自行建立，不在 plugin 流程內。
 
-## 已具備的能力
+## Gateway 工具
 
-`pkg/mcp_gateway` 已有 Streamable HTTP、OAuth discovery、DCR、PKCE S256、
-issuer／audience 驗證、refresh rotation／revoke、授權綁定 workspace，及 Ophion 代理。
-現有 `go test ./pkg/mcp_gateway/` 已通過，但並非 ChatGPT 真實端到端驗收。
-不需為了網頁版另加 SSE 或把 server 搬回 plugin。
+| 工具 | REST（相對於 /apis/v1/w/{workspace_id}） | scope |
+|---|---|---|
+| list_pviews | GET /pviews | views:read |
+| get_pview | GET /pview/{view_id} | views:read |
+| create_pview | POST /pview | views:write |
+| execute_pview | POST /pview/execute/{view_id} | query:run |
+| get_view_schedule | GET /view/{view_id}/schedule | views:read |
+| set_view_schedule | PUT /view/{view_id}/schedule | views:write |
 
-## 優先完成
+沿用 whoami、list_views、get_view、run_query、create_view、sync_view 與 Ophion 工具。
+每項呼叫使用授權綁定的 workspace 與使用者的 Plasma token，不能由工具切換 workspace。
+create_pview 後需 get_pview 讀取完整 SQL；參數 schema 保留 default_value 與 has_default_value。
+execute_pview 預設每頁 10 列、最大 100 列；保留後端的 total、total_pages 與 truncated。
+分頁只限制回傳樣本，不限制來源掃描量，也不能突破後端結果上限。
 
-### B1 — 追加 scope 與 ChatGPT 授權 UI
+## 部署設定
 
-位置：`mcp_server.go` 的 `caller.require`、`mcpHandler`；`oauth_metadata.go`、
-`tools_view.go`、`tools_export.go`、`ophion_proxy.go`。
-
-現況：端點 challenge 只提示 `views:read`，resource metadata 提供基本 scopes。
-工具缺 scope 時回一般文字錯誤，沒有工具級 OAuth metadata／challenge。
-`oauth_authorize.go` 採用 client 請求的 scope，重新連結相同請求不會自動加權限。
-因此「重新連結即可取得新權限」不是目前程式能保證的行為。
-
-修改：
-
-- 依工具實際需求提供 `securitySchemes`，確認 Go SDK 的 wire serialization 能
-  送出 ChatGPT 需要的欄位；必要時使用其支援的 metadata／擴充方式並驗證實際 JSON。
-- 缺權限時，在 tool error result 回傳 `_meta["mcp/www_authenticate"]`，包含
-  `error="insufficient_scope"`、`error_description`、resource metadata URL 與
-  明確的所需 scopes。不能只更改錯誤文字。
-- 追加授權保留既有必要 scopes（尤其 `views:read`）與使用者選定的 workspace；
-  不靜默轉換 workspace，也不因新增一項權限讓原有工具失效。
-- 確認 consent 頁呈現本次實際請求的權限，token 的 scopes 與同意一致。
-- 知識工具在無 `knowledge:read` 時完全不註冊，無法靠呼叫該工具觸發 step-up。
-  選定清楚的策略：初始連結明確請求知識權限，或提供不洩漏知識的穩定授權入口；
-  不只靠 `whoami` 文字提示。缺權限仍不可執行知識查詢。
-
-驗收：從只有 `views:read` 開始，分別追加 `knowledge:read`、`query:run`、
-`views:write`。在 ChatGPT 真實 UI
-看到追加授權、拒絕後不執行、同意後 scopes 正確且仍是原 workspace。
-測試 wire metadata 和 tool result，不只斷言文字含「重新連結」。
-
-來源：[OpenAI Authentication](https://developers.openai.com/plugins/build/auth)。
-
-### B2 — Ophion 呼叫前重新檢查使用者權限
-
-位置：`ophion_proxy.go: register / forward`、`mcp_server.go: verifyToken`。
-
-現況：gateway 驗證自己的 token 與 grant；知識呼叫檢查 scope 後，直接以 service
-token 向 Ophion 查詢，沒有經過 Plasma REST 的使用者／workspace 存取權檢查。
-使用者被移出 workspace，或 Plasma 身分失效但 gateway grant 尚未撤銷時，
-目前路徑沒有相應阻擋。這是程式路徑發現，尚未在真實部署重現。
-
-修改：在知識工具列舉與呼叫前驗證目前 Plasma 身分及 workspace 存取權，
-或建立能覆蓋移除成員、停用帳號、憑證撤銷的可靠 grant 撤銷連動。
-只刷新 token 不足以證明仍是 workspace 成員；不要把 service token 當成終端使用者授權。
-
-驗收：授權後移除 workspace 成員／停用帳號，既有 gateway token 不能繼續取得
-知識工具或知識內容；明確撤銷 grant 後立即拒絕。測試中斷言 Ophion 未被呼叫。
-
-### B4 — 工具範圍、metadata 與文字一致
-
-位置：`mcp_server.go` 的 server instructions／工具註冊、`tools_view.go`、
-`web/consent.html`。檢查後端目前的 instructions，移除對本 plugin 接入仍引導
-建立 blueprint、匯出或發布的內容，避免與新 skills 的終點衝突。
-
-plugin 只呼叫 `whoami`、知識查核工具、`list_views`、`get_view`、`run_query`、
-`create_view`。若此接入需在 server 層限制範圍，建立對應 profile／allowlist，
-不註冊其他操作工具；共用後端供其他 client 使用的能力不必全域刪除。
-`views:write` 目前同時授予建立和同步，單靠 plugin 文字無法縮小該權限。
-如要求伺服器也只允許建立定義，需驗證 type／sync_mode，拒絕 scheduled 建立及
-同步呼叫，而非只隱藏工具。
-
-`create_view` metadata 應按實際副作用設定。consent 說明與此接入提供的能力一致，
-不要承諾客戶端永遠不會確認，也不把 annotations 當成人類批准證明。
-本次 plugin 沒有同步流程，毋須重建舊 hook 或另做同步批准系統。
-
-驗收：建立一般 view 和 manual mview 後無同步 job、無 blueprint／匯出／發布；
-若啟用受限 profile，直接呼叫範圍外工具或傳 scheduled 也必須被後端拒絕。
-
-### B8 — 401 challenge 的 scope 壓過一切（擋住 OAuth 可用性）
-
-位置：`mcp_server.go` 的 `mcpHandler`，`auth.RequireBearerTokenOptions.Scopes`。
-
-現況：該欄位同時扮演兩個角色——middleware 對每個請求強制檢查的最低 scope，
-以及 401 回應裡 `WWW-Authenticate` 的 scope 提示。目前是 `views:read`。
-
-問題：MCP 用戶端以 challenge 的 scope 為最高優先。TypeScript SDK 1.29.0 的
-`authInternal` 寫死這個順序（SEP-835）：
-
-```js
-// 1. WWW-Authenticate scope  2. PRM scopes_supported  3. Client metadata scope
-const resolvedScope = scope || resourceMetadata?.scopes_supported?.join(' ') || provider.clientMetadata.scope;
+```toml
+[mcp_gateway]
+tool_profile = "bi"
 ```
 
-所以 challenge 一旦帶了 `views:read`，就蓋掉 protected-resource metadata 宣告的四個
-scope，也蓋掉使用者在宿主設定檔寫的 `oauth.scope`。實測 opencode：設定檔填了四個
-scope，實際送出的授權請求仍是 `scope=views:read`，同意頁只顯示一項，
-拿到的 token 也只有讀取權——無法查知識、跑查詢或建立 view。
-**這在 plugin 或宿主設定端都無法覆蓋。**
+- `definitions`：保留舊版 view／manual mview 定義建立功能，仍為後端預設。
+- `bi`：加上 pview、同步、排程；不註冊發布／匯出／blueprint／job 工具。
+- `full`：保留共用服務既有工具，另提供本次 pview 與排程工具。
 
-修改：把「強制檢查的最低 scope」與「challenge 的提示」分開。最小做法是讓 challenge
-不帶 scope，用戶端便退回 PRM 的 `scopes_supported`（已正確列出四項）。tool 層的
-`caller.require` 仍逐項把關，granular scope 的設計不受影響。
+BI 支援 views:read、knowledge:read、query:run、views:write，不需要 data-api:publish 或 export scopes。
+修改部署設定後重新啟動 gateway，宿主刷新工具清單／重開 session；權限不足再重新授權。
+只重新登入無法補出 definitions profile 沒有註冊的工具。
+本次程式提交不修改部署環境或 config.toml 的個人連線設定。
 
-驗收：`curl -i -X POST <gateway>/mcp` 的 `WWW-Authenticate` 不再出現
-`scope="views:read"`；opencode 首次授權時同意頁顯示四項可勾選，
-`whoami` 回報的 scopes 與使用者所選一致。
+公開 MCP endpoint 為 https://plasma-mcp.bbg-x.top/mcp。
+保留受信任 HTTPS、正確 public_url／issuer／discovery 與 callback 設定。
+2026-09-22 先前連線測試曾看到 discovery 指向舊內網網址；本次未重新驗證部署，
+發布前需確認外部 OAuth 流程，不將本機測試通過視為部署已完成。
 
-### B9 — gateway 需要用戶端信任的 HTTPS 憑證（擋住 OAuth 可用性）
+## 同步確認與排程
 
-現況：`public_url` 為 `http://`，`allow_insecure_public_url = true`。
-ingress 雖然監聽 443，但用的是 nginx 預設自簽憑證
-（`CN=Kubernetes Ingress Controller Fake Certificate`），不受用戶端信任，
-且 discovery 仍宣告 `http://` 的 issuer 與 endpoints。
+同步確認採 skill 軟限制，不新增 approval URL、token、confirmed 參數或 server gate。
+OAuth 授權、工具 metadata 與一般報表需求均不視為使用者已確認同步。
 
-問題：OAuth 最後一步是從 gateway 導回 `http://127.0.0.1:<port>` 的本機接收埠。
-Chrome 自 142 起實施 Local Network Access，涵蓋 top-level navigation，
-會擋下由內網位址導向 loopback 的跳轉；而請求該權限的資格**僅限 HTTPS 頁面**，
-所以 http 的 gateway 連權限提示都不會出現。實測結果：使用者按下「同意並連結」後
-gateway 正常回 302、backend 記錄 `Authorization granted`，但瀏覽器不跟隨，
-用戶端的 callback 永遠收不到 code。同一頁面上 `fetch('http://127.0.0.1:…')`
-直接被擋（`Failed to fetch`）。
+1. create_view 建立 manual mview，不附 scheduler_settings。
+2. 等初始化完成，呈現 mview、來源、資料範圍、同步與排程時間／頻率／時區。
+3. 使用者明確確認後，執行一次 sync_view，依 get_view 的當次狀態及時間核對。
+4. 同步成功後以未來 start=setTime 設定排程，避免 immediately 觸發重複同步。
+5. get_view_schedule 核對 settings 與 enabled；get_view 核對 sync_mode。
 
-此外部分宿主的 MCP SDK 會拒絕非 TLS 位址上的 OAuth token endpoint
-（SDK 新版的 `assertSecureTokenEndpoint`，SEP-2207），這條也只有 HTTPS 能解。
+更新既有停用排程不保證會啟用；工具只反映 REST 回傳，不假裝已啟用。
+初始化中可回 409，scheduler 不可用可回 503；逾時先讀取現況，不盲目重試。
+同步失敗不回退到直接查來源；既有合適且新鮮的 mview 可重用，不強迫再次同步。
 
-修改：為 gateway 配置用戶端信任的憑證（內部 CA 簽發並將 CA 佈到用戶端，
-或使用可申請公信憑證的網域），`public_url` 改為 `https://`，
-並移除 `allow_insecure_public_url`。
+## 驗收
 
-過渡期可由 IT 以 Chrome 政策 `LoopbackNetworkAccessAllowedForUrls` 放行該來源，
-但那需要逐台佈署，不能當長期方案。
+自動化：gateway 的 REST 路由／參數、使用者 token、scope 拒絕、profile 工具隔離、
+pview 參數與截斷回應、排程 enabled/null 與錯誤回傳、既有 OAuth／view 工具回歸。
+Plugin 驗證三宿主 skills 與 reference 文件一致、連結可解析、舊 skill 不再封裝。
 
-驗收：`curl`（不加 `-k`）能取得 `https://<gateway>/healthz`；discovery 的 issuer
-與 endpoints 皆為 https；在 Chrome 完成一次完整授權，瀏覽器出現本機網路權限提示，
-同意後用戶端成功收到 code 並換到 token。
+實際環境仍需驗收：
 
-## 條件式項目與可用性改善
-
-### B5 — 企業網域限制／正式發布的 identity 資訊
-
-目前沒有 OIDC discovery、`openid`／`email` scopes 或 UserInfo endpoint。
-若要支援企業 workspace 的網域限制，補齊 discovery、UserInfo，以及可證實的
-`email`／`email_verified`。不能把未驗證的 Plasma username 直接標為 verified email。
-依當時公開 MCP 提交規則核對這些發布要求；基本連線測試與正式上架分開驗收。
-來源：[官方認證文件](https://developers.openai.com/plugins/build/auth)、
-[提交指南](https://developers.openai.com/plugins/guides/submit-claude-plugin)。
-
-## 部署／註冊工作（不全是程式修改）
-
-- repository 的 `[mcp_gateway]` 預設關閉；在實際部署配置 enabled、public_url、
-  獨立 signing／encryption keys、Ophion endpoint 與 service token。
-- gateway 使用獨立 listener（預設 5002）。反向代理需涵蓋 `/mcp`、`/oauth/*`、
-  `/.well-known/*`，提供有效 HTTPS，避免僅把 MCP path 轉到 REST 的 5001。
-- 驗證 issuer、resource、callback URI 一致，流式回應與逾時設定符合實際查詢。
-- 目前實作 **DCR**；README 的「DCR 或 CIMD」超出程式現況。先以 DCR 測試
-  ChatGPT；不必為基本相容性強制新增 CIMD，但文件應修正。若選 CIMD 才另實作。
-- 在 ChatGPT 建立／註冊連線；工作區綁定用實際 app ID，公開提交則使用正式 MCP URL。
-  plugin 包不會建立 app。公開提交的 domain verification、說明與隱私資訊依 portal 完成。
-- 開發測試可依官方支援使用 Secure MCP Tunnel；正式公開提交仍按 portal 的 HTTPS 要求。
-
-來源：[官方連線測試流程](https://developers.openai.com/plugins/deploy/connect-chatgpt)。
-
-## 最終端到端驗收
-
-在隔離測試資料上，使用 ChatGPT 網頁版完成：
-
-1. 新連線 → OAuth → 選 workspace → `whoami` → 工具清單。
-2. 知識查核 → `run_query`；缺權限時追加授權，不陷入反覆重連。
-3. 建立一般 view → `get_view` 核對定義 → 交付並結束。
-4. 建立 manual mview → `get_view` 核對定義 → 說明未啟動同步並結束。
-5. 確認無同步／排程、blueprint、檔案輸出、外部資料庫匯出或 API 發布副作用。
-6. 拒絕授權、過期 token refresh、撤銷 grant、移除 workspace 成員、Ophion 故障。
-7. 換 workspace 重新授權，重新整理工具後驗證兩側一致；多個連線不混用 ID。
-8. Claude Code 使用同一 gateway 回歸驗證，不需要另一套後端。
-
-現有測試只證明 gateway 自身的一部分合約；仍需記錄真實 ChatGPT 的授權 UI、
-實際 scopes、呼叫结果及流程終點，才能宣稱完整可用。
+- 預設 pview 與明確指定 mview 的兩條路徑。
+- 未確認、拒絕同步、變更同步內容後重新確認；這是宿主中的行為驗收，單元測試不能證明 AI 一定遵守。
+- 首次同步、排程觸發、既有物件重用、失敗／逾時後續查，不重複同步。
+- pview 引用已同步 mview，兩個不同區間、邊界與空結果正確。
+- 運算留在 mview，pview 只有欄位選取與 filter；不發布資料 API。
+- 使用者自行建立 API 後，可另驗證 Power BI 的參數連接方式；這不屬於本次自動建立流程。
