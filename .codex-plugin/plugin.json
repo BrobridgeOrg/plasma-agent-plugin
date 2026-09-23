@@ -1,8 +1,8 @@
 {
   "name": "plasma-plugin",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "mcpServers": "./.mcp.json",
-  "description": "以 Ophion 查核資料與 SQL，在 mview 完成運算並預設輸出參數化 pview；同步與排程前請使用者確認。",
+  "description": "以 Plasma 知識庫查核資料與 SQL，在 mview 完成運算並預設輸出參數化 pview；同步與排程前請使用者確認。",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"
@@ -10,7 +10,6 @@
   "skills": "./skills/",
   "keywords": [
     "plasma",
-    "ophion",
     "view",
     "materialized-view",
     "knowledge",

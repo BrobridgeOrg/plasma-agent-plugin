@@ -29,7 +29,7 @@ description: >-
 
 ## 連線方式
 
-本流程使用的 Plasma view 工具與 Ophion 知識工具，都由同一台遠端 MCP gateway 提供。
+本流程使用的 Plasma view 工具與 Plasma 知識庫工具，都由同一台遠端 MCP gateway 提供。
 Codex 與 Claude plugin 已內含遠端 MCP 宣告，endpoint 為
 `https://plasma-mcp.bbg-x.top/mcp`。安裝後只需完成 OAuth，不再要求填 URL、
 手動新增相同 MCP server 或安裝其他 client。安裝 plugin 不等於已完成授權。
@@ -105,7 +105,7 @@ opencode mcp auth plasma
 
 `whoami` 回報 workspace 名稱與 ID、授權帳號、scopes 與知識服務狀態。
 核對本次任務需要的 workspace。遇到多個 Plasma 連線，選定一個後，
-Plasma 與 Ophion 的工具均使用該連線；不要混用不同連線的物件 ID。
+Plasma view 工具與知識庫工具均使用該連線；不要混用不同連線的物件 ID。
 工具名稱可能帶宿主命名空間，以實際可用工具及 schema 為準。
 
 | scope | 允許的操作 |
@@ -132,7 +132,7 @@ scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部�
 | 缺少 pview／sync／排程工具 | 管理員需部署新版 gateway 並重啟，宿主刷新工具清單；無須模式設定，重新登入不會補出舊版尚未實作的工具 |
 | 工具缺少 scope | 依上節重新授權；plugin 不能代替 gateway 授予權限 |
 | Plasma `403` | 與缺少 scope 不同，由 Plasma 管理員檢查 workspace 成員與權限 |
-| 有 Plasma 工具但沒有知識工具 | 用 `whoami` 區分未配置 Ophion、缺 `knowledge:read` 或服務不可用 |
+| 有 Plasma 工具但沒有知識工具 | 用 `whoami` 區分未配置知識庫、缺 `knowledge:read` 或服務不可用 |
 | 知識工具 `404`／尚無已發布知識 | 由管理員產生並發布該 workspace 的知識版本 |
 | workspace 不符 | 重新授權並選擇正確 workspace；不自行替換參數繞過 |
 | 連線只使用舊式 SSE | 使用支援 Streamable HTTP 的連線方式 |
@@ -160,6 +160,6 @@ OAuth 最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。
 本流程不要求匯出或 API 發布權限，API 由使用者自行建立。
 所需工具：whoami、list_views、get_view、run_query、create_view、sync_view、
 get_view_schedule、set_view_schedule、list_pviews、get_pview、create_pview、execute_pview，
-以及 Ophion 知識工具。缺少任一所需能力時回報缺口，不靜默退回舊流程。
+以及 Plasma 知識庫工具。缺少任一所需能力時回報缺口，不靜默退回舊流程。
 宿主顯示其他後端工具或授權帶有較廣 scopes，不代表 plugin 應接續使用。
 plugin 不提供本機 hook；同步確認是 skill 軟限制，不是 gateway 強制核准。

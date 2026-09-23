@@ -1,10 +1,10 @@
 ---
-name: ophion-knowledge-lookup
+name: plasma-knowledge-lookup
 description: >-
-  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Ophion 的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，供建立 view／mview 使用。知識工具由 Plasma MCP server 一併提供。
+  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Plasma 知識庫的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，供建立 view／mview 使用。知識工具由 Plasma MCP server 一併提供。
 ---
 
-# 查找與判讀 Ophion 知識
+# 查找與判讀 Plasma 知識庫
 
 ## 共通互動原則
 
@@ -15,7 +15,7 @@ description: >-
 - 以整份表單為查找單位，不因區塊、指標或來源表不同而自行拆分交付物。
   由 `plasma-create-pview` 建立 mview 運算層與 pview 篩選層；使用者明確指定 mview 時停在 mview。
 
-Ophion 保存來源系統的設計知識：資料表與欄位意義、業務規則、代碼、推導、
+Plasma 知識庫保存來源系統的設計知識：資料表與欄位意義、業務規則、代碼、推導、
 品質陷阱及設計意圖，**不保存實際資料列**。特定紀錄的數值不能從設計知識猜測。
 
 這些知識工具與 Plasma 的 view 工具**在同一台 MCP server 上**，

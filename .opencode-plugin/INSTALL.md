@@ -90,6 +90,6 @@ skills 要下一個 session 才會載入。
 
 ## 建立流程
 
-三份 skills 為 plasma-mcp-setup、ophion-knowledge-lookup、plasma-create-pview。
+三份 skills 為 plasma-mcp-setup、plasma-knowledge-lookup、plasma-create-pview。
 預設建立 mview 運算層與 pview 篩選層；提示詞明確指定 mview 時以 mview 為最終輸出。
 同步與排程必須先在對話確認；這是 skill 軟限制。資料 API 請在 Plasma 自行建立。

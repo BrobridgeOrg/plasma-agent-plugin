@@ -6,7 +6,7 @@
 
 ## 工作流程與責任
 
-Plugin 維持三份 skills：setup、Ophion 查核與 plasma-create-pview。
+Plugin 維持三份 skills：setup、Plasma 知識庫查核與 plasma-create-pview。
 預設：知識查核 → SQL 驗證 → manual mview → 使用者確認 → 首次同步成功 → 定期排程 → pview → 驗證交付。
 使用者明確指定 mview 為最終目標時，於同步／排程核對後交付 mview。
 只建立定義或拒絕同步時不執行同步，交付已建立定義與尚未完成項目。
@@ -26,7 +26,7 @@ Plugin 維持三份 skills：setup、Ophion 查核與 plasma-create-pview。
 | get_view_schedule | GET /view/{view_id}/schedule | views:read |
 | set_view_schedule | PUT /view/{view_id}/schedule | views:write |
 
-沿用 whoami、list_views、get_view、run_query、create_view、sync_view 與 Ophion 工具。
+沿用 whoami、list_views、get_view、run_query、create_view、sync_view 與 Plasma 知識庫工具。
 每項呼叫使用授權綁定的 workspace 與使用者的 Plasma token，不能由工具切換 workspace。
 create_pview 後需 get_pview 讀取完整 SQL；參數 schema 保留 default_value 與 has_default_value。
 execute_pview 預設每頁 10 列、最大 100 列；保留後端的 total、total_pages 與 truncated。

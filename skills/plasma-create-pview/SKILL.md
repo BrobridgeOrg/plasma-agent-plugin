@@ -1,7 +1,7 @@
 ---
 name: plasma-create-pview
 description: >-
-  將報表、表單、Power BI 或資料需求建立為 Plasma pview 時使用；也處理使用者明確指定 mview 為最終目標的需求。預設在 mview 完成運算、經使用者確認同步與排程後，以 pview 提供參數篩選。全程台灣繁體中文，不建立或發布資料 API。
+  將報表、表單、Power BI 或資料需求建立為 Plasma pview 時使用；也處理使用者明確指定 mview 為最終目標的需求。預設在 mview 完成運算、經使用者確認同步與排程後，以 pview 提供參數篩選；pview 一律讀取 mview，不可略過 mview 直接查來源。全程台灣繁體中文，不建立或發布資料 API。
 ---
 
 # 建立 mview 運算層與 pview 篩選層
@@ -17,12 +17,22 @@ description: >-
 指定 mview：同一流程到同步成功並核對排程 → 交付 mview
 ```
 
+**不能略過 mview。** pview 的 FROM 只能是本流程建立或核對重用的 mview，
+不能直接查來源表，也不能把運算 SQL 直接放進 pview。下列都不是略過 mview 的理由：
+
+- SQL 很簡單、只有單表篩選，或 `run_query` 已驗證成功。
+- 想省去同步等待、使用者尚未確認同步，或同步失敗／逾時。
+- pview 本身可以帶參數，看起來「一步完成」比較快。
+
+遇到上述情況時照流程建立 manual mview，並依第 4 節處理同步；
+使用者未確認同步時，交付尚未同步的 mview（與指向它的 pview 定義），不改走來源表。
+
 ## 共通規則與工具
 
 - 全程台灣繁體中文；SQL、工具名稱、識別名稱與 URL 保留原樣。
 - 先用 `whoami` 核對 workspace、權限與知識服務；全程使用同一連線。
   工具或權限不足時依 [連線技能](../plasma-mcp-setup/SKILL.md) 處理，不改用 shell／REST 繞過。
-- 本流程使用 Ophion 知識工具、`whoami`、`list_views`、`get_view`、`run_query`、
+- 本流程使用 Plasma 知識庫工具、`whoami`、`list_views`、`get_view`、`run_query`、
   `create_view`、`sync_view`、`get_view_schedule`、`set_view_schedule`、
   `list_pviews`、`get_pview`、`create_pview`、`execute_pview`。參數以實際工具 schema 為準。
 - 不建立 access entry、export API、匯出 blueprint、檔案或外部資料庫輸出。
@@ -41,15 +51,15 @@ description: >-
   計算欄位、視窗函式或業務運算。參數型別轉換可放在 WHERE。
 - 任意期間去重人數、區間排名等無法由預先運算結果正確篩選取得時，說明限制並釐清
   報表粒度／可支援的區間，不能把每日去重值或平均值相加，也不能偷移運算到 pview。
-- mview 作為 pview 來源是本 plugin 的預設，不是 Plasma 的硬限制。
-  使用者明確要求直接查來源時，先說明負載並釐清例外範圍，不宣稱 backend 禁止。
+- 本 skill 的 pview 一律以 mview 為來源。使用者明確要求 pview 直接查來源表時，
+  說明本流程不支援並建議改走 mview；不自行改走來源表，也不宣稱 backend 禁止。
 
 ## 2. 查核知識、驗證運算 SQL
 
-使用 [Ophion 知識技能](../ophion-knowledge-lookup/SKILL.md) 與
+使用 [Plasma 知識庫技能](../plasma-knowledge-lookup/SKILL.md) 與
 [知識查核及 Trino SQL 規則](references/knowledge-sql.md) 完整查核來源後才產生 SQL。
 所有來源表、欄位與代碼依證據取得；mview 衍生欄位則以已驗證 SQL 與實際結果核對，
-不要求 Ophion 事先收錄本次新物件。
+不要求 Plasma 知識庫事先收錄本次新物件。
 
 `run_query` 會實際查來源，最多回傳 100 列；LIMIT 不能保證掃描／聚合量小。
 驗證採需求可接受的小時間範圍，避免反覆執行完整重查詢；不能將驗證用的範圍或
@@ -108,6 +118,14 @@ mview 名稱最多 **30 個字元**。使用者名稱過長時提出替代名稱
 ## 6. 建立 pview 與驗證
 
 先讀取 [API 與工具格式](references/api.md) 的 pview 部分。
+
+**呼叫 `create_pview` 前逐項核對，任一項不成立就回到對應步驟，不建立 pview：**
+
+1. 已有 mview ID，且 `get_view` 回傳 `type=materialized_view`（本流程新建或已核對重用）。
+2. pview SQL 的 FROM 只有該 mview 的路徑，沒有來源表、JOIN 或子查詢。
+3. SELECT 只選 mview 已產出的欄位，WHERE 只有參數化篩選。
+4. mview 同步狀態已依第 4、5 節處理；尚未同步時在交付標明。
+
 用 `list_pviews`／`get_pview` 核對同名物件，完整相符可重用；不覆寫不同定義。
 pview 使用 `get_view` 回傳並經查詢核對的 mview 路徑，不猜 schema、catalog 或物件名稱。
 原樣處理後端回傳的 SQL 路徑，不把 mview 的來源 SQL 複製到 pview。
@@ -127,6 +145,18 @@ pview 使用 `get_view` 回傳並經查詢核對的 mview 路徑，不猜 schema
 交付 workspace、最終 pview／mview 的 ID 與名稱、來源 mview、運算與篩選摘要、
 參數格式／範例、已接受假設、SQL 驗證結果、最後成功同步時間及排程。
 重用物件標明重用；同步、排程或驗證未完成時分別列出，不宣稱全部成功。
+
+完成 pview（或指定的最終 mview）後，**在對話中直接整理本次 SQL 的輸出欄位表**，
+不另建檔案。欄位順序與 pview SELECT 一致，名稱與型別以 `get_pview`／`execute_pview`
+回傳或 `get_view` 核對結果為準，不憑記憶填寫：
+
+| 欄位名稱 | 型別 | 說明 | mview 運算方式／來源 |
+|---|---|---|---|
+| `report_date` | date | 報表日期 | `CAST(o.order_time AS DATE)`，來源 `sales.orders.order_time` |
+
+- 「說明」使用業務語意；「運算方式／來源」寫出 mview 中的運算式或來源 `database.table.column`。
+- 在表格下方另列 pview 參數：名稱、型別、是否必填、對應篩選欄位及條件（如 `report_date >= @start_date`）。
+- 無法確認的型別或語意標明「未確認」，不猜測。
 
 說明「資料 API 請在 Plasma 自行建立」。不產生 API URL、不建立或發布 export API，
 不要求使用者提供 API 驗證方式、有效期限或匯出目的地。

@@ -9,7 +9,7 @@
     {
       "name": "plasma-plugin",
       "source": "./",
-      "description": "以 Ophion 查核 SQL，預設建立 mview 運算層與 pview 篩選層；同步前需確認，API 由使用者自行建立。"
+      "description": "以 Plasma 知識庫查核 SQL，預設建立 mview 運算層與 pview 篩選層；同步前需確認，API 由使用者自行建立。"
     }
   ]
 }
