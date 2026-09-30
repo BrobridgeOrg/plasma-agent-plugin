@@ -1,7 +1,7 @@
 ---
 name: plasma-knowledge-lookup
 description: >-
-  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用。以台灣繁體中文解讀 Plasma 知識庫的 access_mode、規則、來源證據與知識缺口，彙整整份表單所需知識，供建立 view／mview 使用。知識工具由 Plasma MCP server 一併提供。
+  撰寫 Plasma SQL 前，需要查明資料表、欄位、代碼、指標定義或來源系統設計時使用；查詢 Plasma 知識庫的規則、來源證據與知識缺口，供建立 mview（Materialized View）使用。
 ---
 
 # 查找與判讀 Plasma 知識庫
@@ -9,7 +9,7 @@ description: >-
 ## 共通互動原則
 
 - 所有進度、問題、結果、錯誤與交付均使用台灣繁體中文；系統功能名稱如 view、
-  view、mview、workspace，以及工具名稱、SQL、欄位名稱與 URL 保留原樣。
+  mview、pview、workspace，以及工具名稱、SQL、欄位名稱與 URL 保留原樣。
 - 在已交付範圍內連續完成知識查找、欄位查核及 SQL 驗證，不逐步詢問是否繼續。
   只釐清影響正確性的必要資訊，查到假設時標明，建立定義前確認必要假設。
 - 以整份表單為查找單位，不因區塊、指標或來源表不同而自行拆分交付物。

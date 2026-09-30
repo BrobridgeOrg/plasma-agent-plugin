@@ -1,7 +1,7 @@
 ---
 name: plasma-mcp-setup
 description: >-
-  連結 Plasma 遠端 MCP，或診斷工具缺少、連線失敗及權限不足時使用。以宿主內建的 OAuth 完成授權，核對 workspace 與 scopes；適用 opencode、Claude Code 與 Codex。OAuth 開啟系統瀏覽器後立即結束當前回合，不使用 browser 或 computer use 工具。全程台灣繁體中文。
+  連結 Plasma 遠端 MCP、登入 Plasma，或診斷工具缺少、連線失敗、權限不足時使用；適用 opencode、Claude Code 與 Codex。
 ---
 
 # 連結 Plasma 與診斷

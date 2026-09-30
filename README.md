@@ -7,6 +7,8 @@
 
 預設流程：**查核來源 → 驗證 SQL → manual mview → 使用者確認同步／排程 → 同步與排程核對 → pview 篩選 → 驗證並交付**。
 指定 mview 時，在同步與排程核對後交付 mview。資料 API 由使用者自行建立。
+pview 完成後，可接續 `plasma-create-bi` 產生 Power BI 專案（PBIP）或 HTML BI，
+BI 透過使用者自行建立的資料 API 讀取 pview。
 
 **Plugin 是工作流程；遠端 MCP gateway 是工具服務；MCP client 由宿主提供。**
 Codex 與 Claude plugin 直接內含 `.mcp.json`，安裝後由宿主載入連線，再完成 OAuth。
@@ -58,6 +60,7 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 | `plasma-mcp-setup` | 連結服務、核對 workspace／scopes、診斷 |
 | `plasma-knowledge-lookup` | 查核來源、欄位、代碼、業務規則 |
 | `plasma-create-pview` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview |
+| `plasma-create-bi` | 以 pview 為來源產生 BI：Power BI 專案（PBIP）或單一 HTML 頁面 |
 
 三個版本均無本機 hooks、Bash launcher、Go binary、下載快取或狀態檔依賴。
 `scripts/` 僅供維護者封裝與測試，不會放進安裝包；使用者不需要 Python 或 Go。
@@ -126,12 +129,12 @@ token 由 opencode 保管在 `~/.local/share/opencode/mcp-auth.json` 並自動�
 在對話中輸入 `/mcp`，選 plugin 的 plasma 連線 → Authenticate，瀏覽器完成授權。
 token 存進系統憑證庫並自動更新。
 
-Claude 安裝包為 `plasma-plugin_0.7.1_claude.zip`；三個版本的 skills 完全相同，無 hooks。
+Claude 安裝包為 `plasma-plugin_0.8.0_claude.zip`；三個版本的 skills 完全相同，無 hooks。
 其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
 
 ## Codex
 
-使用 `plasma-plugin_0.7.1_chatgpt.zip`，依宿主的原生 plugin 流程安裝。
+使用 `plasma-plugin_0.8.0_chatgpt.zip`，依宿主的原生 plugin 流程安裝。
 Manifest 已宣告 `mcpServers: "./.mcp.json"`；無額外安裝工具，不需 Python。
 安裝後開新對話說「幫我登入 Plasma」，skill 會使用宿主可呼叫的授權入口。
 若宿主未提供可呼叫入口，請在 MCP server 清單選該 plugin 的連線並按 Authenticate。
@@ -145,10 +148,10 @@ CLI 先確認 `codex mcp list --json` 列出 plugin 連線，再以其實際名�
 原有手動設定的 `plasma` MCP 可能與 plugin 連線重複，請檢查並選用 plugin 提供的連線。
 
 更新 plugin 後重新開啟對話／session，讓宿主移除舊 hook 註冊及舊版 skills。
-`plasma-create-view` 已由 `plasma-create-pview` 取代，仍維持三份 skills；
+`plasma-create-view` 已由 `plasma-create-pview` 取代；
 手動複製安裝的使用者需移除舊 `plasma-create-view` 與 `ophion-knowledge-lookup` 目錄，避免舊流程同時載入。
 `plasma-data-api` 與 `plasma-export` 維持移除，資料 API 由使用者自行建立。
-不要沿用舊對話載入的匯出／發布指示；新包中只有三份 skills。
+不要沿用舊對話載入的匯出／發布指示；新包中有四份 skills。
 若曾手動將舊 hook 複製到宿主設定，請在該宿主刪除該自訂設定；新版不會執行舊 binary。
 本次不自動修改使用者家目錄、既有 MCP 連線或其他宿主設定。
 workspace 綁在授權上；換 workspace 要重新授權一次，plugin 不保存選擇。
@@ -176,10 +179,10 @@ make release
 本分支測試包可使用獨立目錄，避免混入先前同版本的本機產物：
 
 ```bash
-python3 scripts/package_plugin.py --output dist/v0.7.1-test
+python3 scripts/package_plugin.py --output dist/v0.8.0-test
 ```
 
-僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.7.1/`，包括三個 ZIP
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.8.0/`，包括三個 ZIP
 與 SHA-256 `checksums.txt`。Codex／Claude 安裝包收錄對應 manifest、`.mcp.json` 與共用 Markdown skills，
 避免將開發工具、本機功能或後端修改清單帶入執行環境。
 

@@ -1,7 +1,7 @@
 ---
 name: plasma-create-pview
 description: >-
-  將報表、表單、Power BI 或資料需求建立為 Plasma pview 時使用；也處理使用者明確指定 mview 為最終目標的需求。預設在 mview 完成運算並彙總到報表呈現粒度（pview 不回傳明細）、經使用者確認同步與排程後，以 pview 提供參數篩選；pview 一律讀取 mview，不可略過 mview 直接查來源。全程台灣繁體中文，不建立或發布資料 API。
+  將報表、表單、Power BI 或資料需求建立為 Plasma pview（Parameter View）時使用；使用者明確指定 mview（Materialized View）為最終目標時也適用。涵蓋知識查核、SQL 驗證、mview 建立與同步排程、pview 參數篩選。不含資料 API 發布。
 ---
 
 # 建立 mview 運算層與 pview 篩選層
@@ -10,6 +10,9 @@ description: >-
 「不需要參數」或 AI 判斷用途不需要參數，不等於使用者指定 mview；必要時釐清最後篩選需求，
 不自行改變輸出類型。使用者明確限定「只建立定義」時，遵守範圍，不啟動同步。
 本 skill 不建立一般 view；明確要求一般 view 時，說明本流程支援 pview／mview 並釐清，不能靜默替換。
+
+pview 每次執行時代入 `@參數` 即時查詢、本身不儲存資料，所以運算與彙總都要先在 mview 完成。
+資料 API（access entry）是使用者在 Plasma 為 pview 自行發布的讀取入口，URL 通常含存取權杖。
 
 ```text
 預設：知識查核 → 粒度與筆數設計 → SQL 驗證 → manual mview → 使用者確認同步／排程
@@ -208,3 +211,5 @@ pview 使用 `get_view` 回傳並經查詢核對的 mview 路徑，不猜 schema
 
 說明「資料 API 請在 Plasma 自行建立」。不產生 API URL、不建立或發布 export API，
 不要求使用者提供 API 驗證方式、有效期限或匯出目的地。
+
+使用者要接著產生 BI 時，依 [建立 BI 技能](../plasma-create-bi/SKILL.md) 以本次 pview 為來源。

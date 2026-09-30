@@ -9,7 +9,7 @@ MCP 連線寫在使用者自己的設定檔。所以安裝是兩件事，各做�
 
 ## 1. 放 skills
 
-把壓縮檔裡的 `skills/` 三個目錄複製到 opencode 會掃描的位置：
+把壓縮檔裡的 `skills/` 四個目錄複製到 opencode 會掃描的位置：
 
 ```bash
 mkdir -p ~/.config/opencode/skills
@@ -90,6 +90,6 @@ skills 要下一個 session 才會載入。
 
 ## 建立流程
 
-三份 skills 為 plasma-mcp-setup、plasma-knowledge-lookup、plasma-create-pview。
+四份 skills 為 plasma-mcp-setup、plasma-knowledge-lookup、plasma-create-pview、plasma-create-bi。
 預設建立 mview 運算層與 pview 篩選層；提示詞明確指定 mview 時以 mview 為最終輸出。
 同步與排程必須先在對話確認；這是 skill 軟限制。資料 API 請在 Plasma 自行建立。
