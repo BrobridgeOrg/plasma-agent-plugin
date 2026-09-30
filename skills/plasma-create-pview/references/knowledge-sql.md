@@ -10,6 +10,10 @@
    JOIN、條件聚合或語意一致的 UNION ALL。除最後的 pview 篩選層外，不要另建中繼 view／mview，也不要用會
    重複計算的 JOIN 硬湊。確實無法整合時說明限制並釐清，不自行拆分或省略欄位。
 
+   列粒度依 [SKILL.md](../SKILL.md) 第 1 節「回傳筆數決定 mview 粒度」設計：
+   彙總到「期別 × 區塊 × 維度值」，以 `section` 區分區塊，不可加總指標在各期別內完整算出。
+   驗證 SQL 時同時以 `run_query` 估算最大允許範圍的回傳列數。
+
 2. **只從 Plasma 知識庫查找來源。** SQL 使用的每個來源表與欄位都必須由 Plasma 知識庫查得，
    不可從名稱、截圖或其他場域的經驗猜測。依序使用 `overview` →
    `search_knowledge`（多個同義詞以 OR 搜尋）→ `find_tables` →
