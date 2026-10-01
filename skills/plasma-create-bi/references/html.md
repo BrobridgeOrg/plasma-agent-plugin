@@ -2,6 +2,7 @@
 
 產生**單一 `.html` 檔**，瀏覽器直接開啟即可使用，不需要建置工具或伺服器。
 資料在執行時向使用者的資料 API 取得；檔案本身不內嵌資料列。
+檔案內不寫任何註解（`<!-- -->`、`//`、`/* */`）。
 
 ## 頁面組成
 
@@ -23,26 +24,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><報表名稱></title>
-  <style>/* 色彩以 :root 變數定義，並提供 prefers-color-scheme: dark 版本 */</style>
-  <!-- 圖表庫：使用一個固定版本的 CDN，例如 ECharts；或以原生 SVG 繪製 -->
+  <style>...</style>
+  <script src="<圖表庫 CDN，固定版本>"></script>
 </head>
 <body>
   ...
   <script>
     const CONFIG = {
-      apiUrl: "",                 // 預設空白；使用者明確要求才寫入實際 URL
-      params: [                   // 依 pview param_def
+      apiUrl: "",
+      params: [
         { name: "start_date", label: "開始日期（含）", type: "date", default: "2026-01-01" },
         { name: "end_date",   label: "結束日期（不含）", type: "date", default: "2026-02-01" }
       ],
-      rowLimit: 1000              // 下游單次回傳上限
+      rowLimit: 1000
     };
-    // parseResponse / loadData / render* 函式
   </script>
 </body>
 </html>
 ```
 
+- `CONFIG.apiUrl` 預設空字串，使用者明確要求才寫入實際 URL；`params` 依 pview 的 `param_def`；
+  `rowLimit` 是下游單次回傳上限。其後接 `parseResponse`、`loadData`、`render*` 等函式。
+- 色彩以 `:root` 變數定義，並提供 `prefers-color-scheme: dark` 版本。
 - 圖表庫只用一個，指定固定版本，從 cdnjs 或 jsdelivr 載入；離線環境改用原生 SVG。
 - 版面在手機寬度可用：KPI 卡片自動換行，圖表寬度隨容器縮放，不出現水平捲動。
 - 數值格式用 `Intl.NumberFormat('zh-TW', ...)`，百分比、千分位、小數位依規劃。
@@ -57,13 +60,13 @@ function buildUrl(base, values) {
 }
 
 function parseResponse(json) {
-  // 依 SKILL.md 第 4 節確認的實際回應格式撰寫，例如：
-  // { data: { columns: [...], rows: [[...]] } }
   const { columns, rows } = json.data;
   return rows.map(r => Object.fromEntries(columns.map((c, i) => [c, r[i]])));
 }
 ```
 
+- `parseResponse` 依 SKILL.md 第 4 節確認的實際回應格式撰寫；上例對應
+  `{ "data": { "columns": [...], "rows": [[...]] } }`。
 - 送出前檢查必填參數與 `開始 < 結束`，錯誤在狀態列顯示，不送出請求。
 - 回傳列數達到 `rowLimit` 或回應帶截斷／分頁標記時，顯示「結果可能不完整」並停止繪圖，
   不自行翻頁補齊。

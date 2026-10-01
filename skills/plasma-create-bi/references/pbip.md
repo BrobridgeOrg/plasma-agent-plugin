@@ -1,9 +1,11 @@
 # Power BI 專案（PBIP）格式
 
 產生 Power BI Desktop 可直接開啟的 PBIP 專案：語意模型用 TMDL，報表用 PBIR。
+所有檔案不寫任何註解：TMDL 不用 `///`，DAX 與 M 不用 `//`、`/* */`。
 格式依 Microsoft Learn「Power BI Desktop projects」文件與
 [microsoft/json-schemas](https://github.com/microsoft/json-schemas/tree/main/fabric) 公開 schema。
-下表版本為 2026-09 核對的最新版；產生前若可連網，先查該 repo 是否有更新版本並改用。
+下表版本為 2026-09 核對的最新版，直接使用即可，不需上網查詢；Desktop 也接受較舊版本
+（官方樣本使用 visualContainer 2.4.0、report 3.0.0）。
 
 | 檔案 | `$schema` |
 |---|---|
@@ -244,12 +246,18 @@ table KPI
 }
 ```
 
-`definition/report.json`（`themeCollection` 必填；留空由 Desktop 套用預設主題）：
+`definition/report.json`（`themeCollection` 必填；`baseTheme` 照抄官方樣本中 Desktop 寫出的值）：
 
 ```json
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.3.0/schema.json",
-  "themeCollection": {}
+  "themeCollection": {
+    "baseTheme": {
+      "name": "CY19SU12",
+      "reportVersionAtImport": { "visual": "1.8.44", "report": "2.0.44", "page": "1.3.44" },
+      "type": "SharedResources"
+    }
+  }
 }
 ```
 
@@ -278,7 +286,52 @@ table KPI
 
 ### 視覺（`visuals/<visual>/visual.json`）
 
-KPI 卡片（`card`，角色 `Values`）：
+**視覺類型與角色名稱以下表為準，不需上網搜尋。** 下表整理自 Microsoft 官方
+[microsoft/BCApps](https://github.com/microsoft/BCApps/tree/main/src/Apps/W1/PowerBIReports) 中
+Power BI Desktop 實際存出的 PBIR 報表（2026-10 統計 1,023 個 visual.json），
+只列出樣本中出現過的類型與角色。`queryState` 的 key 就是角色名稱，大小寫須完全相同。
+
+| 用途 | `visualType` | 角色（`queryState` key） |
+|---|---|---|
+| KPI 卡片 | `cardVisual` | `Data`（量值） |
+| 表格 | `tableEx` | `Values`（欄位與量值依序排列） |
+| 矩陣 | `pivotTable` | `Rows`、`Columns`、`Values` |
+| 群組直條圖 | `clusteredColumnChart` | `Category`、`Y`、`Tooltips` |
+| 群組橫條圖 | `clusteredBarChart` | `Category`、`Y`、`Tooltips` |
+| 堆疊直條圖 | `columnChart` | `Category`、`Y`、`Series`、`Tooltips` |
+| 堆疊橫條圖 | `barChart` | `Category`、`Y`、`Series`、`Tooltips` |
+| 100% 堆疊橫條圖 | `hundredPercentStackedBarChart` | `Category`、`Y` |
+| 折線圖 | `lineChart` | `Category`、`Y`、`Series`、`Tooltips` |
+| 區域圖 | `areaChart` | `Category`、`Y`、`Tooltips` |
+| 直條＋折線組合圖 | `lineClusteredColumnComboChart` | `Category`、`Y`（直條）、`Y2`（折線）、`Tooltips` |
+| 緞帶圖 | `ribbonChart` | `Category`、`Y`、`Series` |
+| 圓餅圖 | `pieChart` | `Category`、`Y`、`Tooltips` |
+| 環圈圖 | `donutChart` | `Category`、`Y`、`Tooltips` |
+| 樹狀圖 | `treemap` | `Group`、`Details`、`Values`、`Tooltips` |
+| 漏斗圖 | `funnel` | `Category`、`Y`、`Tooltips` |
+| 量測計 | `gauge` | `Y`、`MaxValue`、`TargetValue`、`Tooltips` |
+| 散佈圖 | `scatterChart` | `Category`（明細）、`Series`、`X`、`Y`、`Size` |
+| 交叉分析篩選器 | `slicer` | `Values`（欄位） |
+| 文字方塊 | `textbox` | 無 `query` |
+
+- 類別、圖例、明細角色（`Category`、`Series`、`Group`、`Details`、`Rows`、`Columns`）放**欄位**
+  （`Column`）；數值角色（`Data`、`Y`、`Y2`、`X`、`Size`、`MaxValue`、`TargetValue`）放**量值**（`Measure`）。
+- KPI 卡片使用 `cardVisual`。舊版 `card`（角色 `Values`）仍可開啟，但新報表不使用。
+- 需要的視覺不在表內（例如地圖、瀑布圖、自訂視覺）時，**不猜測角色名稱、不上網搜尋**；
+  改用表內最接近的類型（地圖改用橫條圖或表格），並在交付時告知使用者可在 Desktop 自行替換。
+- 每個角色都可放多個 projection，依陣列順序呈現。
+
+**欄位參照寫法**（`field`）：
+
+```json
+{ "Column":  { "Expression": { "SourceRef": { "Entity": "<資料表>" } }, "Property": "<欄位>" } }
+{ "Measure": { "Expression": { "SourceRef": { "Entity": "<資料表>" } }, "Property": "<量值>" } }
+```
+
+每個 projection 另加 `"queryRef": "<資料表>.<名稱>"` 與 `"nativeQueryRef": "<名稱>"`；
+類別欄位可加 `"active": true`。`SourceRef.Entity` 與 `Property` 必須與 TMDL 名稱完全相同。
+
+KPI 卡片範例：
 
 ```json
 {
@@ -286,10 +339,10 @@ KPI 卡片（`card`，角色 `Values`）：
   "name": "kpi_total_admissions",
   "position": { "x": 0, "y": 0, "z": 0, "width": 300, "height": 140 },
   "visual": {
-    "visualType": "card",
+    "visualType": "cardVisual",
     "query": {
       "queryState": {
-        "Values": {
+        "Data": {
           "projections": [{
             "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "KPI" } }, "Property": "Total Admissions" } },
             "queryRef": "KPI.Total Admissions",
@@ -302,42 +355,64 @@ KPI 卡片（`card`，角色 `Values`）：
 }
 ```
 
-直條圖（`clusteredColumnChart`，類別 `Category`、數值 `Y`）：
+圓餅圖範例（類別放欄位、數值放量值，依數值遞減排序）：
 
 ```json
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
-  "name": "mortality_by_age",
-  "position": { "x": 640, "y": 300, "z": 1, "width": 620, "height": 400 },
+  "name": "admissions_by_type",
+  "position": { "x": 0, "y": 300, "z": 1, "width": 620, "height": 400 },
   "visual": {
-    "visualType": "clusteredColumnChart",
+    "visualType": "pieChart",
     "query": {
       "queryState": {
         "Category": {
           "projections": [{
-            "field": { "Column": { "Expression": { "SourceRef": { "Entity": "ByAge" } }, "Property": "age_group" } },
-            "queryRef": "ByAge.age_group",
-            "nativeQueryRef": "age_group"
+            "field": { "Column": { "Expression": { "SourceRef": { "Entity": "ByType" } }, "Property": "admission_type" } },
+            "queryRef": "ByType.admission_type",
+            "nativeQueryRef": "admission_type",
+            "active": true
           }]
         },
         "Y": {
           "projections": [{
-            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByAge" } }, "Property": "Mortality Rate" } },
-            "queryRef": "ByAge.Mortality Rate",
-            "nativeQueryRef": "Mortality Rate"
+            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByType" } }, "Property": "Admissions" } },
+            "queryRef": "ByType.Admissions",
+            "nativeQueryRef": "Admissions"
           }]
         }
+      },
+      "sortDefinition": {
+        "sort": [{
+          "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByType" } }, "Property": "Admissions" } },
+          "direction": "Descending"
+        }],
+        "isDefaultSort": true
       }
+    },
+    "visualContainerObjects": {
+      "title": [{ "properties": {
+        "show": { "expr": { "Literal": { "Value": "true" } } },
+        "text": { "expr": { "Literal": { "Value": "'各入院類型住院人次'" } } }
+      } }]
     }
   }
 }
 ```
 
-- 常用 `visualType` 與角色：`card`（`Values`）、`clusteredColumnChart`／`clusteredBarChart`
-  （`Category`、`Y`）、`lineChart`（`Category`、`Y`）、`tableEx`（`Values`）。
-  其他視覺的角色名稱不確定時，先查官方 schema 或樣本；仍無法確認就改用上述視覺，不猜測。
-- `SourceRef.Entity` 與 `Property` 必須與 TMDL 的資料表、欄位、量值名稱完全相同。
-- 視覺位置在頁面範圍內（`x + width ≤ 頁寬`、`y + height ≤ 頁高`），依規劃的版面排列。
+直條圖、橫條圖、折線圖、環圈圖、漏斗圖的結構與圓餅圖相同，只換 `visualType`
+（組合圖再加 `Y2`、堆疊圖可加 `Series`）。
+
+**格式設定**只用以下已在樣本確認的寫法，其餘外觀交給 Desktop 預設主題：
+
+| 設定 | 位置 | 寫法 |
+|---|---|---|
+| 視覺標題 | `visual.visualContainerObjects.title` | `show`：`"true"`／`"false"`；`text`：`"'標題文字'"` |
+| 排序 | `visual.query.sortDefinition` | `direction`：`Ascending`／`Descending`，加 `"isDefaultSort": true` |
+
+- `Literal.Value` 是字串：布林寫 `"true"`，文字外層再包單引號 `"'文字'"`。
+- 數值格式（百分比、千分位）寫在 TMDL 量值的 `formatString`，不在 visual.json 設定。
+- 視覺位置在頁面範圍內（`x + width ≤ 頁寬`、`y + height ≤ 頁高`），`z` 依疊放順序遞增。
 - 不在 visual.json 寫入任何資料值或篩選值。
 
 ## 本機檢查
