@@ -129,12 +129,12 @@ token 由 opencode 保管在 `~/.local/share/opencode/mcp-auth.json` 並自動�
 在對話中輸入 `/mcp`，選 plugin 的 plasma 連線 → Authenticate，瀏覽器完成授權。
 token 存進系統憑證庫並自動更新。
 
-Claude 安裝包為 `plasma-plugin_0.8.2_claude.zip`；三個版本的 skills 完全相同，無 hooks。
+Claude 安裝包為 `plasma-plugin_0.8.3_claude.zip`；三個版本的 skills 完全相同，無 hooks。
 其他 Claude 介面的 plugin 安裝能力以該產品為準，這裡的安裝指令專供 Claude Code。
 
 ## Codex
 
-使用 `plasma-plugin_0.8.2_chatgpt.zip`，依宿主的原生 plugin 流程安裝。
+使用 `plasma-plugin_0.8.3_chatgpt.zip`，依宿主的原生 plugin 流程安裝。
 Manifest 已宣告 `mcpServers: "./.mcp.json"`；無額外安裝工具，不需 Python。
 安裝後開新對話說「幫我登入 Plasma」，skill 會使用宿主可呼叫的授權入口。
 若宿主未提供可呼叫入口，請在 MCP server 清單選該 plugin 的連線並按 Authenticate。
@@ -179,10 +179,10 @@ make release
 本分支測試包可使用獨立目錄，避免混入先前同版本的本機產物：
 
 ```bash
-python3 scripts/package_plugin.py --output dist/v0.8.2-test
+python3 scripts/package_plugin.py --output dist/v0.8.3-test
 ```
 
-僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.8.2/`，包括三個 ZIP
+僅需 Python 3.10+；封裝使用標準函式庫。產物在 `dist/v0.8.3/`，包括三個 ZIP
 與 SHA-256 `checksums.txt`。Codex／Claude 安裝包收錄對應 manifest、`.mcp.json` 與共用 Markdown skills，
 避免將開發工具、本機功能或後端修改清單帶入執行環境。
 

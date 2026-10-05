@@ -201,7 +201,9 @@ Query = [report_month = Date.ToText(ReportMonth, "yyyy-MM-dd")]
 
 ### 資料表（`tables/<Table>.tmdl`）
 
-每個區塊（`section`）一個資料表，在 Power Query 以 `section` 篩選，避免在每個視覺設定篩選：
+可依區塊（`section`）拆表，在 Power Query 以 `section` 篩選；多月 API 載入也可採單一
+事實表，在量值中篩選 `section`，避免各表重複呼叫 API。選擇單一表時須依下方
+「跨圖表互動」檢查分類篩選是否影響其他區塊。以下為拆表範例：
 
 ```text
 table KPI
@@ -487,7 +489,20 @@ KPI 卡片範例：
   人次及需精確閱讀的數值，卡片、資料標籤與表格都須檢查，不用 DAX `FORMAT`
   把數字改成文字來迴避視覺設定。
 - 視覺位置在頁面範圍內（`x + width ≤ 頁寬`、`y + height ≤ 頁高`），`z` 依疊放順序遞增。
-- 不在 visual.json 寫入任何資料值或篩選值。
+- 不在 visual.json 內嵌指標資料；使用者指定的 slicer 預設選取值可寫入選取條件，
+  不以固定 page filter 鎖住可切換的月份。
+
+### 跨圖表互動
+
+長表以 `section` 區分 KPI、分類與排行時，圓餅或長條的類別點選可能篩掉同一表的
+其他區塊，使 KPI 或另一張圖變空。月份選單正確運作不代表這些互動也正確。
+若來源沒有提供按該類別細分的其他指標，不推算不存在的值；關閉該分類圖對無關
+視覺的篩選／醒目提示，保留日期選擇器對全部視覺的篩選。
+
+PBIR 可於 `page.json.visualInteractions` 加入
+`{"source":"<分類圖名稱>","target":"<目標視覺名稱>","type":"NoFilter"}`；
+依當次 page schema 核對語法，不全域關閉日期篩選。Desktop 實際點選一個分類，
+確認無關 KPI、日期標題及其他區塊不變，再確認切換月份仍更新所有視覺。
 
 ## 本機檢查
 
