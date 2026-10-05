@@ -1,6 +1,8 @@
 # Power BI 專案（PBIP）格式
 
 產生 Power BI Desktop 可直接開啟的 PBIP 專案：語意模型用 TMDL，報表用 PBIR。
+有 Power BI MCP 時先依 [MCP 工作流程](powerbi-mcp.md) 建模、匯出與讀回驗證；
+本文件用於專案外殼、PBIR 及模型格式參考，不取代 MCP 的實際建模操作。
 所有檔案不寫任何註解：TMDL 不用 `///`，DAX 與 M 不用 `//`、`/* */`。
 格式依 Microsoft Learn「Power BI Desktop projects」文件與
 [microsoft/json-schemas](https://github.com/microsoft/json-schemas/tree/main/fabric) 公開 schema。
@@ -130,9 +132,12 @@ model Model
 
 ### 參數與共用查詢（`expressions.tmdl`）
 
-pview 的每個參數各一個 Power Query 參數；API 位址拆成基底 URL 與權杖，
-讓 `Web.Contents` 的第一個參數是固定字串，Power BI Service 才能排程重新整理。
-權杖預設寫占位值，使用者明確要求才寫入實際值。
+pview 的每個參數各一個 Power Query 參數；API 位址拆成固定基底 URL 與權杖路徑，
+使用 `Web.Contents` 的 `RelativePath`／`Query`，避免動態拼接完整 URL。
+這不代表已驗證 Power BI Service 的排程刷新；認證與刷新仍須在目標環境確認。
+可提交模板的權杖寫占位值；已授權連線的本機報表依 SKILL.md 保存必要設定。
+以下是起訖日期範例，單月 pview 每次只傳一個月份參數。需要前端切換多月時，
+依 [日期選擇器](date-selection.md) 另設載入範圍，不能把載入範圍參數誤傳給單月 API。
 
 ```text
 expression ApiBaseUrl = "https://<host>/apis/access_entry/" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
@@ -173,11 +178,26 @@ expression PlasmaData =
 - 參數預設值使用使用者確認的值，不留任意測試日期。
 - `Raw` 這行依 SKILL.md 第 4 節確認的**實際回應格式**撰寫，例如：
   - `{"data":{"columns":[...],"rows":[[...]]}}` → `Table.FromRows(Json[data][rows], Json[data][columns])`
+  - `{"data":[{"col":...}, ...]}` → `Table.FromRecords(Json[data], ExpectedColumns, MissingField.UseNull)`
   - `[{"col":...}, ...]` → `Table.FromRecords(Json)`
   - `{"rows":[{"col":...}]}` → `Table.FromRecords(Json[rows])`
+  `ExpectedColumns` 使用已核對的完整欄位清單，確保 `data=[]` 時仍有欄位可做型別轉換。
+  先檢查成功／錯誤狀態與 `data` 的型態，不用 `try ... otherwise {}` 把 API 失敗吞成空資料。
 - `Typed` 列出每個欄位的型別，依 pview 欄位表；日期欄位若回傳含時區字串，
   先 `DateTimeZone.FromText` 再取日期，並註明時區。
 - `PlasmaData` 不載入模型，只供下列資料表引用。
+
+單月 pview 的參數與傳參範例（只有實測確認同名 GET query 生效時才採用）：
+
+```text
+expression ReportMonth = #date(2150, 6, 1) meta [IsParameterQuery=true, Type="Date", IsParameterQueryRequired=true]
+
+Query = [report_month = Date.ToText(ReportMonth, "yyyy-MM-dd")]
+```
+
+日期使用該次使用者指定值；上例不是所有報表的固定預設。這是單期載入範例，改參數後
+需重新整理；前端月份選單應依 [日期選擇器](date-selection.md) 建立，不能只增加 slicer
+卻仍只載入一個月，也不能把 slicer 描述成會呼叫 API。
 
 ### 資料表（`tables/<Table>.tmdl`）
 
@@ -187,15 +207,15 @@ expression PlasmaData =
 table KPI
 	lineageTag: <GUID>
 
-	measure 'Total Admissions' = SUM(KPI[total_admissions])
+	measure 'Total Admissions' = SUM('KPI'[total_admissions])
 		formatString: #,0
 		lineageTag: <GUID>
 
-	measure 'Mortality Rate' = DIVIDE(SUM(KPI[death_cnt]), SUM(KPI[adm_cnt]))
+	measure 'Mortality Rate' = DIVIDE(SUM('KPI'[death_cnt]), SUM('KPI'[adm_cnt]))
 		formatString: 0.00%
 		lineageTag: <GUID>
 
-	measure 'Unique Patients' = IF(COUNTROWS(KPI) = 1, SELECTEDVALUE(KPI[distinct_patients]))
+	measure 'Unique Patients' = IF(COUNTROWS('KPI') = 1, SELECTEDVALUE('KPI'[distinct_patients]))
 		formatString: #,0
 		lineageTag: <GUID>
 
@@ -227,9 +247,23 @@ table KPI
 
 | 欄位分類 | DAX 寫法 |
 |---|---|
-| 可加總（次數、總和） | `SUM(T[col])` |
-| 比率 | `DIVIDE(SUM(T[分子]), SUM(T[分母]))`，mview 需提供分子與分母 |
-| 不可加總（去重人數、平均、預先算好的比率） | `IF(COUNTROWS(T) = 1, SELECTEDVALUE(T[col]))`，多列時空白 |
+| 可加總（次數、總和） | `SUM('T'[col])` |
+| 比率 | `DIVIDE(SUM('T'[分子]), SUM('T'[分母]))`，mview 需提供分子與分母 |
+| 不可加總（去重人數、平均、預先算好的比率） | `IF(COUNTROWS('T') = 1, SELECTEDVALUE('T'[col]))`，多列時空白 |
+
+若來源為長表 `metric_code`／`metric_value`，先篩選指標再判斷列數，例如：
+
+```dax
+VAR MetricRows = FILTER('KPI', 'KPI'[metric_code] = "alos")
+RETURN IF(COUNTROWS(MetricRows) = 1, MAXX(MetricRows, 'KPI'[metric_value]))
+```
+
+這裡 `MAXX` 只取已確認的唯一一列，不是重新計算平均住院天數；來源為 null 時保留空白。
+各量值套用對應的代碼與 `formatString`。不能直接對含不同指標的 `metric_value` 加總。
+
+DAX 的實體資料表引用一律加單引號（如 `'KPI'`），表格變數則不用；`KPI` 即使沒有
+空白也是保留字，未加引號可能匯入模型成功、執行 DAX 時才報語法錯誤。PBIR 的
+`SourceRef.Entity` 仍填原始表名 `KPI`，不能把 DAX 引號寫進 JSON 的名稱。
 
 - 所有欄位 `summarizeBy: none`，只透過量值呈現數值。
 - `dataType` 使用 `string`、`int64`、`double`、`decimal`、`dateTime`、`boolean`，與 M 的型別一致。
@@ -330,6 +364,8 @@ Power BI Desktop 實際存出的 PBIR 報表（2026-10 統計 1,023 個 visual.j
 
 每個 projection 另加 `"queryRef": "<資料表>.<名稱>"` 與 `"nativeQueryRef": "<名稱>"`；
 類別欄位可加 `"active": true`。`SourceRef.Entity` 與 `Property` 必須與 TMDL 名稱完全相同。
+`displayName` 可指定讀者可見的名稱（如「入院類型」「住院人次」），避免圖例或 tooltip
+顯示 `dimension_label` 等技術欄位名；不為改顯示名稱而變更 `Entity`、`Property`、`queryRef`。
 
 KPI 卡片範例：
 
@@ -403,15 +439,53 @@ KPI 卡片範例：
 直條圖、橫條圖、折線圖、環圈圖、漏斗圖的結構與圓餅圖相同，只換 `visualType`
 （組合圖再加 `Y2`、堆疊圖可加 `Series`）。
 
-**格式設定**只用以下已在樣本確認的寫法，其餘外觀交給 Desktop 預設主題：
+**格式設定**以下提供已在樣本確認的寫法。需要修正自動縮寫、卡片標籤或軸標題時，
+依目前視覺類型的官方樣本或 Desktop 實際保存的 PBIR 取得屬性，再以實際畫面驗證；
+不要把舊卡片的屬性直接套給 `cardVisual`。
 
 | 設定 | 位置 | 寫法 |
 |---|---|---|
 | 視覺標題 | `visual.visualContainerObjects.title` | `show`：`"true"`／`"false"`；`text`：`"'標題文字'"` |
 | 排序 | `visual.query.sortDefinition` | `direction`：`Ascending`／`Descending`，加 `"isDefaultSort": true` |
 
+`cardVisual` 的完整數字與卡片文字設定，可採以下 Desktop 保存樣本的寫法
+（放在 `visual.objects`，不同視覺類型不要直接沿用）：
+
+```json
+{
+  "value": [{
+    "properties": {
+      "labelDisplayUnits": { "expr": { "Literal": { "Value": "1D" } } },
+      "fontSize": { "expr": { "Literal": { "Value": "24D" } } }
+    },
+    "selector": { "id": "default" }
+  }],
+  "label": [{
+    "properties": { "show": { "expr": { "Literal": { "Value": "false" } } } },
+    "selector": { "id": "default" }
+  }]
+}
+```
+
+`labelDisplayUnits: 1D` 表示不縮放；`label.show=false` 隱藏重複量值名稱，前提是已另有
+可讀標題。必要時用 `selector.metadata` 指定 queryRef。字級只作起點，須配合容器大小
+與實際渲染調整；不可把英文量值名隱藏後連中文業務標題也一起移除。
+
+圓餅圖及橫條圖的人次資料標籤使用 `visual.objects.labels[].properties` 的
+`labelDisplayUnits`（`1D`）與 `labelPrecision`（`0L`）；卡片與圖表的 property 路徑不同。
+橫條圖的數值軸亦核對 `valueAxis.labelDisplayUnits`。需要保留數值小數時依指標設定，
+不能把所有指標都設成整數。官方 report theme schema 定義顯示單位 `0=Auto`、`1=None`。
+
+疾病等長類別名稱被截斷時，可調整橫條圖 `categoryAxis.maxMarginFactor`（整數百分比，
+例如 `55L`），讓類別軸保留更多寬度，再配合字級與圖表寬度驗收；避免只把字縮得極小。
+`categoryAxis.showAxisTitle=false`、`valueAxis.showAxisTitle=false` 可隱藏無助理解的
+自動軸標題，但須保留讀者需要的單位。以上皆放在 `visual.objects` 的對應物件陣列中。
+
 - `Literal.Value` 是字串：布林寫 `"true"`，文字外層再包單引號 `"'文字'"`。
-- 數值格式（百分比、千分位）寫在 TMDL 量值的 `formatString`，不在 visual.json 設定。
+- 數值格式（百分比、千分位）寫在 TMDL 量值的 `formatString`；顯示單位另於視覺層
+  設為 None。即使模型為 `#,0`，Auto 顯示單位仍可能將 `6,037` 縮成「6 千」。
+  人次及需精確閱讀的數值，卡片、資料標籤與表格都須檢查，不用 DAX `FORMAT`
+  把數字改成文字來迴避視覺設定。
 - 視覺位置在頁面範圍內（`x + width ≤ 頁寬`、`y + height ≤ 頁高`），`z` 依疊放順序遞增。
 - 不在 visual.json 寫入任何資料值或篩選值。
 
@@ -419,13 +493,26 @@ KPI 卡片範例：
 
 - 以 JSON parser 讀取每個 `.json`、`.pbip`、`.pbir`、`.pbism`、`.platform`。
 - 可連網且有 JSON Schema 驗證工具時，依 `$schema` 驗證；沒有時列為未驗證。
+  Desktop 可能保存尚未公開 schema 的新版本；官方網址 404 時區分文件未公開與檔案
+  格式錯誤，保留 Desktop 保存的版本，繼續檢查 JSON、引用及實際畫面並記錄限制，
+  不只為通過驗證就降版改寫 `$schema`。
 - 逐一比對 visual.json 的 `Entity`／`Property` 與 TMDL 名稱。
 - 確認 TMDL 沒有空白縮排混用、每個物件都有 `lineageTag`。
+- 在實際 Desktop 逐頁檢查文字與數字：卡片內的標題、標籤與值可能彼此擠壓，
+  不能只檢查視覺外框。先刪除重複標籤、縮短文案並保留內距，再調整字級與大小；
+  月份可用簡短格式，但仍由已載入資料產生。確認沒有截字、遮擋或非預期捲軸。
+- 修改磁碟上的 PBIR 後，已開啟的 Desktop 不一定自動重載；先確認保存與開啟流程，
+  避免舊視窗保存時覆蓋剛修正的檔案。最終截圖須來自重新載入修正版的視窗。
+  若出現 `Apply external changes`，確認磁碟已保存本次修改、沒有未保留的使用者編輯後
+  可直接套用，再等待畫面渲染。其確認對話框可能是獨立視窗，須依桌面工具重新選定，
+  不反覆用主視窗座標點擊。驗收完成再由 Desktop 保存，保留已刷新的本機資料快取。
 
-## 使用者需完成的步驟（交付時列出）
+## 開啟與剩餘步驟（只列本次尚未完成的項目）
 
 1. 在 Windows 的 Power BI Desktop 開啟 `<Name>.pbip`。
-2. 「轉換資料 → 編輯參數」填入 `ApiToken` 與起訖日期（結束日不含）。
+2. 「轉換資料 → 編輯參數」調整實際存在的參數。單月報表填月份第一日；起訖日期
+   報表才說明結束日不含。已在本機設定的權杖不要求重新貼上。
 3. 首次連線的認證選「匿名」（權杖已在 URL 路徑中），套用並重新整理。
 4. 開啟失敗時，依 Desktop 顯示的檔案與位置回報錯誤，由 agent 修正對應檔案。
-5. 權杖會存在 `expressions.tmdl`，提交 Git 或分享專案前先移除。
+5. 權杖可能存在 `expressions.tmdl` 或 MCP 匯出的個別 expression 檔；提交 Git 或分享
+   專案前先移除。不能只檢查一個固定檔名就宣稱沒有憑證。
