@@ -9,6 +9,8 @@
 指定 mview 時，在同步與排程核對後交付 mview。資料 API 由使用者自行建立。
 pview 完成後，可接續 `plasma-create-bi` 產生 Power BI 專案（PBIP）或 HTML BI，
 BI 透過使用者自行建立的資料 API 讀取 pview。
+Power BI 流程使用宿主提供的 MCP 建模、查核及可執行的資料刷新，並補齊 PBIP 報表。
+離線專案或刷新環境未就緒時，交付後請使用者自行重新整理資料。
 
 **Plugin 是工作流程；遠端 MCP gateway 是工具服務；MCP client 由宿主提供。**
 Codex 與 Claude plugin 直接內含 `.mcp.json`，安裝後由宿主載入連線，再完成 OAuth。
