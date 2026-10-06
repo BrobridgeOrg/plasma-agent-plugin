@@ -134,12 +134,14 @@ mview 名稱最多 **30 個字元**。使用者名稱過長時提出替代名稱
 
 ```text
 【mview 同步確認】
+同步會連線來源 DB（source DB），依 mview SQL 實際查詢並拉取資料，寫入 Plasma 的 mview。
+
 - Workspace：<whoami 回傳的 workspace name>
 - mview：<get_view 回傳的 name>（新建／重用）
-- 來源：<database.table>、<database.table>
+- 來源 DB 資料表（同步時讀取）：<database.table>、<database.table>
 - 資料範圍：<歷史涵蓋範圍與業務條件>
-- 首次同步：執行一次 sync_view，會實際查詢來源 DB｜不執行（已同步且符合需求）
-- 定期排程：每 <N> <分鐘／小時／日／週>，首次 <YYYY-MM-DD HH:mm>（<時區>）｜不設定
+- 首次同步：執行一次 sync_view，從來源 DB 拉取上述資料範圍寫入 mview｜不執行（已同步且符合需求）
+- 定期排程：每 <N> <分鐘／小時／日／週>從來源 DB 重新拉取，首次 <YYYY-MM-DD HH:mm>（<時區>）｜不設定
 - 既有排程：無｜<目前設定> → <變更後設定>｜維持不變
 
 請回覆「確認同步」執行以上內容，或說明要調整的項目。
@@ -148,6 +150,7 @@ mview 名稱最多 **30 個字元**。使用者名稱過長時提出替代名稱
 - 所有名稱**使用 Plasma 回傳的 name**：workspace 取自 `whoami`，mview 取自 `get_view`，
   來源表使用知識查核確認的 `database.table`。不用 ID、使用者口述名稱或自行翻譯的名稱代替；
   ID 只在交付時另外列出。工具沒有回傳 name 時標明「未回傳」，不猜測。
+- 開頭的來源 DB 說明句必須保留，讓使用者清楚同步是從來源 DB 拉資料，而非只在 Plasma 內運算。
 - 多個 mview 需同步時，每個 mview 各列一份上述區塊，一次詢問。
 - 使用者要求調整後，以同一格式重新呈現更新後的內容再確認。
 
