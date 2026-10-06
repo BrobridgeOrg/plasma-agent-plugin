@@ -9,6 +9,9 @@ description: >-
 資料來源一律是 Plasma pview，BI 只負責呈現。運算與彙總已由
 [建立 pview 技能](../plasma-create-pview/SKILL.md) 在 mview 完成；本 skill 不修改 pview／mview，
 發現來源不適合時回到該技能處理。
+若識別值缺少對應名稱／說明，依 [知識查核技能的候選補充流程](../plasma-knowledge-lookup/SKILL.md)
+主動提出可供使用者確認的 LLM 補充；確認後回到建立 pview 流程在 mview 套用並驗證，
+不在 BI 端默默補值。未確認時保留代碼或缺值，繼續其餘報表工作。
 
 ```text
 決定來源 pview → 核對粒度與欄位語意 → 沿用或確認輸出路徑（PBIP／HTML）
