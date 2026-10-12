@@ -7,7 +7,7 @@ description: >-
 # 以 pview 產生 BI 報表
 
 資料來源一律是 Plasma pview，BI 只負責呈現。運算與彙總已由
-[建立 pview 技能](../plasma-create-pview/SKILL.md) 在 mview 完成；本 skill 不修改 pview／mview，
+[建立 pview 技能](../plasma-create-view/SKILL.md) 在 mview 完成；本 skill 不修改 pview／mview，
 發現來源不適合時回到該技能處理。
 若識別值缺少對應名稱／說明，依 [知識查核技能的候選補充流程](../plasma-knowledge-lookup/SKILL.md)
 主動提出可供使用者確認的 LLM 補充；確認後回到建立 pview 流程在 mview 套用並驗證，
@@ -43,7 +43,7 @@ description: >-
 
 ## 1. 決定來源 pview
 
-- **接續本 session 的建立流程**：直接使用 `plasma-create-pview` 剛交付的 pview（以其 ID），
+- **接續本 session 的建立流程**：直接使用 `plasma-create-view` 剛交付的 pview（以其 ID），
   並沿用當時整理的輸出欄位表與參數說明，不再要求使用者指定。
 - **沒有前序建立流程**：請使用者提供 pview 名稱。以 `list_pviews(keywords=<名稱>)` 查找，
   只接受名稱完全相符的一筆；沒有相符時列出相近名稱請使用者確認，多筆相符時請使用者選擇。
@@ -52,12 +52,12 @@ description: >-
 以 `get_pview` 讀取 SQL 與 `param_def`，並核對：
 
 1. **來源是 mview**：SQL 的 FROM 路徑對得上 `list_views`／`get_view` 中 `type=materialized_view`
-   的 `path`。不是時說明風險並建議回到 `plasma-create-pview`；使用者明確接受才繼續。
+   的 `path`。不是時說明風險並建議回到 `plasma-create-view`；使用者明確接受才繼續。
 2. **核對報表粒度與 pview 完整結果**：以使用者預期的最大參數範圍執行一次
    `execute_pview`（`page_size` 取小值），`total` 須不超過 pview 單次回傳上限
    （未提供時以 1,000 列為假設），且 `truncated=false`。此上限只套用在 pview
    最後篩選後的完整結果，不限制來源 mview 的總列數或歷史範圍；page_size 只控制樣本。
-   粒度不適合報表或單次完整結果超限時，回到 `plasma-create-pview` 檢查最後篩選與
+   粒度不適合報表或單次完整結果超限時，回到 `plasma-create-view` 檢查最後篩選與
    報表需求；不因 mview 超過 1,000 列就要求縮減資料或改變粒度，也不自行限制單月。
    不在 BI 端分頁繞過完整結果上限或加總明細重算指標；驗證工具的樣本分頁另計。
   為前端切換月份而載入多個完整月結果時，依 [日期選擇器](references/date-selection.md)

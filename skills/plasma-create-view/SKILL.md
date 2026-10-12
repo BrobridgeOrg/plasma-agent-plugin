@@ -1,5 +1,5 @@
 ---
-name: plasma-create-pview
+name: plasma-create-view
 description: >-
   將報表、表單、Power BI 或資料需求建立為 Plasma pview（Parameter View）時使用；使用者明確指定 mview（Materialized View）為最終目標時也適用。涵蓋知識查核、SQL 驗證、mview 建立與同步排程、pview 參數篩選。不含資料 API 發布。
 ---

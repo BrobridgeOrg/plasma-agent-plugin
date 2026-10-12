@@ -155,7 +155,7 @@ OAuth 最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。
 
 ## 流程範圍
 
-連線確認後依 [建立 pview 技能](../plasma-create-pview/SKILL.md) 執行。
+連線確認後依 [建立 pview 技能](../plasma-create-view/SKILL.md) 執行。
 預設輸出 pview，明確指定 mview 時停在 mview；同步及排程前由 skill 等待使用者確認。
 本流程不要求匯出或 API 發布權限，API 由使用者自行建立。
 所需工具：whoami、list_views、get_view、run_query、create_view、sync_view、

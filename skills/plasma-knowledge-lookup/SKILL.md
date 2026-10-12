@@ -13,7 +13,7 @@ description: >-
 - 在已交付範圍內連續完成知識查找、欄位查核及 SQL 驗證，不逐步詢問是否繼續。
   只釐清影響正確性的必要資訊，查到假設時標明，建立定義前確認必要假設。
 - 以整份表單為查找單位，不因區塊、指標或來源表不同而自行拆分交付物。
-  由 `plasma-create-pview` 建立 mview 運算層與 pview 篩選層；使用者明確指定 mview 時停在 mview。
+  由 `plasma-create-view` 建立 mview 運算層與 pview 篩選層；使用者明確指定 mview 時停在 mview。
 
 Plasma 知識庫保存來源系統的設計知識：資料表與欄位意義、業務規則、代碼、推導、
 品質陷阱及設計意圖，**不保存實際資料列**。特定紀錄的數值不能從設計知識猜測。
@@ -77,11 +77,11 @@ Plasma 知識庫保存來源系統的設計知識：資料表與欄位意義、�
   保留原始代碼／缺值並如實說明，不影響其餘已授權工作。
 - 本次結果補充不等於寫回來源資料庫或永久更新 Plasma 知識庫。
 
-在查詢中套用時，依 [SQL 補充與驗證規則](../plasma-create-pview/references/knowledge-sql.md)
+在查詢中套用時，依 [SQL 補充與驗證規則](../plasma-create-view/references/knowledge-sql.md)
 將核准映射放在 mview；BI 發現相同缺漏時也回到此流程，不自行補值。
 
 完整的逐欄查核、概念規則、無單一來源時的推導順序與 Trino 驗證方式，
-依 [知識查核與 SQL 驗證規則](../plasma-create-pview/references/knowledge-sql.md) 執行。
+依 [知識查核與 SQL 驗證規則](../plasma-create-view/references/knowledge-sql.md) 執行。
 知識查核結果用於建立定義，沒有後續匯出或發布流程。
 
 ## 工具缺少或失敗

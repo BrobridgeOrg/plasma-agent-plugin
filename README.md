@@ -61,7 +61,7 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 |---|---|
 | `plasma-mcp-setup` | 連結服務、核對 workspace／scopes、診斷 |
 | `plasma-knowledge-lookup` | 查核來源、欄位、代碼、業務規則 |
-| `plasma-create-pview` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview |
+| `plasma-create-view` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview |
 | `plasma-create-bi` | 以 pview 為來源產生 BI：Power BI 專案（PBIP）或單一 HTML 頁面 |
 
 三個版本均無本機 hooks、Bash launcher、Go binary、下載快取或狀態檔依賴。
@@ -80,7 +80,7 @@ mview 須保留篩選欄位與足夠歷史範圍；無法以預先計算結果�
 
 本流程不建立 access entry、export API、匯出 blueprint 或外部資料庫輸出；
 API 由使用者在 Plasma 自行建立。後端 mview 初始化使用的內部同步 blueprint 維持系統既有行為。
-新 skill 內附 [API／工具格式](skills/plasma-create-pview/references/api.md)，
+新 skill 內附 [API／工具格式](skills/plasma-create-view/references/api.md)，
 包含 pview 參數、執行回應、同步與排程格式，三個宿主安裝包都會收錄。
 
 新版 gateway 啟動後直接提供 pview、mview 同步與排程工具，不需要設定 `tool_profile`。
@@ -150,8 +150,8 @@ CLI 先確認 `codex mcp list --json` 列出 plugin 連線，再以其實際名�
 原有手動設定的 `plasma` MCP 可能與 plugin 連線重複，請檢查並選用 plugin 提供的連線。
 
 更新 plugin 後重新開啟對話／session，讓宿主移除舊 hook 註冊及舊版 skills。
-`plasma-create-view` 已由 `plasma-create-pview` 取代；
-手動複製安裝的使用者需移除舊 `plasma-create-view` 與 `ophion-knowledge-lookup` 目錄，避免舊流程同時載入。
+`plasma-create-pview` 已更名為 `plasma-create-view`；
+手動複製安裝的使用者需移除舊 `plasma-create-pview` 與 `ophion-knowledge-lookup` 目錄，避免舊流程同時載入。
 `plasma-data-api` 與 `plasma-export` 維持移除，資料 API 由使用者自行建立。
 不要沿用舊對話載入的匯出／發布指示；新包中有四份 skills。
 若曾手動將舊 hook 複製到宿主設定，請在該宿主刪除該自訂設定；新版不會執行舊 binary。

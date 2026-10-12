@@ -6,7 +6,7 @@
 
 ## 工作流程與責任
 
-Plugin 維持三份 skills：setup、Plasma 知識庫查核與 plasma-create-pview。
+Plugin 維持三份 skills：setup、Plasma 知識庫查核與 plasma-create-view。
 預設：知識查核 → SQL 驗證 → manual mview → 使用者確認 → 首次同步成功 → 定期排程 → pview → 驗證交付。
 使用者明確指定 mview 為最終目標時，於同步／排程核對後交付 mview。
 只建立定義或拒絕同步時不執行同步，交付已建立定義與尚未完成項目。
