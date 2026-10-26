@@ -112,6 +112,7 @@ Plasma view 工具與知識庫工具均使用該連線；不要混用不同連�
 |---|---|
 | `views:read` | 讀取 view／mview／pview 與同步排程；每次授權都會包含這項 |
 | `knowledge:read` | 查資料表／欄位意義、值域與 lineage |
+| `knowledge:write` | 只在知識庫為進階模式時提供：上傳文件、提交分析結果與回答問題；發布仍須由人在 Commit 頁確認 |
 | `query:run` | 執行唯讀 SQL 與 pview 驗證查詢；回傳樣本不代表完整資料 |
 | `views:write` | 建立 mview／pview、啟動同步與設定排程；同步仍需 skill 個別確認 |
 

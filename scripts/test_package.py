@@ -9,7 +9,8 @@ import zipfile
 from package_plugin import ROOT, build
 
 
-SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup'}
+SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup',
+               'plasma-document-analysis', 'plasma-fill-gaps'}
 
 
 def by_host(archives):
@@ -107,3 +108,28 @@ class PackageTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class AdvancedSkillsTest(unittest.TestCase):
+    """The document analysis and gap skills come from the Leibniz experiment;
+    only how they connect changes: through the Plasma gateway, a one-time
+    upload URL, and the commit page run_status names."""
+
+    def skill(self, name):
+        return (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
+
+    def test_frontmatter_names_each_skill(self):
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            text = self.skill(name)
+            self.assertTrue(text.startswith('---\nname: ' + name + '\n'), name)
+            self.assertIn('description:', text.split('---')[1], name)
+
+    def test_no_experiment_connection_is_left(self):
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            text = self.skill(name)
+            for stale in ('127.0.0.1', 'leibniz-', 'MCP 網址加上', '上傳面板', 'ssh -L'):
+                self.assertNotIn(stale, text, f'{name} still says {stale!r}')
+            self.assertIn('commit_page', text, name)
+
+    def test_setup_lists_knowledge_write(self):
+        self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))
