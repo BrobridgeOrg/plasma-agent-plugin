@@ -52,7 +52,13 @@ description: >-
 2. 用 `read_task` 讀完 document protocol。
 3. 整份讀取文件，讀完全部內容才開始審查；之後依 protocol 摘錄、審查、建立片段並提交。每條規則都以出處行號引用原文。
 4. 宣告概念前先用 `lookup_knowledge` 查知識庫已有的概念、規則與定義（包含其他文件已提交、尚未發布的），並用 `pending_items` 查等待補齊的項目：同一個概念沿用既有符號，不同概念才建立新符號。
-5. 遇到下列情況，依此保存，並把要問使用者的問題回報主代理：
+5. 單位、計算與統計依 protocol 明確寫出：
+   - **值概念的單位**：原文寫了單位、幣別或倍率，就在宣告的 `arg_values` 填 `unit` 與 `unit_quote`（引用原文中寫出單位的那段字）；原文沒寫就不填，系統會列為缺單位。
+   - **由其他概念算出的值**：例如乘積、總和、差、時間差、單位或幣別換算，用 `submit_node` 宣告 `compute` 或 `convert` 節點，`basis` 引原文；換算係數照原文寫，查表取得的係數或匯率宣告成輸入概念，並寫明查表用的關聯。
+   - **跨列的總和或計數**：用 `submit_node` 的 `aggregate`，寫明經哪個關聯、哪些列計入（population）。
+   - **指標**：用 `submit_node` 的 `op measure`，逐欄填原文說的：分子、分母、加權方式（`ratio_of_sums` 或 `mean_of_ratios`）、維度、時間窗、分母為 0 與缺值的處理。原文沒說的欄位留空，系統會列缺口並附問句。計入的列仍以規則寫出。
+   - **IT 文件的儲存語意**：欄位存放的單位與倍率、逐列記錄單位的欄位、UTC 或當地時間、文字讀法（小數逗號、NULL 標記、哨兵值）、表的版本語意（每鍵取最新、刪除旗標、有效期間），用 `submit_annotation` 記在欄位或表上。
+6. 遇到下列情況，依此保存，並把要問使用者的問題回報主代理：
 
    | 情況 | 做法 |
    |---|---|
@@ -80,7 +86,7 @@ description: >-
 `finish_document` 成功後，這份文件的 mapping 接著由同一個子代理進行，同樣帶 `work_id`：
 
 1. `run_status`（`work_id`，`wait_seconds` 15）等到 `task.ready`。
-2. `read_task`（`work_id`，`target` 為 `task`）讀完任務，以 `mapping_*` 工具完成 mapping，每個任務以 `mapping_finish` 結束。
+2. `read_task`（`work_id`，`target` 為 `task`）讀完任務，以 `mapping_*` 工具完成 mapping，每個任務以 `mapping_finish` 結束。一個概念葉子只對一個欄位；值在別的表、要計算、單位逐列不同或要換幣別時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念。換算缺依據時保留為提案，不自行補係數。
 3. 重複到 `run_status` 顯示這份文件為 `ready_to_commit`。
 
 完成後向主代理回報：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。

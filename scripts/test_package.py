@@ -131,5 +131,16 @@ class AdvancedSkillsTest(unittest.TestCase):
                 self.assertNotIn(stale, text, f'{name} still says {stale!r}')
             self.assertIn('commit_page', text, name)
 
+    def test_skills_teach_units_nodes_and_completeness(self):
+        """1G: a value concept states its unit with the source quote, a
+        computation or metric is a node, and gaps name units, measures and
+        the root causes an incomplete concept points to."""
+        analysis = self.skill('plasma-document-analysis')
+        for want in ('arg_values', 'unit_quote', 'submit_node', 'op measure', 'submit_annotation'):
+            self.assertIn(want, analysis)
+        gaps = self.skill('plasma-fill-gaps')
+        for want in ('unit_unknown', 'unit_mismatch', 'measure_incomplete', 'incomplete', 'causes'):
+            self.assertIn(want, gaps)
+
     def test_setup_lists_knowledge_write(self):
         self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))

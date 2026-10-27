@@ -35,6 +35,7 @@ description: >-
 | 事實衝突 | `metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…` | `gap` | 不同文件對同一項資料事實或常數說法不一：請使用者到 Commit 頁（`setup.commit_page`）的「事實衝突」區，填上自己的名字裁定採用哪一個；裁定後重新查詢 `pending_items` |
 | 待裁定的讀取規則 | `metadata-reader:…` | `gap` | 讀取了有衝突的資料事實的規則，先保留不發布：上一列的衝突裁定後，下一次發布自然帶入 |
 | 規則檢查 | `rule-check:…` | `gap`，`reason` 為檢查種類（如 `narrower_than`） | 已暫存的規則，經後到文件帶來的概念比對後，可能讓使用端寫出錯誤 SQL，`question` 說明原因：用 `resume_item` 以該規則的摘錄重開（第 4 節），重新匯出修正規則，或在 `finish_document` 以 `rule_check_answers` 說明規則為何正確；之後重新查詢 `pending_items` 確認這一項已消失 |
+| 概念 DAG | `dag:…`，或 `gap:…` 且 `reason` 為 `unit_unknown`、`unit_mismatch`、`conversion_unmapped`、`grain_mismatch`、`measure_incomplete`、`incomplete` | `gap` | 單位、換算、粒度或統計定義缺資訊：`unit_unknown` 請 IT 說明欄位存放的單位；`unit_mismatch` 請說明換算依據（係數或查表）；`conversion_unmapped` 請說明係數或匯率在哪個欄位；`grain_mismatch` 請說明關聯是一對一還是一對多；`measure_incomplete` 依 `detail` 列出的欄位逐項問業務（例如是總和比還是各列比率平均）；`incomplete` 是上層概念因子概念不完整而不完整，順著 `causes`（缺口的 `references`）找到根本原因那一項來補，不重複問上層。回答依第 3 節轉交，補上的單位或係數引用該回答 |
 | 系統狀態 | `system:…` | `gap`，`reason` 為 `system_failure` | 待補缺口無法列出：把 `missing` 如實回報給使用者；其他項目照常處理 |
 
 `pending_items` 回覆有 `definition_rulings` 時，是使用者在 Commit 頁對同一概念兩份定義的裁定：採用的一份（`adopted`）與擱置的一份（`set_aside`），各有文件、版本與來源。`status` 為 `staged` 表示下一次發布才生效，`applied` 表示已生效，`stale` 表示裁定後有一份定義改了、裁定不再套用，請使用者到 Commit 頁重新裁定；`retired` 表示已沒有可裁定的兩份定義（`reason` 說明原因，例如某份文件不再定義該概念），不必再請使用者裁定。這不是待補項目，不用 `resume_item`。
