@@ -94,9 +94,24 @@ description: >-
 
 完成後向主代理回報一次：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。處理過程中不傳進度訊息。
 
-## 7. 交給使用者發布
+## 7. 請使用者確認翻譯
 
-所有子代理回報後，主代理以 `run_status` 核對每份文件的狀態：回覆的 `uploads` 列出每份上傳文件，`document` 是它的狀態。
+所有子代理回報後，主代理對每份 `ready_to_commit` 的文件呼叫 `read_translation`（`document` 為檔名），把回覆的概念段（`concept`）與對應段（`mapping`）原樣貼給使用者：
+依來源摘錄分組，每組先列原文行號與原句（`lines`、`source`），再列每一項翻譯（`text`）。可以分文件、分段貼出，但不改寫、不摘要、不省略。
+翻譯是程式依規則逐條念出的中文，請使用者看看有沒有讀起來不對、微妙或怪怪的地方；使用者不回應時照常往下，不擋發布。
+
+使用者指出某一項不對時：
+
+1. 依那一項的 `fragment_id` 呼叫 `resume_item`，帶 `correction` 照錄使用者的原話；對應段的項目用 `mapping:<doc_id>`。已發布的產物無法在這裡修正，回覆會說明。
+2. 使用者的說法帶來原文沒有的資訊時（例如同組只會選一行），先以 `submit_answer` 照錄使用者原話存成回答來源，修正的規則引用它。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
+3. 交給一個子代理，像處理一般文件一樣讀 protocol、重讀相關的行並修正、`finish_document`，再完成 mapping。
+4. 修好後，以 `read_translation`（`fragment_id` 或 `ids`）取出改過的項目，貼給使用者再確認。
+
+使用者對資料對應沒有把握時，呼叫 `withdraw_mapping`（`document`，必要時帶 `entities` 或 `leaves`）取消這份文件的對應：概念照常保留、可以發布，取消的部分列為待補，之後由另一個人依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補 mapping。告訴使用者這件事。
+
+## 8. 交給使用者發布
+
+主代理主代理以 `run_status` 核對每份文件的狀態：回覆的 `uploads` 列出每份上傳文件，`document` 是它的狀態。
 主代理的連線開著多份文件時，帶其中任一 `work_id`（`upload_status` 列出各文件的 `work_id`）；主代理沒有開文件時，`run_status` 不帶 `work_id`。
 然後告訴使用者：
 

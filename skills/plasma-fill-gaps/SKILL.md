@@ -30,6 +30,7 @@ description: >-
 | 片段 | `fragment:…` | `ambiguity` | 引用對到多份候選文件。請使用者指定是哪一份並轉交（第 3 節），再用 `resume_item` 連結到使用者指定的那一份 |
 | 文件版本 | `document:…` | `awaiting_resolution`，`reason` 為 `revision_not_staged` | 這份文件有較新的版本已上傳但還沒處理完：依文件分析 skill 開啟並完成該版本，或用 `resume_item` 開啟這一項 |
 | mapping | `mapping:…` | `mapping` | 這份文件的 mapping 沒完成：`resume_item` 重新開啟 mapping，完成到文件為 `ready_to_commit` |
+| mapping | `mapping:…` | `gap`，缺口說明為「使用者取消，待另一人做 mapping」 | 使用者取消了這份文件的對應，交給另一個人（通常是 IT）：`resume_item` 重新開啟這份文件的 mapping，照文件分析 skill 第 6 節完成，完成後重新查詢 `pending_items` |
 | mapping | `mapping:…` | `gap`，`reason` 為缺口種類（如 `mapping_refuted`、`unmapped`） | mapping 已完成但留下資料對應缺口：照 `question` 請使用者提供資料來源或確認對應，並轉交回答（第 3 節）；之後用 `resume_item` 重新開啟這份文件的 mapping 再做一次（回答文件可用 `mapping_read_source` 讀取），完成後重新查詢 `pending_items` |
 | 純缺口 | `gap:…`（以及 `formula-gap:…`、`policy-validation:…`） | `gap` | 沒有片段可重開的缺口，照 `question` 補齊。沒有任何規則定義的概念由定義它的文件補齊：使用者上傳後依文件分析 skill 處理，以同一符號寫出定義；或請使用者回答並轉交（第 3 節），在回答文件中以同一符號寫出定義並引用回答。系統失敗如實回報給使用者。補齊後重新查詢 `pending_items`，確認這一項已消失 |
 | 事實衝突 | `metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…` | `gap` | 不同文件對同一項資料事實或常數說法不一：請使用者到 Commit 頁（`setup.commit_page`）的「事實衝突」區，填上自己的名字裁定採用哪一個；裁定後重新查詢 `pending_items` |
@@ -64,7 +65,11 @@ description: >-
 - 文件版本項目：像一般文件一樣讀完 protocol 並完成整份文件與 mapping。
 - mapping 項目：直接進行這份文件的 mapping，用 `read_task`（`target` 為 `task`）與 `mapping_*` 工具，每個任務以 `mapping_finish` 結束。`status` 為 `gap` 的項目是再做一次：先用 `mapping_read_source` 讀使用者的回答。
 
-## 5. 完成
+## 5. 使用者指正翻譯
+
+使用者看了翻譯（`read_translation`）指出某一項不對時，照 [文件分析](../plasma-document-analysis/SKILL.md) 第 7 節處理：依該項的 `fragment_id` 以 `resume_item` 帶 `correction`（照錄原話）重開、修正後重新提交，再把改過的翻譯貼給使用者。
+
+## 6. 完成
 
 補齊的文件到 `ready_to_commit` 後，請使用者到 Commit 頁（`setup.commit_page`）逐條勾選、預覽並確認發布；發布只能由使用者在頁面上操作。
 `setup.commit_page` 是空的時，告訴使用者伺服器沒有設定 Commit 頁網址，請管理員設定，不要自行拼網址。
