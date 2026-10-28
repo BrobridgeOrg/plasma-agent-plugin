@@ -156,6 +156,15 @@ class AdvancedSkillsTest(unittest.TestCase):
         for word in ('suggestions', 'is not a measure', 'read_tool_reply', 'has_more', 'aggregate'):
             self.assertIn(word, report, word)
 
+    def test_report_skill_asks_what_the_knowledge_lacks(self):
+        """A grouping or condition no published concept is goes in the
+        request as ask; the person is asked in plain words and answers a
+        column; the fill reads expects.rows; a failed validation is fixed,
+        not asked (Q06 2026-10-28)."""
+        report = self.skill('plasma-report')
+        for word in ('"ask"', 'expects.rows', 'identity', 'validation', '母體'):
+            self.assertIn(word, report, word)
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
