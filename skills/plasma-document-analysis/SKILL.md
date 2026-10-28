@@ -104,7 +104,7 @@ description: >-
 
 1. 依那一項的 `fragment_id` 呼叫 `resume_item`，帶 `correction` 照錄使用者的原話；對應段的項目用 `mapping:<doc_id>`。已發布的產物無法在這裡修正，回覆會說明。
 2. 使用者的說法帶來原文沒有的資訊時（例如同組只會選一行），先以 `submit_answer` 照錄使用者原話存成回答來源，修正的規則引用它。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
-3. 交給一個子代理，像處理一般文件一樣讀 protocol、重讀相關的行並修正、`finish_document`，再完成 mapping。
+3. 交給一個子代理，像處理一般文件一樣讀 protocol、重讀相關的行並修正、`finish_document`，再完成 mapping。修正針對使用者指出的那一項：同一段的其他產物照原樣重新提交，改過的規則沿用原本的概念與寫法，只改使用者說的部分。
 4. 修好後，以 `read_translation`（`fragment_id` 或 `ids`）取出改過的項目，貼給使用者再確認。
 
 使用者對資料對應沒有把握時，呼叫 `withdraw_mapping`（`document`，必要時帶 `entities` 或 `leaves`）取消這份文件的對應：概念照常保留、可以發布，取消的部分列為待補，之後由另一個人依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補 mapping。告訴使用者這件事。
