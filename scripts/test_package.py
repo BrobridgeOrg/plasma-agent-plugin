@@ -10,7 +10,7 @@ from package_plugin import ROOT, build
 
 
 SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup',
-               'plasma-document-analysis', 'plasma-fill-gaps'}
+               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-storage-lookup'}
 
 
 def by_host(archives):
@@ -123,6 +123,19 @@ class AdvancedSkillsTest(unittest.TestCase):
             text = self.skill(name)
             self.assertTrue(text.startswith('---\nname: ' + name + '\n'), name)
             self.assertIn('description:', text.split('---')[1], name)
+
+    def test_report_skills_let_the_program_write_the_sql(self):
+        """Phase 3: the program compiles the report; the agent asks the
+        person what each hole asks, keeps the answer, fills the hole and runs
+        the complete query through Plasma."""
+        for name in ('plasma-report', 'plasma-storage-lookup'):
+            text = self.skill(name)
+            self.assertTrue(text.startswith('---\nname: ' + name + '\n'), name)
+            self.assertIn('compile_query', text, name)
+        report = self.skill('plasma-report')
+        for word in ('reading', 'holes', 'question', 'submit_answer', 'fills', 'complete', 'run_query', 'release', 'as_of'):
+            self.assertIn(word, report, word)
+        self.assertIn('known_at', self.skill('plasma-storage-lookup'))
 
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
