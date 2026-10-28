@@ -165,6 +165,11 @@ class AdvancedSkillsTest(unittest.TestCase):
         for word in ('"ask"', 'expects.rows', 'identity', 'validation', '母體'):
             self.assertIn(word, report, word)
 
+    def test_report_skill_asks_by_the_attributes_own_name(self):
+        """ask names the attribute alone; the question adds the entity
+        it belongs to (Q06c 2026-10-28: 「發票明細」的「發票明細所屬工廠」)."""
+        self.assertIn('只寫屬性本身', self.skill('plasma-report'))
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
