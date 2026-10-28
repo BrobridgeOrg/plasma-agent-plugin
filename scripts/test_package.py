@@ -148,6 +148,14 @@ class AdvancedSkillsTest(unittest.TestCase):
             self.assertNotIn('lookup_knowledge', text, name)
         self.assertIn('沒有 `submit_answer`', self.skill('plasma-report'))
 
+    def test_report_skill_corrects_a_refused_request(self):
+        """A refused request is corrected and sent again: the suggested
+        concepts, select for a value that is no measure, and a paged reply
+        read to its end (Q04-Q30 2026-10-28)."""
+        report = self.skill('plasma-report')
+        for word in ('suggestions', 'is not a measure', 'read_tool_reply', 'has_more'):
+            self.assertIn(word, report, word)
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
