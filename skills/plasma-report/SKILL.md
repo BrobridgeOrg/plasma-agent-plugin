@@ -21,7 +21,7 @@ description: >-
    再用 `mode` 為 `definition` 讀它的定義，確認意思就是使用者要的。
 2. 使用者的說法對到不只一個概念、或對不到時，把候選的中文名稱與定義列給使用者選，不自行決定。
 3. 把問題拆成請求的各部分：
-   - 要算的指標（`measure`），或要列出的分類或實體與附帶的屬性（`select`）；
+   - 要算的指標（`measure`，已發布的指標）；題目要把某個已發布的值加總、計數、取平均或最大最小時，用 `aggregate`（`fn` 為 sum、count、count_distinct、min、max 或 mean，`value` 為那個值；計數一個分類或實體的成員時給 `of`）；或要列出的分類或實體與附帶的屬性（`select`）；
    - 分組（`dimensions`）：依實體、依屬性（時間可加 `bucket`：day、week、month、quarter、year），或依一組分類（`classes`，其他歸入 `other`）；
      分組與篩選的屬性用已發布的概念名稱。題目寫的是欄名（例如 `plant_id`）時，選指標所計那個實體的屬性：每個實體各有自己的「工廠」等屬性；
    - 篩選（`filters`）：只計某分類，或某屬性比較某值；
@@ -40,7 +40,7 @@ description: >-
 回覆是請求錯誤時，改正請求再送，直到編譯出結果：
 
 - 概念不存在：回覆的 `suggestions` 列出每個名稱的相近概念（欄名先列出對應到那個欄位的概念）；用 `read_knowledge` 讀它們的定義，選對的一個，回到第 1 節組好請求。
-- 回覆說某概念 `is not a measure`：它是每一列的值，沒有發布的彙總。要逐列列出時改用 `select`（`of` 為它的實體、`attributes` 含它與要分組的屬性）；要彙總時找已發布的指標。
+- 回覆說某概念 `is not a measure`：它是每一列的值，沒有發布的指標。題目要加總或計數它時改用 `aggregate`（同樣的分組與篩選）；要逐列列出時改用 `select`（`of` 為它的實體、`attributes` 含它與要分組的屬性）。
 
 任何工具的回覆說內容未完（附 `cursor`、`has_more` 為 true）時，先以 `read_tool_reply` 帶那個 `cursor` 讀到 `has_more` 為 false，再呼叫其他工具。
 

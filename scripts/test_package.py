@@ -153,7 +153,7 @@ class AdvancedSkillsTest(unittest.TestCase):
         concepts, select for a value that is no measure, and a paged reply
         read to its end (Q04-Q30 2026-10-28)."""
         report = self.skill('plasma-report')
-        for word in ('suggestions', 'is not a measure', 'read_tool_reply', 'has_more'):
+        for word in ('suggestions', 'is not a measure', 'read_tool_reply', 'has_more', 'aggregate'):
             self.assertIn(word, report, word)
 
     def test_no_experiment_connection_is_left(self):
