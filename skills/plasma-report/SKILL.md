@@ -10,12 +10,14 @@ description: >-
 開始前先確認連線：依 [連結 Plasma 與診斷](../plasma-mcp-setup/SKILL.md) 完成授權，以 `whoami` 核對 workspace，
 並確認 scopes 含 `knowledge:read` 與 `query:run`。
 
+報表用的是讀取群的工具：`read_knowledge` 與 `compile_query` 只讀已發布的知識；文件分析用的工具屬於寫入群，報表不用。
+
 報表的 SQL 全部由程式依已發布的知識產生：agent 把使用者的問題轉成「報表請求」，程式回 SQL；
 知識沒說清楚的地方，SQL 會留下標記 `{{h…}}` 的洞，由使用者回答後 agent 補上。只用已發布的知識；Commit 區還沒發布的規則不會出現在 SQL 裡。
 
 ## 1. 找到指標與概念
 
-1. 用 `lookup_knowledge`（`mode` 為 `search`）以使用者的用語找已發布的指標（measure）或分類（class）、屬性與實體；
+1. 用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找已發布的指標（measure）或分類（class）、屬性與實體；
    再用 `mode` 為 `definition` 讀它的定義，確認意思就是使用者要的。
 2. 使用者的說法對到不只一個概念、或對不到時，把候選的中文名稱與定義列給使用者選，不自行決定。
 3. 把問題拆成請求的各部分：
@@ -40,7 +42,8 @@ description: >-
 
 1. 把每個洞的 `question` 問使用者，一次問完；附上 `reading` 讓使用者知道問的是哪一部分。
 2. 使用者回答後：
-   - 以 `submit_answer` 保存使用者的原話（問題與回答），之後可以依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補進知識庫，下次就不再有這個洞；
+   - 工具清單有 `submit_answer`（寫入群）時，以它保存使用者的原話（問題與回答），之後可以依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補進知識庫，下次就不再有這個洞；
+   - 工具清單沒有 `submit_answer` 時，照樣用使用者的回答補這份報表的洞，並告訴使用者：這次的回答只用在這份報表，沒有存回知識庫，要讓之後的報表也用到，須由有寫入權限的人在缺口頁回答或補文件；
    - 依回答把每個洞寫成一段 SQL：一個運算式，或用括號包起來的一個子查詢，只用 `expects` 列出的別名與欄位，或 schema 裡的表與欄位；
    - 以 `compile_query` 送出同一個請求並帶 `fills`（洞的 id → SQL 片段）。其餘部分由程式產生，照原樣保留。
 3. 回覆的 `complete` 為 true 才執行；`validation.valid` 為 false 時依錯誤修改片段再送一次。

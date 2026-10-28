@@ -137,6 +137,17 @@ class AdvancedSkillsTest(unittest.TestCase):
             self.assertIn(word, report, word)
         self.assertIn('known_at', self.skill('plasma-storage-lookup'))
 
+    def test_report_skills_read_with_the_read_group(self):
+        """The report and storage agents use the read group's tools
+        (read_knowledge, compile_query), not the document analysis's
+        lookup_knowledge; an answer that cannot be kept still fills the hole
+        of this report."""
+        for name in ('plasma-report', 'plasma-storage-lookup'):
+            text = self.skill(name)
+            self.assertIn('read_knowledge', text, name)
+            self.assertNotIn('lookup_knowledge', text, name)
+        self.assertIn('沒有 `submit_answer`', self.skill('plasma-report'))
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
