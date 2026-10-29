@@ -194,7 +194,8 @@ class AdvancedSkillsTest(unittest.TestCase):
         """A schema change is remapped with run_mapping before new documents
         (user ruling 2026-10-29); document analysis sends the agent there."""
         remap = self.skill('plasma-remap')
-        for word in ('run_mapping', 'remap_needed', 'read_task', 'mapping_finish', 'commit_page', '不重新摘錄'):
+        for word in ('run_mapping', 'remap_needed', 'read_task', 'mapping_finish', 'commit_page', '不重新摘錄',
+                     '最後的回報固定包含', '待補', '確認發布'):
             self.assertIn(word, remap, word)
         self.assertIn('plasma-remap', self.skill('plasma-document-analysis'))
 
