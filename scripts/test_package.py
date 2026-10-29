@@ -170,6 +170,12 @@ class AdvancedSkillsTest(unittest.TestCase):
         it belongs to (Q06c 2026-10-28: 「發票明細」的「發票明細所屬工廠」)."""
         self.assertIn('只寫屬性本身', self.skill('plasma-report'))
 
+    def test_report_skill_lists_a_ratios_parts_in_one_query(self):
+        """A ratio's numerator and denominator the question lists are
+        named in columns of the same request (Q05 2026-10-29: three
+        queries, one per column)."""
+        self.assertIn('分子、分母', self.skill('plasma-report'))
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
