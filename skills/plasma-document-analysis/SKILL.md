@@ -12,6 +12,7 @@ description: >-
 開始前先確認連線：依 [連結 Plasma 與診斷](../plasma-mcp-setup/SKILL.md) 完成授權，以 `whoami` 核對 workspace，
 並確認 scopes 含 `knowledge:write`（上傳、提交與回答都需要）。再呼叫 `run_status` 確認伺服器就緒，
 記下回覆 `setup.commit_page`：這是使用者確認發布的頁面。
+`whoami` 或 `run_status` 說 schema 已變更（`setup.remap_needed`、`setup.remap`）時，先依 [重新對應](../plasma-remap/SKILL.md) 完成重新對應，之後才上傳與分析新文件。
 文件處理的細節（摘錄、審查、片段、提交、衝突處理的格式）以伺服器的 protocol 為準：
 開啟文件後先用 `read_task`（`target` 為 `document`）讀取 protocol，`offset` 依回覆的 `next` 遞增，讀到 `next` 等於 `total` 為止，之後照 protocol 做。
 本 skill 只說明跨工具的流程與交接點。

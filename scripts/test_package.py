@@ -10,7 +10,7 @@ from package_plugin import ROOT, build
 
 
 SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup',
-               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-storage-lookup'}
+               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-storage-lookup', 'plasma-remap'}
 
 
 def by_host(archives):
@@ -189,6 +189,14 @@ class AdvancedSkillsTest(unittest.TestCase):
         """run_status lists every upload only with uploads=true (Ophion
         2026-10-29); the main agent asks for them when it checks states."""
         self.assertIn('`uploads` 為 true', self.skill('plasma-document-analysis'))
+
+    def test_remap_skill_runs_mapping_after_a_schema_change(self):
+        """A schema change is remapped with run_mapping before new documents
+        (user ruling 2026-10-29); document analysis sends the agent there."""
+        remap = self.skill('plasma-remap')
+        for word in ('run_mapping', 'remap_needed', 'read_task', 'mapping_finish', 'commit_page', '不重新摘錄'):
+            self.assertIn(word, remap, word)
+        self.assertIn('plasma-remap', self.skill('plasma-document-analysis'))
 
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
