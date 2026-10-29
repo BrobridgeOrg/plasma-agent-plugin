@@ -176,6 +176,15 @@ class AdvancedSkillsTest(unittest.TestCase):
         queries, one per column)."""
         self.assertIn('分子、分母', self.skill('plasma-report'))
 
+    def test_report_skill_presents_around_the_compiled_query(self):
+        """Presentation (a ROC year, a format, an order) wraps the compiled
+        query unchanged in an outer SELECT and is told; another calendar is
+        knowledge, not a bucket; a ROC year in a condition becomes the
+        Gregorian period (2026-10-29)."""
+        report = self.skill('plasma-report')
+        for word in ('外面包一層', '原封不動', '民國', '農曆', 'bucket'):
+            self.assertIn(word, report, word)
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
