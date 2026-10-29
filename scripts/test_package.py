@@ -185,6 +185,11 @@ class AdvancedSkillsTest(unittest.TestCase):
         for word in ('外面包一層', '原封不動', '民國', '農曆', 'bucket'):
             self.assertIn(word, report, word)
 
+    def test_document_analysis_lists_uploads_when_it_checks_them(self):
+        """run_status lists every upload only with uploads=true (Ophion
+        2026-10-29); the main agent asks for them when it checks states."""
+        self.assertIn('`uploads` 為 true', self.skill('plasma-document-analysis'))
+
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)

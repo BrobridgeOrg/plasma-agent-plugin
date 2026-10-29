@@ -102,7 +102,7 @@ description: >-
 
 使用者指出某一項不對時：
 
-1. 依那一項的 `fragment_id` 呼叫 `resume_item`，帶 `correction` 照錄使用者的原話；對應段的項目用 `mapping:<doc_id>`。已發布的產物無法在這裡修正，回覆會說明。
+1. 依那一項的 `fragment_id`（項目沒有時是它所在群組的）呼叫 `resume_item`，帶 `correction` 照錄使用者的原話；對應段的項目用 `mapping:<doc_id>`。已發布的產物無法在這裡修正，回覆會說明。
 2. 使用者的說法帶來原文沒有的資訊時（例如同組只會選一行），先以 `submit_answer` 照錄使用者原話存成回答來源，修正的規則引用它。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
 3. 交給一個子代理，像處理一般文件一樣讀 protocol、重讀相關的行並修正、`finish_document`，再完成 mapping。修正針對使用者指出的那一項：同一段的其他產物照原樣重新提交，改過的規則沿用原本的概念與寫法，只改使用者說的部分。
 4. 修好後，以 `read_translation`（`fragment_id` 或 `ids`）取出改過的項目，貼給使用者再確認。
@@ -111,7 +111,7 @@ description: >-
 
 ## 8. 交給使用者發布
 
-主代理主代理以 `run_status` 核對每份文件的狀態：回覆的 `uploads` 列出每份上傳文件，`document` 是它的狀態。
+主代理以 `run_status`（`uploads` 為 true）核對每份文件的狀態：回覆的 `uploads` 列出每份上傳文件，`document` 是它的狀態。不帶 `uploads` 時，在文件工作中呼叫不列上傳，不在工作中則只給各狀態的份數與尚未 `ready_to_commit` 的上傳。
 主代理的連線開著多份文件時，帶其中任一 `work_id`（`upload_status` 列出各文件的 `work_id`）；主代理沒有開文件時，`run_status` 不帶 `work_id`。
 然後告訴使用者：
 
