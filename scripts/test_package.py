@@ -9,7 +9,8 @@ import zipfile
 from package_plugin import ROOT, build
 
 
-SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup'}
+SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup',
+               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-storage-lookup', 'plasma-remap'}
 
 
 def by_host(archives):
@@ -107,3 +108,114 @@ class PackageTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class AdvancedSkillsTest(unittest.TestCase):
+    """The document analysis and gap skills come from the Leibniz experiment;
+    only how they connect changes: through the Plasma gateway, a one-time
+    upload URL, and the commit page run_status names."""
+
+    def skill(self, name):
+        return (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
+
+    def test_frontmatter_names_each_skill(self):
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            text = self.skill(name)
+            self.assertTrue(text.startswith('---\nname: ' + name + '\n'), name)
+            self.assertIn('description:', text.split('---')[1], name)
+
+    def test_report_skills_let_the_program_write_the_sql(self):
+        """Phase 3: the program compiles the report; the agent asks the
+        person what each hole asks, keeps the answer, fills the hole and runs
+        the complete query through Plasma."""
+        for name in ('plasma-report', 'plasma-storage-lookup'):
+            text = self.skill(name)
+            self.assertTrue(text.startswith('---\nname: ' + name + '\n'), name)
+            self.assertIn('compile_query', text, name)
+        report = self.skill('plasma-report')
+        for word in ('reading', 'holes', 'question', 'submit_answer', 'fills', 'complete', 'run_query', 'release', 'as_of'):
+            self.assertIn(word, report, word)
+        self.assertIn('known_at', self.skill('plasma-storage-lookup'))
+
+    def test_report_skills_read_with_the_read_group(self):
+        """The report and storage agents use the read group's tools
+        (read_knowledge, compile_query), not the document analysis's
+        lookup_knowledge; an answer that cannot be kept still fills the hole
+        of this report."""
+        for name in ('plasma-report', 'plasma-storage-lookup'):
+            text = self.skill(name)
+            self.assertIn('read_knowledge', text, name)
+            self.assertNotIn('lookup_knowledge', text, name)
+        self.assertIn('沒有 `submit_answer`', self.skill('plasma-report'))
+
+    def test_report_skill_corrects_a_refused_request(self):
+        """A refused request is corrected and sent again: the suggested
+        concepts, select for a value that is no measure, and a paged reply
+        read to its end (Q04-Q30 2026-10-28)."""
+        report = self.skill('plasma-report')
+        for word in ('suggestions', 'is not a measure', 'read_tool_reply', 'has_more', 'aggregate'):
+            self.assertIn(word, report, word)
+
+    def test_report_skill_asks_what_the_knowledge_lacks(self):
+        """A grouping or condition no published concept is goes in the
+        request as ask; the person is asked in plain words and answers a
+        column; the fill reads expects.rows; a failed validation is fixed,
+        not asked (Q06 2026-10-28)."""
+        report = self.skill('plasma-report')
+        for word in ('"ask"', 'expects.rows', 'identity', 'validation', '母體'):
+            self.assertIn(word, report, word)
+
+    def test_report_skill_asks_by_the_attributes_own_name(self):
+        """ask names the attribute alone; the question adds the entity
+        it belongs to (Q06c 2026-10-28: 「發票明細」的「發票明細所屬工廠」)."""
+        self.assertIn('只寫屬性本身', self.skill('plasma-report'))
+
+    def test_report_skill_lists_a_ratios_parts_in_one_query(self):
+        """A ratio's numerator and denominator the question lists are
+        named in columns of the same request (Q05 2026-10-29: three
+        queries, one per column)."""
+        self.assertIn('分子、分母', self.skill('plasma-report'))
+
+    def test_report_skill_presents_around_the_compiled_query(self):
+        """Presentation (a ROC year, a format, an order) wraps the compiled
+        query unchanged in an outer SELECT and is told; another calendar is
+        knowledge, not a bucket; a ROC year in a condition becomes the
+        Gregorian period (2026-10-29)."""
+        report = self.skill('plasma-report')
+        for word in ('外面包一層', '原封不動', '民國', '農曆', 'bucket'):
+            self.assertIn(word, report, word)
+
+    def test_document_analysis_lists_uploads_when_it_checks_them(self):
+        """run_status lists every upload only with uploads=true (Ophion
+        2026-10-29); the main agent asks for them when it checks states."""
+        self.assertIn('`uploads` 為 true', self.skill('plasma-document-analysis'))
+
+    def test_remap_skill_runs_mapping_after_a_schema_change(self):
+        """A schema change is remapped with run_mapping before new documents
+        (user ruling 2026-10-29); document analysis sends the agent there."""
+        remap = self.skill('plasma-remap')
+        for word in ('run_mapping', 'remap_needed', 'read_task', 'mapping_finish', 'commit_page', '不重新摘錄',
+                     '最後的回報固定包含', '待補', '確認發布'):
+            self.assertIn(word, remap, word)
+        self.assertIn('plasma-remap', self.skill('plasma-document-analysis'))
+
+    def test_no_experiment_connection_is_left(self):
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            text = self.skill(name)
+            for stale in ('127.0.0.1', 'leibniz-', 'MCP 網址加上', '上傳面板', 'ssh -L'):
+                self.assertNotIn(stale, text, f'{name} still says {stale!r}')
+            self.assertIn('commit_page', text, name)
+
+    def test_skills_teach_units_nodes_and_completeness(self):
+        """1G: a value concept states its unit with the source quote, a
+        computation or metric is a node, and gaps name units, measures and
+        the root causes an incomplete concept points to."""
+        analysis = self.skill('plasma-document-analysis')
+        for want in ('arg_values', 'unit_quote', 'submit_node', 'op measure', 'submit_annotation'):
+            self.assertIn(want, analysis)
+        gaps = self.skill('plasma-fill-gaps')
+        for want in ('unit_unknown', 'unit_mismatch', 'measure_incomplete', 'incomplete', 'causes'):
+            self.assertIn(want, gaps)
+
+    def test_setup_lists_knowledge_write(self):
+        self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))
