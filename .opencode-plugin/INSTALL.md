@@ -90,6 +90,7 @@ skills 要下一個 session 才會載入。
 
 ## 建立流程
 
-四份 skills 為 plasma-mcp-setup、plasma-knowledge-lookup、plasma-create-view、plasma-create-bi。
+skills 為 plasma-mcp-setup、plasma-knowledge-query、plasma-create-view、plasma-create-bi，以及進階模式的 plasma-report、plasma-document-analysis、plasma-fill-gaps、plasma-remap。
+從舊版升級時，移除 `~/.config/opencode/skills/` 下的 plasma-knowledge-lookup 與 plasma-storage-lookup 目錄。
 預設建立 mview 運算層與 pview 篩選層；提示詞明確指定 mview 時以 mview 為最終輸出。
 同步與排程必須先在對話確認；這是 skill 軟限制。資料 API 請在 Plasma 自行建立。

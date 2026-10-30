@@ -111,7 +111,7 @@ Plasma view 工具與知識庫工具均使用該連線；不要混用不同連�
 | scope | 允許的操作 |
 |---|---|
 | `views:read` | 讀取 view／mview／pview 與同步排程；每次授權都會包含這項 |
-| `knowledge:read` | 查資料表／欄位意義、值域與 lineage |
+| `knowledge:read` | 讀知識：一般模式查資料表／欄位意義、值域與 lineage；進階模式讀已發布的概念並以 `compile_query` 編譯 SQL |
 | `knowledge:write` | 只在知識庫為進階模式時提供：上傳文件、提交分析結果與回答問題；發布仍須由人在 Commit 頁確認 |
 | `query:run` | 執行唯讀 SQL 與 pview 驗證查詢；回傳樣本不代表完整資料 |
 | `views:write` | 建立 mview／pview、啟動同步與設定排程；同步仍需 skill 個別確認 |
@@ -119,6 +119,10 @@ Plasma view 工具與知識庫工具均使用該連線；不要混用不同連�
 授權一次會取得上表全部權限，所以正常情況不會缺 scope。仍以 `whoami` 的實際
 scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部分權限。
 遇到工具回報缺少 scope 時，請使用者重新授權一次即可，不要重複呼叫遭拒工具。
+
+知識庫的模式（一般或進階）在建立時決定、之後不會改變，兩種模式提供的知識工具不同：
+工具清單有 `read_knowledge`、`compile_query` 是進階模式，有 `search_knowledge`、`get_table_card` 是一般模式。
+核對連線時一併告訴使用者是哪一種；兩種模式能做的事相同，只是使用知識的方式不同，判斷細節見 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md)。
 
 ## 診斷
 
@@ -156,8 +160,14 @@ OAuth 最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。
 
 ## 流程範圍
 
-連線確認後依 [建立 pview 技能](../plasma-create-view/SKILL.md) 執行。
-預設輸出 pview，明確指定 mview 時停在 mview；同步及排程前由 skill 等待使用者確認。
+連線確認後，依使用者要做的事接續：
+
+- 查知識：[查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md)
+- 建立 pview／mview：[建立 pview 技能](../plasma-create-view/SKILL.md)。預設輸出 pview，明確指定 mview 時停在 mview；同步及排程前由 skill 等待使用者確認
+- 進階模式出報表：[出報表](../plasma-report/SKILL.md)
+- 進階模式上傳文件：[文件分析](../plasma-document-analysis/SKILL.md)
+
+
 本流程不要求匯出或 API 發布權限，API 由使用者自行建立。
 所需工具：whoami、list_views、get_view、run_query、create_view、sync_view、
 get_view_schedule、set_view_schedule、list_pviews、get_pview、create_pview、execute_pview，

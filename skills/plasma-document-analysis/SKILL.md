@@ -12,6 +12,8 @@ description: >-
 開始前先確認連線：依 [連結 Plasma 與診斷](../plasma-mcp-setup/SKILL.md) 完成授權，以 `whoami` 核對 workspace，
 並確認 scopes 含 `knowledge:write`（上傳、提交與回答都需要）。再呼叫 `run_status` 確認伺服器就緒，
 記下回覆 `setup.commit_page`：這是使用者確認發布的頁面。
+
+**本 skill 只用於進階模式。** 核對 scopes 之前，先依 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md) 判斷模式：工具清單沒有 `compile_query`、但有 `search_knowledge` 時，這個系統是一般模式（建立後不會改變）。這時告訴使用者：這個系統是一般模式，plugin 目前還不能在一般模式上傳文件，請在 Plasma 介面上傳；上傳後的知識可以照常查詢與建立 pview，然後結束本 skill：不要求使用者重新授權（一般模式不提供 `knowledge:write`，重新授權也不會有）、不改用其他工具或自己寫 SQL 繞過。兩組工具都沒有時，依連結 Plasma 與診斷的「診斷」處理。
 `whoami` 或 `run_status` 說 schema 已變更（`setup.remap_needed`、`setup.remap`）時，先依 [重新對應](../plasma-remap/SKILL.md) 完成重新對應，之後才上傳與分析新文件。
 文件處理的細節（摘錄、審查、片段、提交、衝突處理的格式）以伺服器的 protocol 為準：
 開啟文件後先用 `read_task`（`target` 為 `document`）讀取 protocol，`offset` 依回覆的 `next` 遞增，讀到 `next` 等於 `total` 為止，之後照 protocol 做。

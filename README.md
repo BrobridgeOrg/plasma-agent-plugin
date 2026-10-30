@@ -59,10 +59,17 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 
 | Skill | 用途 |
 |---|---|
-| `plasma-mcp-setup` | 連結服務、核對 workspace／scopes、診斷 |
-| `plasma-knowledge-lookup` | 查核來源、欄位、代碼、業務規則 |
-| `plasma-create-view` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview |
+| `plasma-mcp-setup` | 連結服務、核對 workspace／scopes 與知識庫模式、診斷 |
+| `plasma-knowledge-query` | 查知識：欄位、代碼、業務規則、概念存在哪與怎麼關聯；內含兩種模式從知識取得 SQL 的 sql-path |
+| `plasma-create-view` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview；兩種模式皆可 |
 | `plasma-create-bi` | 以 pview 為來源產生 BI：Power BI 專案（PBIP）或單一 HTML 頁面 |
+| `plasma-report` | 進階模式：一次性出報表，由 `compile_query` 編譯 SQL 並以 `run_query` 執行 |
+| `plasma-document-analysis` | 進階模式：上傳文件並分析成知識 |
+| `plasma-fill-gaps` | 進階模式：補齊知識缺口 |
+| `plasma-remap` | 進階模式：schema 變更後重新對應既有概念 |
+
+知識庫的模式（一般或進階）建立後不會改變；兩種模式能做的事相同，差別在文件的處理方式與使用知識的路徑。
+skills 依工具清單判斷模式：有 `read_knowledge`、`compile_query` 是進階模式，有 `search_knowledge` 是一般模式。
 
 三個版本均無本機 hooks、Bash launcher、Go binary、下載快取或狀態檔依賴。
 `scripts/` 僅供維護者封裝與測試，不會放進安裝包；使用者不需要 Python 或 Go。
@@ -151,9 +158,9 @@ CLI 先確認 `codex mcp list --json` 列出 plugin 連線，再以其實際名�
 
 更新 plugin 後重新開啟對話／session，讓宿主移除舊 hook 註冊及舊版 skills。
 `plasma-create-pview` 已更名為 `plasma-create-view`；
-手動複製安裝的使用者需移除舊 `plasma-create-pview` 與 `ophion-knowledge-lookup` 目錄，避免舊流程同時載入。
+手動複製安裝的使用者需移除舊 `plasma-create-pview`、`ophion-knowledge-lookup`、`plasma-knowledge-lookup` 與 `plasma-storage-lookup` 目錄，避免舊流程同時載入。
 `plasma-data-api` 與 `plasma-export` 維持移除，資料 API 由使用者自行建立。
-不要沿用舊對話載入的匯出／發布指示；新包中有四份 skills。
+不要沿用舊對話載入的匯出／發布指示；新包中有八份 skills。
 若曾手動將舊 hook 複製到宿主設定，請在該宿主刪除該自訂設定；新版不會執行舊 binary。
 本次不自動修改使用者家目錄、既有 MCP 連線或其他宿主設定。
 workspace 綁在授權上；換 workspace 要重新授權一次，plugin 不保存選擇。
