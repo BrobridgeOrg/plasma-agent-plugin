@@ -9,6 +9,8 @@ description: >-
 全程使用台灣繁體中文；工具名稱、欄位名稱、符號與網址保留原樣。
 開始前先確認連線：依 [連結 Plasma 與診斷](../plasma-mcp-setup/SKILL.md) 完成授權，以 `whoami` 核對 workspace 與 `knowledge:write`。
 
+**本 skill 只用於進階模式。** 核對 scopes 之前，先依 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md) 判斷模式：工具清單沒有 `compile_query`、但有 `search_knowledge` 時，這個系統是一般模式（建立後不會改變）。這時告訴使用者：這個系統是一般模式，一般模式沒有「重新對應」這一步，不需要也無法在這裡執行，然後結束本 skill：不要求使用者重新授權（一般模式不提供 `knowledge:write`，重新授權也不會有）、不改用其他工具或自己寫 SQL 繞過。兩組工具都沒有時，依連結 Plasma 與診斷的「診斷」處理。
+
 資料來源的 schema 變更後（新增或改了表、欄位），既有概念還對應在舊的 schema 上。
 重新對應只重做概念與資料表、欄位之間的對應，概念、規則與文件摘錄都不變；完成前，Plasma 不接受新文件的上傳與分析。
 

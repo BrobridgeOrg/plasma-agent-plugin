@@ -1,13 +1,7 @@
----
-name: plasma-storage-lookup
-description: >-
-  IT 人員要知道 Plasma 進階模式知識庫裡某個業務概念實際存在哪裡、怎麼讀取、資料表之間怎麼關聯，或要看某個概念的 SQL 時使用（工具清單有 `read_knowledge` 與 `compile_query`）：查對應、實體層附註與關聯，必要時以 `compile_query` 產生該概念的 SQL。
----
+# 進階模式：查儲存方式與資料關聯
 
-# 查儲存方式與資料關聯
-
-全程使用台灣繁體中文；工具名稱、欄位名稱、符號與 SQL 保留原樣。
-開始前先確認連線：依 [連結 Plasma 與診斷](../plasma-mcp-setup/SKILL.md) 完成授權，以 `whoami` 核對 workspace 與 `knowledge:read`。
+工具清單有 `read_knowledge`、`compile_query` 時，知識庫是進階模式，依本文查找。
+進階模式的知識是概念、規則與它們對應到的資料表、欄位；`read_knowledge` 只讀已發布的知識，Commit 區還沒發布的不會出現。
 
 只回答已發布的知識；知識庫沒有寫的，照實說沒有，並列為待補。
 
@@ -15,6 +9,7 @@ description: >-
 
 用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找概念或實體，再以 `mode` 為 `definition` 讀它：
 定義、對應的欄位與表（橋接）、完整與否（`completeness`）與缺口。對到多個候選時列給使用者選。
+任何工具的回覆說內容未完（附 `cursor`、`has_more` 為 true）時，先以 `read_tool_reply` 帶那個 `cursor` 讀到 `has_more` 為 false，再呼叫其他工具。
 
 ## 2. 回答存放與讀取方式
 
@@ -24,12 +19,15 @@ description: >-
 - **怎麼讀**：實體層附註，包括單位與倍率、時間基準（UTC、當地時間及位移欄位、日曆日期）、讀取格式（文字日期、小數逗號、空值標記、哨兵值、去空白轉大寫）、
   值的意義（代碼 → 意思），以及版本語意（每個鍵取哪一版、得知時間欄位 `known_at`、刪除旗標、有效期間）。
 - **怎麼關聯**：用 `read_knowledge`（`mode` 為 `dependencies`）看概念讀到哪些概念與關聯，說明連接的欄位與基數（一對一、多對一、一對多），以及基數是否經資料驗證。
-- **還缺什麼**：沒有欄位對應的葉子概念、單位未知、基數未知等缺口，附上缺口的問句，交給 [補齊缺口](../plasma-fill-gaps/SKILL.md) 處理。
+- **還缺什麼**：沒有欄位對應的葉子概念、單位未知、基數未知等缺口，附上缺口的問句，交給 [補齊缺口](../../plasma-fill-gaps/SKILL.md) 處理。
+
+Plasma 上建立的 view 與 mview，進階模式會自動把它的 SQL 轉成知識（view 的欄位與來源欄位的關係），不經 Commit 頁；它們也能以同樣方式查到。
 
 ## 3. 看某個概念的 SQL
 
-使用者要看實際怎麼查時，以 `compile_query` 送出 `select` 請求（`of` 為分類或實體，`attributes` 為要看的屬性），或指標的 `measure` 請求：
+使用者要看實際怎麼查時，依 [進階模式的 sql-path](sql-path/advanced.md) 編譯：
+`select` 請求（`of` 為分類或實體，`attributes` 為要看的屬性），或指標的 `measure` 請求。
 
 - 把 `sql`、`reading` 與 `basis`（依據的規則、對應與假設）給使用者；
 - 有 `{{h…}}` 的洞時，說明每個洞的 `question`：那是知識庫還沒說清楚的地方；
-- 要執行時依 [出報表](../plasma-report/SKILL.md) 第 3、4 節補洞並以 `run_query` 執行。
+- 要執行時依 [出報表](../../plasma-report/SKILL.md) 補洞並以 `run_query` 執行。

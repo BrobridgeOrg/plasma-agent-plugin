@@ -1,6 +1,7 @@
-# mview 的知識查核與 SQL 驗證
+# 一般模式的 sql-path：查核知識後撰寫並驗證 SQL
 
-以下用於 mview 運算層；pview 僅讀取已核對的 mview 欄位並設定最後篩選。
+一般模式的 SQL 由 agent 依查核過的知識撰寫。查找工具與判讀方式見 [一般模式的查法](../standard.md)。
+以下以建立 mview 運算層為例；pview 僅讀取已核對的 mview 欄位並設定最後篩選。
 
 1. **理解完整指標與表單。** 整理欄位、指標、粒度（每日、每位病人、每間門市等）、
    期間與篩選。截圖或表單可作為規格：閱讀標籤與區塊，以中文說明理解後繼續，
@@ -10,7 +11,7 @@
    JOIN、條件聚合或語意一致的 UNION ALL。除最後的 pview 篩選層外，不要另建中繼 view／mview，也不要用會
    重複計算的 JOIN 硬湊。確實無法整合時說明限制並釐清，不自行拆分或省略欄位。
 
-   依 [SKILL.md](../SKILL.md) 第 1 節「mview 資料準備與 pview 回傳上限」設計。
+   依 [建立 pview 技能](../../../plasma-create-view/SKILL.md) 第 1 節「mview 資料準備與 pview 回傳上限」設計。
    指標型報表可彙總到「期別 × 區塊 × 指標／維度值」，以 `section` 區分區塊，
    不可加總指標在各期別內完整算出；粒度依報表語意決定。
    mview 可準備全部所需資料，總列數不受 pview 的 1,000 筆回傳限制。
@@ -26,7 +27,7 @@
    相關 `ku_id` 都要用 `get_knowledge_unit` 展開後才可引用或採用。
    `found=false` 時依 `suggestions` 改換詞彙；兩三組不同詞彙都未命中，
    就明列知識缺口並進入步驟 4，不重複相同搜尋或自行補上猜測。
-   已查核代碼的缺漏名稱／描述，可依 [候選補充流程](../../plasma-knowledge-lookup/SKILL.md)
+   已查核代碼的缺漏名稱／描述，可依 [候選補充流程](../code-names.md)
    提出 LLM 候選；使用者確認後的補充映射是本次衍生資料，不冒稱為來源字典事實。
 
 3. **逐欄查核後才寫入 SQL。** 對每個 `database.table.column` 呼叫
@@ -68,44 +69,17 @@
 
    **核准的名稱／描述補充**：可用帶明確型別的 `VALUES` CTE 保存本次核准映射，
    不另建中繼 view，也不寫回來源表。依代碼系統、版本與完整代碼等必要識別鍵
-   LEFT JOIN；映射每鍵唯一，只以核准值填 NULL／空白名稱，既有非空名稱優先。
-   pview 仍只做最後篩選，BI 不另寫名稱替換或類別合併邏輯。驗證補充前後筆數、
-   人次、分子／分母與排名一致，僅核准的缺漏文字改變，避免 JOIN 放大資料。
-   mview 描述與交付欄位來源須標明哪些值來自「使用者確認的補充映射」，並記錄
-   候選依據、版本及核准範圍；仍無對應者保留原碼／缺值。此確認不取代同步確認。
+   LEFT JOIN；映射每鍵唯一，只以核准值填 NULL／空白名稱，既有非空名稱優先，避免 JOIN 放大資料。
+   驗證與交付標示依 [代碼名稱的候選補充](../code-names.md) 第 3 節。
 
-5. **只使用 Trino SQL。** Plasma 透過 Trino 查詢。
-   識別名稱採兩段式 `database.table`，workspace 已提供 catalog 範圍；
-   原樣使用 Plasma 知識庫的 `sql_name`，不重建來源路徑。一般 snake_case 名稱不需
-   引號；保留字或特殊字元用雙引號包住單一識別名稱，不包住整段含點號路徑。
-   字串使用單引號。
+5. **只使用 Plasma SQL。** 依 [Plasma SQL 寫法](plasma-sql.md) 撰寫；
+   原樣使用 Plasma 知識庫的 `sql_name`，不重建來源路徑。
 
    將步驟 3 的資料品質排除條件落實於 WHERE，不能只在對話提醒。
    代碼篩選使用 `plan_value_filter` 的結果。
 
-   | 使用方式 | 避免方式 |
-   |---|---|
-   | `CAST(x AS type)` | `x::type` |
-   | `DATE '2026-01-31'`、`TIMESTAMP '2026-01-31 10:00:00'` | 以一般 VARCHAR 字串當日期 |
-   | `date_diff('day', a, b)` 計算經過單位 | 將 `b - a` 的 INTERVAL 當數字 |
-   | `date_add('day', 7, x)` 或 INTERVAL 常值 | `DATEADD`、`DATE_SUB`、`x + 7` |
-   | `CURRENT_DATE`、`CURRENT_TIMESTAMP` | `NOW()`、`GETDATE()`、`SYSDATE` 或加引號的名稱 |
-   | `\|\|` 或 `concat()` | 用 `+` 串接字串 |
-   | `IS NULL`、`IS NOT NULL` | `= NULL`、`<> NULL`、`ISNULL()`、`NVL()` |
-   | `COALESCE` | `IFNULL`、`NVL` |
-   | `approx_percentile(x, 0.5)` | `PERCENTILE_CONT`、`MEDIAN`、`APPROX_QUANTILE` |
-   | 兩側用 `LOWER()` 不分大小寫比對 | `ILIKE` |
-   | `COUNT(DISTINCT (a, b))` | `COUNT(DISTINCT a, b)` |
-   | CTE 中用 `row_number() OVER (...)`，外層篩選 | 用 LIMIT 代替組內排名、TOP、ROWNUM |
-   | `LIMIT n` | `TOP n`、`FETCH FIRST`、`ROWNUM <= n` |
-   | 單一陳述式，不附分號 | 尾端分號、多個陳述式、SET／USE／暫存資料表 |
-
-   整數除法會截斷小數；比率或平均值將運算元轉為 DOUBLE。DATE 與 TIMESTAMP
-   比較時明確轉型。SELECT 的非聚合運算式都需列入 GROUP BY。
-   不確定函式是否支援時，先用 `run_query` 驗證，不把猜測放入正式定義。
-
 6. **執行 SQL 驗證並呈現結果。** 用 `run_query` 驗證整份表單的欄位、粒度與
-   定義，中文回報代表性資料及品質問題，不逐次要求查詢核准。這會實際透過
-   Trino 查詢來源，不是模擬；最多回傳 100 列，只能作為樣本，不代表完整筆數。
+   定義，中文回報代表性資料及品質問題，不逐次要求查詢核准。這會實際
+   查詢來源，不是模擬；最多回傳 100 列，只能作為樣本，不代表完整筆數。
    將步驟 4 的候選假設納入建立前的定義摘要。SQL 驗證完成後才建立 mview。
 

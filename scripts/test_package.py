@@ -9,8 +9,8 @@ import zipfile
 from package_plugin import ROOT, build
 
 
-SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-lookup',
-               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-storage-lookup', 'plasma-remap'}
+SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-query',
+               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-remap'}
 
 
 def by_host(archives):
@@ -118,6 +118,13 @@ class AdvancedSkillsTest(unittest.TestCase):
     def skill(self, name):
         return (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
 
+    def reference(self, path):
+        return (ROOT / 'skills' / 'plasma-knowledge-query' / 'references' / path).read_text(encoding='utf-8')
+
+    def compiled(self):
+        """The advanced sql-path the report and the view skills share."""
+        return self.reference('sql-path/advanced.md')
+
     def test_frontmatter_names_each_skill(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
@@ -128,31 +135,31 @@ class AdvancedSkillsTest(unittest.TestCase):
         """Phase 3: the program compiles the report; the agent asks the
         person what each hole asks, keeps the answer, fills the hole and runs
         the complete query through Plasma."""
-        for name in ('plasma-report', 'plasma-storage-lookup'):
-            text = self.skill(name)
-            self.assertTrue(text.startswith('---\nname: ' + name + '\n'), name)
-            self.assertIn('compile_query', text, name)
-        report = self.skill('plasma-report')
-        for word in ('reading', 'holes', 'question', 'submit_answer', 'fills', 'complete', 'run_query', 'release', 'as_of'):
-            self.assertIn(word, report, word)
-        self.assertIn('known_at', self.skill('plasma-storage-lookup'))
+        self.assertTrue(self.skill('plasma-report').startswith('---\nname: plasma-report\n'))
+        self.assertIn('compile_query', self.skill('plasma-report'))
+        self.assertIn('compile_query', self.reference('advanced.md'))
+        compiled = self.compiled()
+        for word in ('reading', 'holes', 'question', 'submit_answer', 'fills', 'complete', 'release', 'as_of'):
+            self.assertIn(word, compiled, word)
+        self.assertIn('run_query', self.skill('plasma-report'))
+        self.assertIn('known_at', self.reference('advanced.md'))
 
     def test_report_skills_read_with_the_read_group(self):
         """The report and storage agents use the read group's tools
         (read_knowledge, compile_query), not the document analysis's
         lookup_knowledge; an answer that cannot be kept still fills the hole
         of this report."""
-        for name in ('plasma-report', 'plasma-storage-lookup'):
-            text = self.skill(name)
+        for name, text in (('report', self.skill('plasma-report')), ('lookup', self.reference('advanced.md')),
+                           ('sql-path', self.compiled())):
             self.assertIn('read_knowledge', text, name)
             self.assertNotIn('lookup_knowledge', text, name)
-        self.assertIn('沒有 `submit_answer`', self.skill('plasma-report'))
+        self.assertIn('沒有 `submit_answer`', self.compiled())
 
     def test_report_skill_corrects_a_refused_request(self):
         """A refused request is corrected and sent again: the suggested
         concepts, select for a value that is no measure, and a paged reply
         read to its end (Q04-Q30 2026-10-28)."""
-        report = self.skill('plasma-report')
+        report = self.compiled()
         for word in ('suggestions', 'is not a measure', 'read_tool_reply', 'has_more', 'aggregate'):
             self.assertIn(word, report, word)
 
@@ -161,27 +168,27 @@ class AdvancedSkillsTest(unittest.TestCase):
         request as ask; the person is asked in plain words and answers a
         column; the fill reads expects.rows; a failed validation is fixed,
         not asked (Q06 2026-10-28)."""
-        report = self.skill('plasma-report')
+        report = self.compiled()
         for word in ('"ask"', 'expects.rows', 'identity', 'validation', '母體'):
             self.assertIn(word, report, word)
 
     def test_report_skill_asks_by_the_attributes_own_name(self):
         """ask names the attribute alone; the question adds the entity
         it belongs to (Q06c 2026-10-28: 「發票明細」的「發票明細所屬工廠」)."""
-        self.assertIn('只寫屬性本身', self.skill('plasma-report'))
+        self.assertIn('只寫屬性本身', self.compiled())
 
     def test_report_skill_lists_a_ratios_parts_in_one_query(self):
         """A ratio's numerator and denominator the question lists are
         named in columns of the same request (Q05 2026-10-29: three
         queries, one per column)."""
-        self.assertIn('分子、分母', self.skill('plasma-report'))
+        self.assertIn('分子、分母', self.compiled())
 
     def test_report_skill_presents_around_the_compiled_query(self):
         """Presentation (a ROC year, a format, an order) wraps the compiled
         query unchanged in an outer SELECT and is told; another calendar is
         knowledge, not a bucket; a ROC year in a condition becomes the
         Gregorian period (2026-10-29)."""
-        report = self.skill('plasma-report')
+        report = self.skill('plasma-report') + self.compiled()
         for word in ('外面包一層', '原封不動', '民國', '農曆', 'bucket'):
             self.assertIn(word, report, word)
 
@@ -219,3 +226,83 @@ class AdvancedSkillsTest(unittest.TestCase):
 
     def test_setup_lists_knowledge_write(self):
         self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))
+
+
+class KnowledgeQueryTest(unittest.TestCase):
+    """A knowledge base is simple or advanced for good (Ophion app.mode);
+    the skills are the same capabilities, and only the path to the knowledge
+    differs: knowledge-query holds both paths and the sql-path the view and
+    report skills share."""
+
+    def text(self, *parts):
+        return (ROOT / 'skills').joinpath(*parts).read_text(encoding='utf-8')
+
+    def test_entry_tells_the_mode_by_the_tools(self):
+        entry = self.text('plasma-knowledge-query', 'SKILL.md')
+        self.assertTrue(entry.startswith('---\nname: plasma-knowledge-query\n'))
+        for word in ('read_knowledge', 'compile_query', 'search_knowledge', 'get_table_card',
+                     'references/standard.md', 'references/advanced.md',
+                     'references/sql-path/standard.md', 'references/sql-path/advanced.md'):
+            self.assertIn(word, entry, word)
+
+    def test_create_view_takes_its_sql_from_either_path(self):
+        view = self.text('plasma-create-view', 'SKILL.md')
+        for word in ('sql-path/standard.md', 'sql-path/advanced.md', 'compile_query', 'UNION ALL'):
+            self.assertIn(word, view, word)
+        self.assertNotIn('plasma-knowledge-lookup', view)
+
+    def test_a_view_compiles_without_a_cutoff_or_window(self):
+        """An mview syncs again and again: without as_of each sync reads every
+        key's latest version (sqlcompile rows()); the period is a bucketed
+        dimension the pview filters, not a window."""
+        compiled = self.text('plasma-knowledge-query', 'references', 'sql-path', 'advanced.md')
+        for word in ('要建成 mview 時', '不帶 `as_of`', '不帶 `window`', 'bucket', '不算 schema 變更'):
+            self.assertIn(word, compiled, word)
+
+    def test_advanced_only_skills_stop_in_simple_mode(self):
+        """One plugin serves both modes, so an advanced-only skill can be
+        triggered on a simple-mode system: it tells the mode by the tools
+        before it checks knowledge:write, says what to do instead and stops,
+        without asking for a reauthorization that cannot grant the scope."""
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps', 'plasma-remap', 'plasma-report'):
+            text = self.text(name, 'SKILL.md')
+            for word in ('本 skill 只用於進階模式', '核對 scopes 之前', '`compile_query`', '`search_knowledge`',
+                         '結束本 skill', '不要求使用者重新授權', '../plasma-knowledge-query/SKILL.md'):
+                self.assertIn(word, text, f'{name}: {word}')
+        self.assertIn('請在 Plasma 介面上傳', self.text('plasma-document-analysis', 'SKILL.md'))
+
+    def test_code_names_are_supplemented_in_either_mode(self):
+        """A missing code name is offered as a candidate in both modes; the
+        skills that use it link the mode-neutral page, not the simple-mode
+        lookup, and the advanced page keeps the compiled SQL unchanged."""
+        names = self.text('plasma-knowledge-query', 'references', 'code-names.md')
+        for word in ('一般模式', '進階模式', 'VALUES', 'CASE', '原封不動', '不用 `r.*`'):
+            self.assertIn(word, names, word)
+        for name in ('plasma-create-view', 'plasma-create-bi'):
+            text = self.text(name, 'SKILL.md')
+            self.assertIn('references/code-names.md', text, name)
+            self.assertNotIn('references/standard.md', text, name)
+
+    def test_failures_are_told_before_the_mode_is_known(self):
+        """With neither tool set the mode is unknown, so the whoami
+        diagnosis lives in the entry, not in the simple-mode page."""
+        entry = self.text('plasma-knowledge-query', 'SKILL.md')
+        self.assertIn('## 工具缺少或失敗', entry)
+        self.assertNotIn('## 工具缺少或失敗', self.text('plasma-knowledge-query', 'references', 'standard.md'))
+
+    def test_skills_call_it_plasma_sql(self):
+        """The skills say Plasma SQL; only the deepest page, the SQL rules,
+        says it is Trino syntax (ANSI SQL with Trino's functions)."""
+        rules = ROOT / 'skills' / 'plasma-knowledge-query' / 'references' / 'sql-path' / 'plasma-sql.md'
+        self.assertIn('Trino', rules.read_text(encoding='utf-8'))
+        for path in (ROOT / 'skills').rglob('*.md'):
+            if path != rules:
+                self.assertNotIn('trino', path.read_text(encoding='utf-8').lower(), path)
+
+    def test_sql_rules_are_written_once(self):
+        rules = self.text('plasma-knowledge-query', 'references', 'sql-path', 'plasma-sql.md')
+        self.assertIn('approx_percentile', rules)
+        for path in (('references', 'sql-path', 'standard.md'), ('references', 'sql-path', 'advanced.md')):
+            text = self.text('plasma-knowledge-query', *path)
+            self.assertIn('plasma-sql.md', text, path)
+            self.assertNotIn('approx_percentile', text, path)

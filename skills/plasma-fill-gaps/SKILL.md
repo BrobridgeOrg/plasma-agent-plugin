@@ -10,6 +10,8 @@ description: >-
 開始前先確認連線：依 [連結 Plasma 與診斷](../plasma-mcp-setup/SKILL.md) 完成授權，以 `whoami` 核對 workspace 與 `knowledge:write`，
 並以 `run_status` 記下 `setup.commit_page`（使用者確認發布的頁面）。
 
+**本 skill 只用於進階模式。** 核對 scopes 之前，先依 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md) 判斷模式：工具清單沒有 `compile_query`、但有 `search_knowledge` 時，這個系統是一般模式（建立後不會改變）。這時告訴使用者：這個系統是一般模式，plugin 目前沒有一般模式的補缺口流程，待補的問題請在 Plasma 介面處理，然後結束本 skill：不要求使用者重新授權（一般模式不提供 `knowledge:write`，重新授權也不會有）、不改用其他工具或自己寫 SQL 繞過。兩組工具都沒有時，依連結 Plasma 與診斷的「診斷」處理。
+
 文件裡缺定義、缺引用對象或有歧義的部分，已知內容與出處先保存為「待補」；補齊並通過檢查後才進入 Commit 區。
 補齊的來源只有兩種：使用者的回答，或之後上傳的文件。agent 不自行編造定義，也不替使用者選擇。
 

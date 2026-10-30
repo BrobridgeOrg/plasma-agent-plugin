@@ -94,12 +94,23 @@ mview 可準備全部所需資料，沒有這個筆數上限；其來源掃描�
 
 ## 2. 查核知識、驗證運算 SQL
 
-使用 [Plasma 知識庫技能](../plasma-knowledge-lookup/SKILL.md) 與
-[知識查核及 Trino SQL 規則](references/knowledge-sql.md) 完整查核來源後才產生 SQL。
-所有來源表、欄位與代碼依證據取得；mview 衍生欄位則以已驗證 SQL 與實際結果核對，
-不要求 Plasma 知識庫事先收錄本次新物件。
-已查核代碼的名稱／描述缺漏時，依知識庫技能的「候選補充」流程主動提出 LLM
+mview 的 SQL 依知識取得，取得方式依知識庫的模式而定（判斷方式見 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md)）：
+
+- **一般模式**（工具清單有 `search_knowledge`）：依 [一般模式的 sql-path](../plasma-knowledge-query/references/sql-path/standard.md)
+  完整查核來源後才撰寫 SQL。所有來源表、欄位與代碼依證據取得；mview 衍生欄位則以已驗證 SQL 與實際結果核對，
+  不要求 Plasma 知識庫事先收錄本次新物件。
+- **進階模式**（工具清單有 `compile_query`）：依 [進階模式的 sql-path](../plasma-knowledge-query/references/sql-path/advanced.md)
+  由 `compile_query` 編譯 SQL，第 4 節「要建成 mview 時」決定請求怎麼寫（不帶 `as_of`、`window`，期間寫成分組留給 pview）。
+  程式產生的 SQL 原樣作為 mview 的運算 SQL，只補洞、不改寫；`complete` 為 true 才往下建立。
+  `reading`、`basis` 與 `release` 是這個 mview 的定義依據，交付時列出。
+
+兩種模式下，代碼的名稱／描述缺漏時，都依 [代碼名稱的候選補充](../plasma-knowledge-query/references/code-names.md) 主動提出 LLM
 候選清單，取得使用者確認後才在 mview 套用；來源查核、補充核准與同步核准分別處理。
+
+兩種模式都把整份表單整合在一份 SQL，依第 1 節的粒度設計；
+進階模式一個請求對應一個指標或一組成員（比率的分子、分母可用 `columns` 一起輸出）；表單有多個指標時，以相同的分組分別編譯，
+各自放進一個 CTE、內層原封不動，再以 `UNION ALL` 合成第 1 節的「期別 × 區塊 × 指標」長格式（加上指標名稱欄），
+或以分組欄位 `FULL OUTER JOIN`；不用 INNER JOIN，避免只有部分指標有值的組被丟掉。
 
 `run_query` 會實際查來源，最多回傳 100 列；LIMIT 不能保證掃描／聚合量小。
 驗證採需求可接受的小時間範圍，避免反覆執行完整重查詢；不能將驗證用的範圍或
@@ -148,7 +159,7 @@ mview 名稱最多 **30 個字元**。使用者名稱過長時提出替代名稱
 ```
 
 - 所有名稱**使用 Plasma 回傳的 name**：workspace 取自 `whoami`，mview 取自 `get_view`，
-  來源表使用知識查核確認的 `database.table`。不用 ID、使用者口述名稱或自行翻譯的名稱代替；
+  來源表使用第 2 節取得的 SQL 實際讀取的 `database.table`（一般模式為知識查核確認的表，進階模式為編譯出的 SQL 讀取的表）。不用 ID、使用者口述名稱或自行翻譯的名稱代替；
   ID 只在交付時另外列出。工具沒有回傳 name 時標明「未回傳」，不猜測。
 - 開頭的來源 DB 說明句必須保留，讓使用者清楚同步是從來源 DB 拉資料，而非只在 Plasma 內運算。
 - ⚠️ 注意段落必須原文保留，不可刪減或弱化，讓使用者清楚「確認同步」即立即對來源 DB 拉取資料。
