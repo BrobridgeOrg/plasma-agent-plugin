@@ -46,8 +46,15 @@
    - 依回答把每個洞寫成一段 SQL：一個運算式，或用括號包起來的一個子查詢，只用 `expects` 列出的別名與欄位，或 schema 裡的表與欄位，寫法照 [Plasma SQL 寫法](plasma-sql.md)。表名照編譯出的 SQL 的寫法（例如 `"manufacturing"."ar_invoice"`）；
    - 洞的 `expects.rows` 給出那個實體的資料列（`from`：已套用截點與版本的那段查詢，以別名 `t` 讀）與一列的身分（`identity`）：洞要的是列時，以 `SELECT <identity> AS c1, … FROM <from> t` 為底，再依使用者說的欄位接上需要的表；
    - 以 `compile_query` 送出同一個請求並帶 `fills`（洞的 id → SQL 片段）。其餘部分由程式產生，照原樣保留。
-3. 回覆的 `complete` 為 true 才交出 SQL；`validation.valid` 為 false 時是補上的 SQL 寫法有誤：依錯誤自己修改片段再送，直到通過，不必問使用者。
-4. 使用者說不知道時，如實告訴使用者缺什麼資訊、目前無法算出，列出缺的項目；不自行假設數值或規則。
+3. 關聯洞（`reason` 為 `relation_unverified` 或 `relation_refuted`）是知識庫有這條關聯、但程式這次不讀它：文件寫了兩張表怎麼連接，Plasma 還沒驗證、無法驗證，或抽樣驗證時推翻了。洞的 `relation` 帶著這條關聯的完整內容：兩端的表（`from`、`to`）、連接欄位（`on`）、經過的表（`through`）與條件（`condition`）、基數與文件寫的原文（`stated`、`qualifier`）、出處（`doc`、`line`），以及狀態與原因（`status`、`use`、`reason`、`detail`；推翻時有抽樣筆數 `checked_rows` 與違反筆數 `violations`）。
+   - 把洞的 `question` 原樣問使用者；問句已經說明是哪條關聯、為什麼這次沒讀，以及推翻時的違反筆數。
+   - 使用者確認依這條關聯讀取時，依 `relation` 自己寫出那一段：洞要的列以 `expects.rows` 的 `from` 與 `identity` 為底（`c1` 是成員的身分，屬性的洞另有 `c2` 為值），照 `relation` 的 `on` 連到 `to` 的表；有 `through` 時依序經過那些表，並套用 `condition`。以 `fills` 再編譯。
+   - 工具清單有 `accept_relationship`（寫入群）時，以它保存使用者的確認（`relationship` 為 `relation.id`，附上問題與使用者的原話）：確認進 Commit 區，發布後之後的編譯就會直接讀這條關聯。`relation.reason` 為 `join_unknown` 時，問句會問文件寫的連接鍵各是哪個欄位：以 `complete_relationship` 保存使用者給的欄位（`on` 寫成 `欄位 = 另一張表的欄位`），發布後 Plasma 驗證補好的關聯。
+   - 工具清單沒有這兩個工具時，照樣用使用者的確認補這份 SQL，並告訴使用者：這次的確認只用在這份 SQL，要讓之後的查詢也直接用，須由有寫入權限的人確認。
+   - `relation_refuted` 的關聯被 Plasma 推翻，每份 SQL 都會再出現這個洞：每次都照問句問使用者，不沿用上次的回答。
+   - 編譯可能要等 Plasma 就地驗證需要的關聯（每次最多幾條，抽樣執行）；照常等待 `compile_query` 回覆，驗證通過的關聯不再是洞。
+4. 回覆的 `complete` 為 true 才交出 SQL；`validation.valid` 為 false 時是補上的 SQL 寫法有誤：依錯誤自己修改片段再送，直到通過，不必問使用者。
+5. 使用者說不知道時，如實告訴使用者缺什麼資訊、目前無法算出，列出缺的項目；不自行假設數值或規則。
 
 `complete` 為 true 的 `sql`，連同 `reading`、`basis`、`release` 與使用者補上的部分，就是交給呼叫技能的結果。
 使用者要的呈現方式（民國年、日期格式、排序、欄名）編譯結果沒有提供時，在外面包一層

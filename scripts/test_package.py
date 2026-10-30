@@ -106,8 +106,6 @@ class PackageTest(unittest.TestCase):
                     build(output=directory)
 
 
-if __name__ == '__main__':
-    unittest.main()
 
 
 class AdvancedSkillsTest(unittest.TestCase):
@@ -299,6 +297,19 @@ class KnowledgeQueryTest(unittest.TestCase):
             if path != rules:
                 self.assertNotIn('trino', path.read_text(encoding='utf-8').lower(), path)
 
+    def test_compiled_sql_explains_relation_holes(self):
+        """A relation hole is asked with the relationship it carries and,
+        once the person confirms, filled from it; the confirmation or the
+        join columns are kept when the agent may write."""
+        text = self.text('plasma-knowledge-query', 'references', 'sql-path', 'advanced.md')
+        for word in ('relation_unverified', 'relation_refuted', '`relation`', 'accept_relationship', 'complete_relationship', 'join_unknown'):
+            self.assertIn(word, text, word)
+        version = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
+        for manifest in ('.claude-plugin', '.codex-plugin'):
+            data = json.loads((ROOT / manifest / 'plugin.json').read_text(encoding='utf-8'))
+            self.assertEqual(version, data['version'], manifest)
+        self.assertTrue((ROOT / 'releases' / f'v{version}.md').exists())
+
     def test_sql_rules_are_written_once(self):
         rules = self.text('plasma-knowledge-query', 'references', 'sql-path', 'plasma-sql.md')
         self.assertIn('approx_percentile', rules)
@@ -306,3 +317,7 @@ class KnowledgeQueryTest(unittest.TestCase):
             text = self.text('plasma-knowledge-query', *path)
             self.assertIn('plasma-sql.md', text, path)
             self.assertNotIn('approx_percentile', text, path)
+
+
+if __name__ == '__main__':
+    unittest.main()
