@@ -151,6 +151,47 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertIn('錯誤不在片段', text)
         self.assertIn('`optimized`', text)
 
+    def test_a_question_is_read_as_the_knowledge_it_needs(self):
+        """The agent looks for what the question needs before it fills a
+        request; what fully matches is used, what does not is asked."""
+        text = self.compiled()
+        need = text.index('需要哪些知識')
+        match = text.index('完整符合')
+        near = text.index('不完全符合')
+        request = text.index('把問題拆成請求的各部分')
+        self.assertLess(need, match)
+        self.assertLess(match, near)
+        self.assertLess(near, request)
+        self.assertIn('不自己決定', text)
+
+    def test_a_near_concept_leads_to_the_concepts_it_reads(self):
+        """A concept that does not fully match is still an index: what it
+        reads may, and a new concept is built of that."""
+        text = self.compiled()
+        self.assertIn('`dependencies`', text)
+        self.assertIn('索引', text)
+
+    def test_a_new_concept_is_built_of_blocks_and_returns_to_the_commit_area(self):
+        text = self.compiled()
+        define = text.index('`define`')
+        fragment = text.index('寫成一段 SQL')
+        self.assertLess(define, fragment, 'a fragment is the last resort')
+        self.assertIn('Commit 區', text[define:])
+        self.assertIn('session.', text)
+
+    def test_a_leaf_with_no_column_offers_candidates_before_it_binds(self):
+        text = self.compiled()
+        leaf = text.index('`expects.leaf`')
+        search = text.index('`candidates`', leaf)
+        choose = text.index('候選', search)
+        bind = text.index('`bind`', choose)
+        self.assertLess(leaf, search)
+        self.assertLess(search, choose)
+        self.assertLess(choose, bind)
+
+    def test_a_reading_of_blocks_is_shown_with_what_it_warns(self):
+        self.assertIn('不一定是同一筆', self.compiled())
+
     def test_a_search_cut_short_is_narrowed(self):
         self.assertIn('縮小', self.compiled())
 
