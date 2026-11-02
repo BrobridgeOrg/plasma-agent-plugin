@@ -17,7 +17,7 @@ description: >-
 ## 1. 取得 SQL
 
 依 [進階模式的 sql-path](../plasma-knowledge-query/references/sql-path/advanced.md) 第 1 至 3 節：
-以 `read_knowledge` 找到指標與概念、組成請求，`compile_query` 編譯，把 `reading` 給使用者核對，問使用者每個洞並補上，直到 `complete` 為 true。
+以 `read_knowledge` 找到指標與概念、組成請求，`compile_query` 編譯，把 `reading` 給使用者核對，問使用者每個洞，用 `read_schema` 找到要讀的欄位並提議給使用者確認後補上，直到 `complete` 為 true 才有 `sql`。
 一次性報表可以帶 `as_of` 與 `window`；使用者說民國年時換成西元期間並說明換算。
 
 ## 2. 執行並交出結果

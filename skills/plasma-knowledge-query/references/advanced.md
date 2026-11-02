@@ -28,6 +28,6 @@ Plasma 上建立的 view 與 mview，進階模式會自動把它的 SQL 轉成�
 使用者要看實際怎麼查時，依 [進階模式的 sql-path](sql-path/advanced.md) 編譯：
 `select` 請求（`of` 為分類或實體，`attributes` 為要看的屬性），或指標的 `measure` 請求。
 
-- 把 `sql`、`reading` 與 `basis`（依據的規則、對應與假設）給使用者；
-- 有 `{{h…}}` 的洞時，說明每個洞的 `question`：那是知識庫還沒說清楚的地方；
+- 把 `reading` 與 `basis`（依據的規則、對應與假設）給使用者，`complete` 為 true 時連同 `sql`；
+- `complete` 為 false 時，說明每個洞的 `question`：那是知識庫還沒說清楚的地方；
 - 要執行時依 [出報表](../../plasma-report/SKILL.md) 補洞並以 `run_query` 執行。
