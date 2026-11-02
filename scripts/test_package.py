@@ -123,6 +123,15 @@ class AdvancedSkillsTest(unittest.TestCase):
         """The advanced sql-path the report and the view skills share."""
         return self.reference('sql-path/advanced.md')
 
+    def test_the_sql_path_proposes_what_it_reads_and_fills_once_confirmed(self):
+        """A person confirms what is read, in business words; the compiler's
+        reading lists their answers, and a compile with holes has no SQL."""
+        text = self.compiled()
+        for word in ('read_schema', 'answers', '確認'):
+            self.assertIn(word, text)
+        self.assertNotIn('{{h', text)
+        self.assertNotIn('{{h', self.reference('advanced.md'))
+
     def test_frontmatter_names_each_skill(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
