@@ -36,11 +36,13 @@ description: >-
 動手的範圍與收尾方式：
 
 - **取哪些項目**：`fill` 為 `evidence` 與 `retry` 的項目。`person` 的項目各用一次 `lookup_knowledge` 查 `missing` 的用語：其他文件寫明了缺的內容時，以那份文件的出處為依據接手；其餘項目照 `question` 問使用者。
-- **每項一次修補**：一個項目開一次 `resume_item`，修補一次，看回覆，然後換下一項。
+- **每項一次修補**：一個項目開一次 `resume_item`，修補一次，看回覆，然後換下一項。`finish_document` 回覆 `finished: false` 與 `lost_products` 時，修補還沒生效，這仍是同一次修補，依下一點處理。
+- **`lost_products` 在同一份工作裡處理**：列出的是這個片段原有、這次匯出沒有帶到的產物。還要保留時，對 `retry_target` 再呼叫一次 `begin_fragment`，連同它們一起匯出，再完成文件。原文不支持、確定要移除時，帶 `confirm: true` 呼叫 `finish_document`，並在最後的回報列出。這是 agent 自己的決定，`correction` 只用來照錄使用者的原話（第 6 節）。
 - **工具拒絕的修補記成待補**：提交被拒時，以 `report_gap` 或 `record_description` 記下原文說了什麼與拒絕的原因，關閉片段、完成文件，這一項留在待補清單，最後的回報列出原因。
-- **用回覆確認結果**：`finish_document` 回覆的 `changes` 列出這次修補對整份文件做了什麼，mapping 還沒結束時帶 `mapping_pending`，結束後看 `run_status` 的 `document.changes`。`rules`、`nodes`、`declarations`、`annotations`、`mapping` 各有 `kept`（數量）、`kept_in_fragment`、`changed`、`added`、`lost`，`gaps_closed` 是補上的缺口，`item_open` 與 `pending` 說這一項和這份文件還有沒有待補。這份回覆就是修補前後的比對。`lost` 列出的內容，在同一項補回：再匯出一次時連同它們一起匯出。
+- **用回覆確認結果**：`finish_document` 回覆的 `changes` 列出這次修補對整份文件做了什麼，mapping 還沒結束時帶 `mapping_pending`，結束後看 `run_status` 的 `document.changes`；沒有 `changes` 時看 `changes_unavailable`，改以 `read_translation` 確認。`rules`、`nodes`、`declarations`、`annotations`、`mapping` 各有 `kept`（數量）、`kept_in_fragment`、`changed`、`added`、`lost`，`gaps_closed` 是補上的缺口，`item_open` 與 `pending` 說這一項和這份文件還有沒有待補。這份回覆就是修補前後的比對。`lost` 是已確認移除的內容，連同 mapping 的 `lost` 一起列在最後的回報。
 - **同一份文件的多個項目依序做**：除了最後一項，`resume_item` 都帶 `more_repairs: true`，文件停在 `mapping_held`；最後一項不帶，完成時一次 mapping 涵蓋全部修補。
-- **結束**：範圍內的項目都走完一次、文件都到 `ready_to_commit`，再查一次 `pending_items`，然後依第 7 節請使用者發布，並回報仍待補的項目與原因。
+- **收掉 `mapping_held`**：最後一項開不起來或已不用補時，對這份文件在 `pending_items` 的 `mapping:…` 項目呼叫 `resume_item`，由它完成累積的 mapping。文件停在 `mapping_held` 時不會進入發布。
+- **結束**：範圍內的項目都走完一次、所有文件都到 `ready_to_commit`、沒有文件停在 `mapping_held`，再查一次 `pending_items`，然後依第 7 節請使用者發布，並回報仍待補的項目與原因。
 
 ## 3. 依項目種類補齊
 
