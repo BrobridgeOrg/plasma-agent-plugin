@@ -132,6 +132,28 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertNotIn('{{h', text)
         self.assertNotIn('{{h', self.reference('advanced.md'))
 
+    def test_fills_come_after_the_person_confirms_and_name_their_compile(self):
+        """What the agent reads is proposed before anything is sent, and a
+        reply with holes has no SQL to copy names from."""
+        text = self.compiled()
+        ask = text.index('把每個洞的 `question` 問使用者')
+        confirm = text.index('使用者確認之後才補')
+        send = text.index('帶 `fills`')
+        self.assertLess(ask, confirm)
+        self.assertLess(confirm, send)
+        self.assertIn('`compile_id`', text[send:send + 200])
+        self.assertNotIn('照編譯出的 SQL', text)
+
+    def test_a_refused_query_is_told_apart_from_a_wrong_fragment(self):
+        """Validation can fail away from the fragments, and an answer may be
+        the faithful query rather than the optimized one."""
+        text = self.compiled()
+        self.assertIn('錯誤不在片段', text)
+        self.assertIn('`optimized`', text)
+
+    def test_a_search_cut_short_is_narrowed(self):
+        self.assertIn('縮小', self.compiled())
+
     def test_frontmatter_names_each_skill(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = self.skill(name)
