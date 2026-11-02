@@ -189,6 +189,20 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertLess(search, choose)
         self.assertLess(choose, bind)
 
+    def test_a_changed_request_compiles_again_before_it_fills(self):
+        """define and bind are the request: holes of the compile before them
+        are no holes of this one."""
+        text = self.compiled()
+        change = text.index('改變後')
+        self.assertIn('compile_id', text[change:change + 120])
+        self.assertIn('不帶 `fills`', text[change:change + 120])
+
+    def test_a_concept_with_no_definition_is_filled_under_its_own_name(self):
+        """A published concept that reads the hole keeps reading it: a new name
+        would leave the hole where it is."""
+        text = self.compiled()
+        self.assertIn('用那個概念自己的名稱', text)
+
     def test_a_reading_of_blocks_is_shown_with_what_it_warns(self):
         self.assertIn('不一定是同一筆', self.compiled())
 
