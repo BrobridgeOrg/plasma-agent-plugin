@@ -138,7 +138,7 @@ class AdvancedSkillsTest(unittest.TestCase):
         text = self.compiled()
         ask = text.index('把每個洞的 `question` 問使用者')
         confirm = text.index('使用者確認之後才補')
-        send = text.index('帶 `fills`')
+        send = text.index('送出同一個請求並帶 `fills`')
         self.assertLess(ask, confirm)
         self.assertLess(confirm, send)
         self.assertIn('`compile_id`', text[send:send + 200])
