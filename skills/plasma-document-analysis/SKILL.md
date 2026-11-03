@@ -76,6 +76,7 @@ description: >-
    | 原文本身有歧義（參數關係、適用範圍不明） | 保留原文的歧義，請使用者指定意思；已知部分照存 |
 
    使用者的回答依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 轉交與連結。
+7. 原文補充、限縮或改變既有的規則時（例如「該規則只在 1–3 月生效」），不另寫一條：用 `lookup_knowledge` 查到那條規則與它的 `base_version`，以 `revise_rule` 寫出完整的新版本，理由寫原文說了什麼。原文說某條知識不再成立時，用 `delete_knowledge`。規則來自哪份文件、是否已發布都可以改；回覆會列出讀到它的概念與規則（影響），人在 Commit 頁確認或拒絕。
 
 單次工具呼叫有時間上限；回覆說仍在進行時，以 `run_status`（帶 `work_id`）輪詢，不重送同一個呼叫。
 
@@ -85,6 +86,7 @@ description: >-
 
 - **衝突要逐項處理才能結束**：伺服器比對這份文件開啟後別人完成或發布的內容，列出定義相近的新符號、同一符號的不同定義或文件換版。
   每一項依 protocol 決定改用對方的符號，或說明兩者是不同概念，處理完再呼叫 `finish_document`。
+- **版本衝突要重寫或撤回**：`version_conflicts` 列出寫在舊版本上的修改或刪除。`rule_changed` 表示別的文件先改了（附目前版本與差異），`base_rejected` 表示你依據的版本已被拒絕。重開該摘錄依 `current_version` 重寫，或以 `drop_changes` 撤回，再呼叫 `finish_document`。
 - **未引用行要看過**：有未引用行時，`finish_document` 回覆 `finished` 為 false 並列出 `uncited_lines`（沒有任何產物、描述、排除、缺口或延後引用的行）。
   有知識的行補上摘錄後再呼叫 `finish_document`；確實沒有可摘錄內容時，帶 `confirm` 為 true 再呼叫 `finish_document` 結束。
 
@@ -115,10 +117,11 @@ description: >-
 
 使用者指出某一項不對時：
 
-1. 依那一項的 `fragment_id`（項目沒有時是它所在群組的）呼叫 `resume_item`，帶 `correction` 照錄使用者的原話；對應段的項目用 `mapping:<doc_id>`。已發布的產物無法在這裡修正，回覆會說明。
-2. 使用者的說法帶來原文沒有的資訊時（例如同組只會選一行），先以 `submit_answer` 照錄使用者原話存成回答來源，修正的規則引用它。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
-3. 交給一個子代理，像處理一般文件一樣讀 protocol、重讀相關的行並修正、`finish_document`，再完成 mapping。修正針對使用者指出的那一項：同一段的其他產物照原樣重新提交，改過的規則沿用原本的概念與寫法，只改使用者說的部分。
-4. 修好後，以 `read_translation`（`fragment_id` 或 `ids`）取出改過的項目，貼給使用者再確認。
+1. 用 `lookup_knowledge` 找出那條規則的 ID 與版本：已發布的與 Commit 區裡未發布的都查得到。
+2. 以 `submit_answer` 照錄使用者的原話存成回答文件，不帶 `gap_fragment_id`：它就是這次修改的出處。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
+3. 交給一個子代理：`open_document` 開這份回答文件、讀 protocol，在回答的行上開片段，用 `revise_rule` 寫出那條規則的新版本（`base_version` 填查到的版本），或用 `delete_knowledge` 刪除，再 `finish_document`。只改使用者說的部分，其他照原樣。規則還在 Commit 區時，新版本取代 Commit 區裡的那一版；已發布的則在 Commit 區新增一列修改。
+4. 對應段的項目：以 `resume_item` 重開 `mapping:<doc_id>`，依使用者的話重做 mapping。
+5. 修好後，以 `read_translation` 取出改過的項目，貼給使用者再確認。
 
 使用者對資料對應沒有把握時，呼叫 `withdraw_mapping`（`document`，必要時帶 `entities` 或 `leaves`）取消這份文件的對應：概念照常保留、可以發布，取消的部分列為待補，之後由另一個人依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補 mapping。告訴使用者這件事。
 

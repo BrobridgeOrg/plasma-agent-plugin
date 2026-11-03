@@ -426,3 +426,14 @@ class ConceptOrDescriptionTest(unittest.TestCase):
         for want in ('看它說了什麼，不看它寫成句子、清單、表格還是標題', '怎麼讀、讀幾次、依什麼順序由你決定'):
             self.assertIn(want, text)
         self.assertNotIn('讀完全部內容才開始審查', text)
+
+
+class RevisionGuidanceTest(unittest.TestCase):
+    def test_document_analysis_revises_and_deletes_existing_knowledge(self):
+        """The agent changes existing knowledge with a new version or a
+        deletion, and a person's correction in conversation is an answer
+        document revising the rule (design 2026-11-03 §4.2, §4.3, §4.6)."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `gap_fragment_id`'):
+            self.assertIn(want, text)
+        self.assertNotIn('帶 `correction` 照錄使用者的原話', text)

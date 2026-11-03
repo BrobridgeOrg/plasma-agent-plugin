@@ -94,7 +94,7 @@ description: >-
 
 ## 6. 使用者指正翻譯
 
-使用者看了翻譯（`read_translation`）指出某一項不對時，照 [文件分析](../plasma-document-analysis/SKILL.md) 第 7 節處理：依該項的 `fragment_id` 以 `resume_item` 帶 `correction`（照錄原話）重開、修正後重新提交，再把改過的翻譯貼給使用者。
+使用者看了翻譯（`read_translation`）或在 Commit 頁看到某條規則有問題時，照 [文件分析](../plasma-document-analysis/SKILL.md) 第 8 節處理：把使用者的原話存成回答文件（`submit_answer` 不帶 `gap_fragment_id`），在回答文件的片段裡以 `revise_rule` 寫出新版本或以 `delete_knowledge` 刪除，再把改過的翻譯貼給使用者。
 
 ## 7. 完成
 
