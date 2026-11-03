@@ -312,6 +312,15 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))
 
 
+class MissingReferenceTest(unittest.TestCase):
+    def test_document_analysis_states_missing_references(self):
+        """A cited document Ophion has is read with read_source; one it does
+        not is asked for, saying what cannot be analysed and what is lost."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('read_source', '不補上，這些知識會遺失', '缺哪份文件、哪個段落'):
+            self.assertIn(want, text)
+
+
 class KnowledgeQueryTest(unittest.TestCase):
     """A knowledge base is simple or advanced for good (Ophion app.mode);
     the skills are the same capabilities, and only the path to the knowledge
