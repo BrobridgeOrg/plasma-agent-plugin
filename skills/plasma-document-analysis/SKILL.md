@@ -97,7 +97,16 @@ description: >-
 
 完成後向主代理回報一次：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。處理過程中不傳進度訊息。
 
-## 7. 請使用者確認翻譯
+摘錄沒說清楚是哪張表或哪個欄位時，照原文的名稱送 `submit_annotation`，不要自己猜，也不要因為不確定就不送。回覆的 `binding_gap` 表示程式先把這則說明存在一個待綁定的名稱上，繼續處理其他內容，規則不受影響。
+
+## 7. 問綁定缺口
+
+所有子代理回報後，主代理以 `pending_items`（`all` 為 true）找出 `reason` 為 `binding_gap` 的項目，把它們整理成一份一起問使用者：每項是哪份文件的什麼名稱、`candidates` 有哪些候選表或欄位，用業務說法說明。
+
+- 使用者說了是哪一個：呼叫 `bind_term`（`term`、`target` 為 `db.table` 或 `db.table.column`），下次發布時這則說明會移到那裡。
+- 使用者不確定、不想現在回答，或沒有人可以問：不用處理，它會留在待處理的缺口，使用者之後可以在 console 的 IT 規則頁手動綁定。不要替使用者挑候選。
+
+## 8. 請使用者確認翻譯
 
 所有子代理回報後，主代理對每份 `ready_to_commit` 的文件呼叫 `read_translation`（`document` 為檔名），把回覆的概念段（`concept`）與對應段（`mapping`）原樣貼給使用者：
 依來源摘錄分組，每組先列原文行號與原句（`lines`、`source`），再列每一項翻譯（`text`）。可以分文件、分段貼出，但不改寫、不摘要、不省略。
@@ -112,7 +121,7 @@ description: >-
 
 使用者對資料對應沒有把握時，呼叫 `withdraw_mapping`（`document`，必要時帶 `entities` 或 `leaves`）取消這份文件的對應：概念照常保留、可以發布，取消的部分列為待補，之後由另一個人依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補 mapping。告訴使用者這件事。
 
-## 8. 交給使用者發布
+## 9. 交給使用者發布
 
 主代理以 `run_status`（`uploads` 為 true）核對每份文件的狀態：回覆的 `uploads` 列出每份上傳文件，`document` 是它的狀態。不帶 `uploads` 時，在文件工作中呼叫不列上傳，不在工作中則只給各狀態的份數與尚未 `ready_to_commit` 的上傳。
 主代理的連線開著多份文件時，帶其中任一 `work_id`（`upload_status` 列出各文件的 `work_id`）；主代理沒有開文件時，`run_status` 不帶 `work_id`。
