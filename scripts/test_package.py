@@ -416,3 +416,13 @@ class KnowledgeQueryTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ConceptOrDescriptionTest(unittest.TestCase):
+    def test_document_analysis_judges_by_meaning_not_layout(self):
+        """What a passage says, not its layout, makes it a concept or a
+        description; how the agent reads is its own."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('看它說了什麼，不看它寫成句子、清單、表格還是標題', '怎麼讀、讀幾次、依什麼順序由你決定'):
+            self.assertIn(want, text)
+        self.assertNotIn('讀完全部內容才開始審查', text)
