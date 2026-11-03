@@ -312,6 +312,15 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))
 
 
+class MissingReferenceTest(unittest.TestCase):
+    def test_document_analysis_states_missing_references(self):
+        """A cited document Ophion has is read with read_source; one it does
+        not is asked for, saying what cannot be analysed and what is lost."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('read_source', '不補上，這些知識會遺失', '缺哪份文件、哪個段落'):
+            self.assertIn(want, text)
+
+
 class KnowledgeQueryTest(unittest.TestCase):
     """A knowledge base is simple or advanced for good (Ophion app.mode);
     the skills are the same capabilities, and only the path to the knowledge
@@ -407,3 +416,13 @@ class KnowledgeQueryTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ConceptOrDescriptionTest(unittest.TestCase):
+    def test_document_analysis_judges_by_meaning_not_layout(self):
+        """What a passage says, not its layout, makes it a concept or a
+        description; how the agent reads is its own."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('看它說了什麼，不看它寫成句子、清單、表格還是標題', '怎麼讀、讀幾次、依什麼順序由你決定'):
+            self.assertIn(want, text)
+        self.assertNotIn('讀完全部內容才開始審查', text)
