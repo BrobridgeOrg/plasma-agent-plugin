@@ -448,3 +448,11 @@ class RevisionGuidanceTest(unittest.TestCase):
         self.assertIn('使用者確認後才', flow)
         self.assertIn('read_rejected', text)
         self.assertIn('`staged`', text)
+
+    def test_a_revision_rereads_only_what_changed(self):
+        """A revised document: only git diff's changed lines are read again,
+        each affected rule is revised, deleted or kept, and an unhandled one
+        is decided before finishing (design 2026-11-03 §5)."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('affected_rules', 'keep_rule', 'affected_unhandled', '只重讀'):
+            self.assertIn(want, text)
