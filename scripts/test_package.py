@@ -437,3 +437,14 @@ class RevisionGuidanceTest(unittest.TestCase):
         for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `gap_fragment_id`'):
             self.assertIn(want, text)
         self.assertNotIn('帶 `correction` 照錄使用者的原話', text)
+
+    def test_a_correction_in_conversation_is_confirmed_before_it_is_staged(self):
+        """The new version's reading is shown and confirmed before
+        finish_document; a read version rejected since is a conflict too
+        (final review 16, 7)."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        flow = text[text.index('使用者指出某一項不對時'):]
+        self.assertLess(flow.index('`reading`'), flow.index('`finish_document`'))
+        self.assertIn('使用者確認後才', flow)
+        self.assertIn('read_rejected', text)
+        self.assertIn('`staged`', text)

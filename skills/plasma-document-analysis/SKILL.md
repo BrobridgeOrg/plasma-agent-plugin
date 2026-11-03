@@ -86,7 +86,7 @@ description: >-
 
 - **衝突要逐項處理才能結束**：伺服器比對這份文件開啟後別人完成或發布的內容，列出定義相近的新符號、同一符號的不同定義或文件換版。
   每一項依 protocol 決定改用對方的符號，或說明兩者是不同概念，處理完再呼叫 `finish_document`。
-- **版本衝突要重寫或撤回**：`version_conflicts` 列出寫在舊版本上的修改或刪除。`rule_changed` 表示別的文件先改了（附目前版本與差異），`base_rejected` 表示你依據的版本已被拒絕。重開該摘錄依 `current_version` 重寫，或以 `drop_changes` 撤回，再呼叫 `finish_document`。
+- **版本衝突要重寫或撤回**：`version_conflicts` 列出寫在舊版本上的修改或刪除。`rule_changed` 表示別的文件先改了（附目前版本與差異），`base_rejected` 表示你依據的版本已被拒絕。重開該摘錄依 `current_version` 重寫，或以 `drop_changes` 撤回，再呼叫 `finish_document`。`read_rejected` 表示你用 `lookup_knowledge` 讀過的版本（`base_version`）後來被拒絕、現在是 `current_version`：檢查依它寫的內容在目前版本下是否仍成立，不成立就重開摘錄修改，再呼叫 `finish_document`。
 - **未引用行要看過**：有未引用行時，`finish_document` 回覆 `finished` 為 false 並列出 `uncited_lines`（沒有任何產物、描述、排除、缺口或延後引用的行）。
   有知識的行補上摘錄後再呼叫 `finish_document`；確實沒有可摘錄內容時，帶 `confirm` 為 true 再呼叫 `finish_document` 結束。
 
@@ -119,11 +119,11 @@ description: >-
 
 1. 用 `lookup_knowledge` 找出那條規則的 ID 與版本：已發布的與 Commit 區裡未發布的都查得到。
 2. 以 `submit_answer` 照錄使用者的原話存成回答文件，不帶 `gap_fragment_id`：它就是這次修改的出處。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
-3. 交給一個子代理：`open_document` 開這份回答文件、讀 protocol，在回答的行上開片段，用 `revise_rule` 寫出那條規則的新版本（`base_version` 填查到的版本），或用 `delete_knowledge` 刪除，再 `finish_document`。只改使用者說的部分，其他照原樣。規則還在 Commit 區時，新版本取代 Commit 區裡的那一版；已發布的則在 Commit 區新增一列修改。
-4. 對應段的項目：以 `resume_item` 重開 `mapping:<doc_id>`，依使用者的話重做 mapping。
-5. 修好後，以 `read_translation` 取出改過的項目，貼給使用者再確認。
+3. 主代理自己處理，不交給子代理（要等使用者確認）：`open_document` 開這份回答文件、讀 protocol，在回答的行上開片段，用 `revise_rule` 寫出那條規則的新版本（`base_version` 填查到的版本），或用 `delete_knowledge` 刪除。只改使用者說的部分，其他照原樣。
+4. 先確認再入區：把 `revise_rule` 回覆的 `reading`（新版本的中文讀法）原樣貼給使用者，刪除則說明要刪的是哪條規則或概念、回覆的 `impact` 列出哪些規則讀它。使用者確認後才 `finish`、`close_fragment`、`finish_document`，送進 Commit 區：規則還在 Commit 區時，新版本取代 Commit 區裡的那一版；已發布的則在 Commit 區新增一列修改。使用者不同意時，依他的話再寫一次再確認；使用者要放棄時，`close_fragment` 不 `finish`，什麼都不送。
+5. 對應段的項目：以 `resume_item` 重開 `mapping:<doc_id>`，依使用者的話重做 mapping。
 
-使用者對資料對應沒有把握時，呼叫 `withdraw_mapping`（`document`，必要時帶 `entities` 或 `leaves`）取消這份文件的對應：概念照常保留、可以發布，取消的部分列為待補，之後由另一個人依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補 mapping。告訴使用者這件事。
+使用者對資料對應沒有把握時，呼叫 `withdraw_mapping`（`document`，必要時帶 `entities` 或 `leaves`）取消這份文件的對應：概念照常保留、可以發布，取消的部分列為待補，之後由另一個人依 [補齊缺口](../plasma-fill-gaps/SKILL.md) 補 mapping。已發布的對應不會立刻消失：回覆的 `staged` 列出等在 Commit 區的撤銷，使用者在 Commit 頁發布後才生效。只帶 `entities`、不帶 `leaves` 時，若該實體已沒有任何欄位對應依賴它，連實體對應的資料表也一併撤回（回覆列 `entity:<名稱>`）。告訴使用者這件事。
 
 ## 9. 交給使用者發布
 
