@@ -426,3 +426,33 @@ class ConceptOrDescriptionTest(unittest.TestCase):
         for want in ('看它說了什麼，不看它寫成句子、清單、表格還是標題', '怎麼讀、讀幾次、依什麼順序由你決定'):
             self.assertIn(want, text)
         self.assertNotIn('讀完全部內容才開始審查', text)
+
+
+class RevisionGuidanceTest(unittest.TestCase):
+    def test_document_analysis_revises_and_deletes_existing_knowledge(self):
+        """The agent changes existing knowledge with a new version or a
+        deletion, and a person's correction in conversation is an answer
+        document revising the rule (design 2026-11-03 §4.2, §4.3, §4.6)."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `gap_fragment_id`'):
+            self.assertIn(want, text)
+        self.assertNotIn('帶 `correction` 照錄使用者的原話', text)
+
+    def test_a_correction_in_conversation_is_confirmed_before_it_is_staged(self):
+        """The new version's reading is shown and confirmed before
+        finish_document; a read version rejected since is a conflict too
+        (final review 16, 7)."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        flow = text[text.index('使用者指出某一項不對時'):]
+        self.assertLess(flow.index('`reading`'), flow.index('`finish_document`'))
+        self.assertIn('使用者確認後才', flow)
+        self.assertIn('read_rejected', text)
+        self.assertIn('`staged`', text)
+
+    def test_a_revision_rereads_only_what_changed(self):
+        """A revised document: only git diff's changed lines are read again,
+        each affected rule is revised, deleted or kept, and an unhandled one
+        is decided before finishing (design 2026-11-03 §5)."""
+        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+        for want in ('affected_rules', 'keep_rule', 'affected_unhandled', '只重讀'):
+            self.assertIn(want, text)
