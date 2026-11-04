@@ -456,3 +456,33 @@ class RevisionGuidanceTest(unittest.TestCase):
         text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
         for want in ('affected_rules', 'keep_rule', 'affected_unhandled', '只重讀'):
             self.assertIn(want, text)
+
+
+class StoredConceptsGuidanceTest(unittest.TestCase):
+    """Document analysis follows the stored-concepts protocol (Ophion spec
+    2026-11-04): column rows declare stored concepts, a fragment carries its
+    statement mode, a kept existing definition stands with its reason."""
+
+    def text(self):
+        return (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
+
+    def test_column_rows_declare_stored_concepts_not_rules(self):
+        text = self.text()
+        self.assertIn('儲存概念', text)
+        self.assertIn('橋接由程式產生', text)
+        self.assertNotIn('欄位記成 clue', text)
+        self.assertNotIn('就是概念，寫成規則', text)
+        self.assertIn('看它說了什麼，不看它寫成句子、清單、表格還是標題', text)
+
+    def test_a_fragment_carries_its_statement_mode(self):
+        text = self.text()
+        self.assertIn('begin_fragment', text)
+        self.assertIn('陳述模式', text)
+
+    def test_existing_definitions_and_rule_checks_are_handled_before_finishing(self):
+        text = self.text()
+        for want in ('existing_definition', 'rule_checks', '不擋發布'):
+            self.assertIn(want, text)
+
+    def test_the_person_is_told_about_versioning_conflicts(self):
+        self.assertIn('版本規則', self.text())
