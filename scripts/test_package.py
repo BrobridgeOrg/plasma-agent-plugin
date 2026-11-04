@@ -10,7 +10,8 @@ from package_plugin import ROOT, build
 
 
 SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-query',
-               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-remap'}
+               'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-remap',
+               'plasma-code-notes'}
 
 
 def by_host(archives):
@@ -486,3 +487,32 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
 
     def test_the_person_is_told_about_versioning_conflicts(self):
         self.assertIn('版本規則', self.text())
+
+
+class CodeNotesTest(unittest.TestCase):
+    """A user's agent reads code and writes what it read as notes at a
+    stable path, uploaded as an ordinary document (Ophion spec 2026-11-04
+    §8 rulings 1 and 5)."""
+
+    def text(self):
+        return (ROOT / 'skills' / 'plasma-code-notes' / 'SKILL.md').read_text()
+
+    def test_it_is_for_code_and_database_objects(self):
+        head = self.text().split('---')[1]
+        self.assertIn('使用者要把程式碼、DDL 或資料庫物件的知識交給 Plasma 知識庫時使用', head)
+
+    def test_notes_live_at_a_stable_path_and_go_through_document_analysis(self):
+        text = self.text()
+        for want in ('user-notes/', '同一路徑', '../plasma-document-analysis/SKILL.md'):
+            self.assertIn(want, text)
+        self.assertNotIn('submit_answer', text.replace('不用 `submit_answer`', ''))
+
+    def test_each_point_keeps_statement_snippet_source_and_mode_together(self):
+        text = self.text()
+        for want in ('```', '出處', '路徑:行', '模式', '同一段', '推得'):
+            self.assertIn(want, text)
+
+    def test_the_code_criteria_are_there(self):
+        text = self.text()
+        for want in ('iota', 'now()', '預期', '樂觀鎖', 'migration', '前端', 'feature flag', '測試', 'DeletedAt'):
+            self.assertIn(want, text)
