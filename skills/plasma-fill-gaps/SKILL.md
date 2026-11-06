@@ -98,6 +98,8 @@ description: >-
 
 使用者看了翻譯（`read_translation`）或在 Commit 頁看到某條規則有問題時，照 [文件分析](../plasma-document-analysis/SKILL.md) 第 8 節處理：把使用者的原話存成回答文件（`submit_answer` 不帶 `gap_fragment_id`），在回答文件的片段裡以 `revise_rule` 寫出新版本或以 `delete_knowledge` 刪除，再把改過的翻譯貼給使用者。
 
+指正的是已發布的資料對應（概念對錯欄位）時：以 `withdraw_mapping` 撤回那筆對應，請使用者在頁面上發布撤回，再以 `resume_item` 重開這份文件的 mapping 重新對應。重新上傳同一份文件不會改變對應。
+
 ## 7. 完成
 
 補齊的文件到 `ready_to_commit` 後，請使用者到 Commit 頁（`setup.commit_page`）逐條勾選、預覽並確認發布；發布只能由使用者在頁面上操作。
