@@ -67,6 +67,7 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 | `plasma-document-analysis` | 進階模式：上傳文件並分析成知識 |
 | `plasma-fill-gaps` | 進階模式：補齊知識缺口 |
 | `plasma-remap` | 進階模式：schema 變更後重新對應既有概念 |
+| `plasma-code-notes` | 進階模式：讀程式碼、DDL 或資料庫物件，寫成筆記以穩定路徑上傳分析 |
 
 知識庫的模式（一般或進階）建立後不會改變；兩種模式能做的事相同，差別在文件的處理方式與使用知識的路徑。
 skills 依工具清單判斷模式：有 `read_knowledge`、`compile_query` 是進階模式，有 `search_knowledge` 是一般模式。

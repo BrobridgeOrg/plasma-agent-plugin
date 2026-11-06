@@ -13,7 +13,9 @@ description: >-
 **本 skill 只用於進階模式。** 核對 scopes 之前，先依 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md) 判斷模式：工具清單沒有 `compile_query`、但有 `search_knowledge` 時，這個系統是一般模式（建立後不會改變）。這時告訴使用者：這個系統是一般模式，plugin 目前沒有一般模式的補缺口流程，待補的問題請在 Plasma 介面處理，然後結束本 skill：不要求使用者重新授權（一般模式不提供 `knowledge:write`，重新授權也不會有）、不改用其他工具或自己寫 SQL 繞過。兩組工具都沒有時，依連結 Plasma 與診斷的「診斷」處理。
 
 文件裡缺定義、缺引用對象或有歧義的部分，已知內容與出處先保存為「待補」；補齊並通過檢查後才進入 Commit 區。
-補齊的來源只有兩種：使用者的回答，或文件寫明的內容（已在系統裡的文件與之後上傳的文件）。agent 不自行編造定義，也不替使用者選擇。
+補齊的來源：使用者的回答、文件寫明的內容（已在系統裡的文件與之後上傳的文件），或使用者授權你自行補齊時你讀到的來源（資料表的列、schema、其他系統）。
+授權補齊時，以 `submit_answer` 把讀到的內容放在 `answer`、讀取位置放在 `source`，它存成回答文件並記下依據，照第 4 節在回答文件引用；片段的 `statement.channel` 用 `user_added`。產物一樣進 Commit 區，由使用者確認發布。
+使用者沒有授權、或回答與來源都沒寫明的內容，照 `question` 問使用者或留在待補：不自行編造定義，也不替使用者選擇。
 
 ## 1. 查詢待補項目
 
@@ -57,16 +59,16 @@ description: >-
 | mapping | `mapping:…` | `mapping` | 這份文件的 mapping 沒完成：`resume_item` 重新開啟 mapping，完成到文件為 `ready_to_commit` |
 | mapping | `mapping:…` | `gap`，缺口說明為「使用者取消，待另一人做 mapping」 | 使用者取消了這份文件的對應，交給另一個人（通常是 IT）：`resume_item` 重新開啟這份文件的 mapping，照文件分析 skill 第 6 節完成，完成後重新查詢 `pending_items` |
 | mapping | `mapping:…` | `gap`，`reason` 為缺口種類（如 `mapping_refuted`、`unmapped`） | mapping 已完成但留下資料對應缺口：照 `question` 請使用者提供資料來源或確認對應，並轉交回答（第 4 節）；之後用 `resume_item` 重新開啟這份文件的 mapping 再做一次（回答文件可用 `mapping_read_source` 讀取），完成後重新查詢 `pending_items` |
-| 純缺口 | `gap:…`（以及 `formula-gap:…`、`policy-validation:…`） | `gap` | 沒有片段可重開的缺口，照 `question` 補齊。沒有任何規則定義的概念由定義它的文件補齊：使用者上傳後依文件分析 skill 處理，以同一符號寫出定義；或請使用者回答並轉交（第 4 節），在回答文件中以同一符號寫出定義並引用回答。系統失敗如實回報給使用者。補齊後重新查詢 `pending_items`，確認這一項已消失 |
+| 純缺口 | `gap:…`、`read-pending:…`（以及 `formula-gap:…`、`policy-validation:…`） | `gap` | 沒有自己片段的缺口。`resume_item` 會開啟處理它的片段：`read-pending:…` 開啟寫讀法的那段文字（綁定後的用語也算），其他缺口開啟宣告缺少概念的片段；回覆的 `resumed_for` 是原項目，依原文、回答或授權的來源在該片段補齊。找不到片段時，`resume_item` 的錯誤說明怎麼補：由定義它的文件補齊（使用者上傳後依文件分析 skill 處理，以同一符號寫出定義），或請使用者回答並轉交（第 4 節），在回答文件中以同一符號寫出定義並引用回答。系統失敗如實回報給使用者。補齊後重新查詢 `pending_items`，確認這一項已消失 |
 | 事實衝突 | `metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…` | `gap` | 不同文件對同一項資料事實或常數說法不一：請使用者到 Commit 頁（`setup.commit_page`）的「事實衝突」區，填上自己的名字裁定採用哪一個；裁定後重新查詢 `pending_items` |
 | 待裁定的讀取規則 | `metadata-reader:…` | `gap` | 讀取了有衝突的資料事實的規則，先保留不發布：上一列的衝突裁定後，下一次發布自然帶入 |
-| 規則檢查 | `rule-check:…` | `gap`，`reason` 為檢查種類（如 `narrower_than`） | 已暫存的規則，經後到文件帶來的概念比對後，可能讓使用端寫出錯誤 SQL，`question` 說明原因：用 `resume_item` 以該規則的摘錄重開（第 5 節），重新匯出修正規則，或在 `finish_document` 以 `rule_check_answers` 說明規則為何正確；之後重新查詢 `pending_items` 確認這一項已消失 |
+| 規則檢查 | `rule-check:…` | `gap`，`reason` 為檢查種類（如 `narrower_than`） | 已暫存的規則，經後到文件帶來的概念比對後，可能讓使用端寫出錯誤 SQL；或規則讀的代碼，後來才有代碼表關聯（`code_name_unchecked`）。`question` 說明原因：用 `resume_item` 以該規則的摘錄重開（第 5 節），重新匯出修正規則（原文同時寫了名稱與代碼時，送 `submit_backbone` kind `code_name`），或在 `finish_document` 以 `rule_check_answers` 說明規則為何正確、原文沒寫名稱；之後重新查詢 `pending_items` 確認這一項已消失 |
 | 概念 DAG | `dag:…`，或 `gap:…` 且 `reason` 為 `unit_unknown`、`unit_mismatch`、`conversion_unmapped`、`grain_mismatch`、`measure_incomplete`、`incomplete` | `gap` | 單位、換算、粒度或統計定義缺資訊：`unit_unknown` 請 IT 說明欄位存放的單位；`unit_mismatch` 請說明換算依據（係數或查表）；`conversion_unmapped` 請說明係數或匯率在哪個欄位；`grain_mismatch` 請說明關聯是一對一還是一對多；`measure_incomplete` 依 `detail` 列出的欄位逐項問業務（例如是總和比還是各列比率平均）；`incomplete` 是上層概念因子概念不完整而不完整，已摺疊在根本原因那一項底下（`causes` 是缺口的 `references`，`all: true` 時看 `waits_on`），補根本原因那一項。回答依第 4 節轉交，補上的單位或係數引用該回答 |
 | 系統狀態 | `system:…` | `gap`，`reason` 為 `system_failure` | 待補缺口無法列出：把 `missing` 如實回報給使用者；其他項目照常處理 |
 
 `pending_items` 回覆有 `definition_rulings` 時，是使用者在 Commit 頁對同一概念兩份定義的裁定：採用的一份（`adopted`）與擱置的一份（`set_aside`），各有文件、版本與來源。`status` 為 `staged` 表示下一次發布才生效，`applied` 表示已生效，`stale` 表示裁定後有一份定義改了、裁定不再套用，請使用者到 Commit 頁重新裁定；`retired` 表示已沒有可裁定的兩份定義（`reason` 說明原因，例如某份文件不再定義該概念），不必再請使用者裁定。這不是待補項目，不用 `resume_item`。
 
-`resume_item` 用於片段、文件版本、mapping 與規則檢查項目；純缺口、事實衝突、待裁定的讀取規則與系統狀態由文件、回答或裁定補齊，重新查詢 `pending_items` 確認。
+`resume_item` 用於片段（包括已處理完成的片段）、純缺口、文件版本、mapping 與規則檢查項目；事實衝突、待裁定的讀取規則與系統狀態由回答或裁定處理，之後重新查詢 `pending_items` 確認。
 `resume_item` 回覆錯誤時，錯誤說明這一項如何補齊，照該說明處理。
 
 ## 4. 轉交使用者的回答
