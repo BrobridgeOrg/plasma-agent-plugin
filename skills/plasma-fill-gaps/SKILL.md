@@ -59,7 +59,7 @@ description: >-
 | mapping | `mapping:…` | `mapping` | 這份文件的 mapping 沒完成：`resume_item` 重新開啟 mapping，完成到文件為 `ready_to_commit` |
 | mapping | `mapping:…` | `gap`，缺口說明為「使用者取消，待另一人做 mapping」 | 使用者取消了這份文件的對應，交給另一個人（通常是 IT）：`resume_item` 重新開啟這份文件的 mapping，照文件分析 skill 第 6 節完成，完成後重新查詢 `pending_items` |
 | mapping | `mapping:…` | `gap`，`reason` 為缺口種類（如 `mapping_refuted`、`unmapped`） | mapping 已完成但留下資料對應缺口：照 `question` 請使用者提供資料來源或確認對應，並轉交回答（第 4 節）；之後用 `resume_item` 重新開啟這份文件的 mapping 再做一次（回答文件可用 `mapping_read_source` 讀取），完成後重新查詢 `pending_items` |
-| 純缺口 | `gap:…`、`read-pending:…`（以及 `formula-gap:…`、`policy-validation:…`） | `gap` | 沒有自己片段的缺口。`resume_item` 會開啟處理它的片段：`read-pending:…` 開啟寫讀法的那段文字（綁定後的用語也算），其他缺口開啟宣告缺少概念的片段；回覆的 `resumed_for` 是原項目，依原文、回答或授權的來源在該片段補齊。找不到片段時，`resume_item` 的錯誤說明怎麼補：由定義它的文件補齊（使用者上傳後依文件分析 skill 處理，以同一符號寫出定義），或請使用者回答並轉交（第 4 節），在回答文件中以同一符號寫出定義並引用回答。系統失敗如實回報給使用者。補齊後重新查詢 `pending_items`，確認這一項已消失 |
+| 純缺口 | `gap:…`、`read-pending:…`（以及 `formula-gap:…`、`policy-validation:…`） | `gap` | 沒有自己片段的缺口。`resume_item` 會開啟處理它的片段：`read-pending:…` 開啟寫讀法的那段文字（綁定後的用語也算），範圍涵蓋的欄寫讀法轉換規則，範圍外的欄以 `submit_annotation`（`kind` `read_format`、`format` `as_stored`）標記照原樣讀；其他缺口開啟宣告缺少概念的片段；回覆的 `resumed_for` 是原項目，依原文、回答或授權的來源在該片段補齊。找不到片段時，`resume_item` 的錯誤說明怎麼補：由定義它的文件補齊（使用者上傳後依文件分析 skill 處理，以同一符號寫出定義），或請使用者回答並轉交（第 4 節），在回答文件中以同一符號寫出定義並引用回答。系統失敗如實回報給使用者。補齊後重新查詢 `pending_items`，確認這一項已消失 |
 | 事實衝突 | `metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…` | `gap` | 不同文件對同一項資料事實或常數說法不一：請使用者到 Commit 頁（`setup.commit_page`）的「事實衝突」區，填上自己的名字裁定採用哪一個；裁定後重新查詢 `pending_items` |
 | 待裁定的讀取規則 | `metadata-reader:…` | `gap` | 讀取了有衝突的資料事實的規則，先保留不發布：上一列的衝突裁定後，下一次發布自然帶入 |
 | 規則檢查 | `rule-check:…` | `gap`，`reason` 為檢查種類（如 `narrower_than`） | 已暫存的規則，經後到文件帶來的概念比對後，可能讓使用端寫出錯誤 SQL；或規則讀的代碼，後來才有代碼表關聯（`code_name_unchecked`）。`question` 說明原因：用 `resume_item` 以該規則的摘錄重開（第 5 節），重新匯出修正規則（原文同時寫了名稱與代碼時，送 `submit_backbone` kind `code_name`），或在 `finish_document` 以 `rule_check_answers` 說明規則為何正確、原文沒寫名稱；之後重新查詢 `pending_items` 確認這一項已消失 |
@@ -86,6 +86,7 @@ description: >-
 ## 5. 補齊一個項目
 
 `resume_item`（`fragment_id`）把一個項目開成一份工作，回覆它的 `work_id`；補這一項的每次呼叫（文件工具、`run_status`、`read_task`、`mapping_*`）都帶上它。
+查已有的知識直接用 `lookup_knowledge`：還沒開工作，或自己的工作已結束時，不帶 `work_id` 也查得到已發布與 Commit 區的知識。
 項目多時每項交給一個子代理，由主代理協調共用的概念與要問使用者的問題。
 
 - 片段項目：以 `retry_target` 指出的摘錄開啟。先用 `read_task`（`target` 為 `document`）讀完 protocol，重新讀取相關的行，依 protocol 補齊後呼叫 `finish_document`；之後照文件分析 skill 第 6 節完成 mapping。mapping 只派發這次修補動到的概念。
