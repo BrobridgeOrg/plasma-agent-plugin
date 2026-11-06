@@ -16,7 +16,7 @@ description: >-
 
 ## 1. 確認需要重新對應
 
-不帶 `work_id` 呼叫 `run_status`：
+以 `work_id` `workspace` 呼叫 `run_status`：
 
 - `setup.remap_needed` 為 true 時，`setup.remap` 說明知識對應於哪一版、目前是哪一版。把這兩版告訴使用者，說明接下來要重新對應既有概念、不重新摘錄，期間不能上傳新文件。
 - `setup.remap_needed` 不存在時，不需要重新對應：告訴使用者，不呼叫 `run_mapping`。
@@ -26,7 +26,7 @@ description: >-
 
 1. 呼叫 `run_mapping`，開始重新對應的作業。
 2. 以 `run_status`（`wait_seconds` 15）等到 `task.ready`，或作業結束（`running` 為 false）。
-   重新對應是整個 workspace 的作業，不屬於任何一份文件：即使這個連線（或子代理）還開著文件，`run_status`、`read_task`（`target` 為 `task`）與 `mapping_*` 都不帶 `work_id`。
+   重新對應是整個 workspace 的作業，不屬於任何一份文件：`run_status`、`read_task`（`target` 為 `task`）與 `mapping_*` 一律帶 `work_id` `workspace`，即使這個連線（或子代理）還開著文件、文件自己的對應任務也在等待。
    作業等你接任務時，已開著的文件仍可照常 `finish_document`；只是不開始新的上傳與分析。
 3. `task.ready` 時，以 `read_task`（`target` 為 `task`）讀完這個任務，一次呼叫讀一頁，讀到 `next` 等於 `total`；
    再以 `mapping_*` 工具完成對應，每個任務以 `mapping_finish` 結束。對應的作法與 [文件分析](../plasma-document-analysis/SKILL.md) 第 6 節相同：
