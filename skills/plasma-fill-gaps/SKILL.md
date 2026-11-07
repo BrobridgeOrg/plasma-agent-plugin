@@ -69,6 +69,7 @@ description: >-
 `pending_items` 回覆有 `definition_rulings` 時，是使用者在 Commit 頁對同一概念兩份定義的裁定：採用的一份（`adopted`）與擱置的一份（`set_aside`），各有文件、版本與來源。`status` 為 `staged` 表示下一次發布才生效，`applied` 表示已生效，`stale` 表示裁定後有一份定義改了、裁定不再套用，請使用者到 Commit 頁重新裁定；`retired` 表示已沒有可裁定的兩份定義（`reason` 說明原因，例如某份文件不再定義該概念），不必再請使用者裁定。這不是待補項目，不用 `resume_item`。
 
 `resume_item` 用於片段（包括已處理完成的片段）、純缺口、文件版本、mapping 與規則檢查項目；事實衝突、待裁定的讀取規則與系統狀態由回答或裁定處理，之後重新查詢 `pending_items` 確認。
+項目帶 `resume_after` 時，它的文件還在這個連線做 mapping：照 `resume_after` 先完成那個 `work_id` 的 mapping（`read_task` 與 `mapping_*` 帶該 `work_id`，到 `run_status` 顯示 `ready_to_commit`），再 `resume_item` 這一項。
 `resume_item` 回覆錯誤時，錯誤說明這一項如何補齊，照該說明處理。
 
 ## 4. 轉交使用者的回答

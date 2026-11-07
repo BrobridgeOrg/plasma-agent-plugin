@@ -70,7 +70,7 @@ description: >-
    - **由其他概念算出的值**：例如乘積、總和、差、時間差、單位或幣別換算，用 `submit_node` 宣告 `compute` 或 `convert` 節點，`basis` 引原文；換算係數照原文寫，查表取得的係數或匯率宣告成輸入概念，並寫明查表用的關聯。
    - **跨列的總和或計數**：用 `submit_node` 的 `aggregate`，寫明經哪個關聯、哪些列計入（population）。
    - **指標**：用 `submit_node` 的 `op measure`，逐欄填原文說的：分子、分母、加權方式（`ratio_of_sums` 或 `mean_of_ratios`）、維度、時間窗、分母為 0 與缺值的處理。原文沒說的欄位留空。缺分子或分母、分子分母要加總的值或要計數的列、維度，比率缺加權方式或分母為 0 的處理，區間類指標缺排序時間時，系統會列缺口並附問句；其他欄位（例如缺值處理）留空不會自動列缺口，原文沒說明而會影響結果時，回報主代理詢問。計入的列仍以規則寫出。
-   - **IT 文件的儲存語意**：欄位存放的單位與倍率、逐列記錄單位的欄位、UTC 或當地時間、文字讀法（小數逗號、NULL 標記、哨兵值）、表的版本語意（同一業務記錄有多列版本時依查詢截點挑哪一列：每鍵取最新、刪除旗標、截點當時有效的期間），用 `submit_annotation` 記在欄位或表上。
+   - **IT 文件的儲存語意**：欄位存放的單位與倍率、逐列記錄單位的欄位、UTC 或當地時間、文字讀法（小數逗號、NULL 標記、哨兵值）、表的版本語意（同一業務記錄有多列版本時依查詢截點挑哪一列：每鍵取最新、刪除旗標、截點當時有效的期間），用 `submit_annotation` 記下：單位、時間基準與文字讀法記在欄位上，版本語意記在表上；整個資料庫或表通用的日期格式用 `read_statement`；資料集檔案本身的讀法（例如匯出 CSV 的 NULL 標記、編碼）是 `record_description` 的 `data_note`。
    - **依每列日期挑另一張表當時有效的列**：例如依訂單日期挑當時有效的價格，寫成規則裡的區間條件（訂單日期 ≥ 生效起日且 < 生效迄日），不記版本語意。
 6. 遇到下列情況，依此保存，並把要問使用者的問題回報主代理：
 
@@ -108,7 +108,7 @@ description: >-
 
 1. `run_status`（`work_id`，`wait_seconds` 15）等到 `task.ready`。
 2. `read_task`（`work_id`，`target` 為 `task`）讀完任務，以 `mapping_*` 工具完成 mapping，每個任務以 `mapping_finish` 結束。一個概念葉子只對一個欄位。值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`（關聯逐跳列出，`table`、`column` 填最後一跳到達的表與欄）；類別（`kind` 為 `value`）可以跨一對多。值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；欄位已有儲存概念時，節點輸入用該儲存概念的完整名稱。換算缺依據時保留為提案，不自行補係數。
-3. 重複到 `run_status` 顯示這份文件為 `ready_to_commit`。
+3. 重複到 `run_status` 顯示這份文件為 `ready_to_commit`。這份文件的待補項目要等到這時才用 `resume_item` 補：mapping 進行中，`pending_items` 的項目帶 `resume_after`，說明先完成哪個 `work_id` 的 mapping。
 
 完成後向主代理回報一次：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。處理過程中不傳進度訊息。
 
@@ -145,7 +145,7 @@ description: >-
 ## 9. 交給使用者發布
 
 主代理以 `run_status`（`uploads` 為 true）核對每份文件的狀態：回覆的 `uploads` 列出每份上傳文件，`document` 是它的狀態。不帶 `uploads` 時，在文件工作中呼叫不列上傳，不在工作中則只給各狀態的份數與尚未 `ready_to_commit` 的上傳。
-主代理的連線開著多份文件時，帶其中任一 `work_id`（`upload_status` 列出各文件的 `work_id`）；主代理沒有開文件時，`run_status` 不帶 `work_id`。
+主代理的 `run_status` 不帶 `work_id`：子代理在同一條連線開著多份文件時，回覆的 `works` 列出每份的 `work_id`、檔名與狀態（需要 Ophion 支援文件總覽的版本）；要看某一份的細節再帶它的 `work_id`。
 然後告訴使用者：
 
 - 已 `ready_to_commit` 的文件，請使用者到 Commit 頁（`run_status` 的 `setup.commit_page`）逐條勾選、預覽並確認發布。
