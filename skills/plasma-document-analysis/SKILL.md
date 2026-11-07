@@ -76,7 +76,7 @@ description: >-
 
    | 情況 | 做法 |
    |---|---|
-   | 原文引用另一份文件，Ophion 已有 | 用 `lookup_knowledge` 讀它的知識；需要原文時用 `read_source`（`document` 為檔名）自己讀，引用時寫那份文件與行號 |
+   | 原文引用另一份文件，Ophion 已有 | 用 `lookup_knowledge` 讀它的知識；需要原文時用 `read_source`（`document` 為檔名，或原文寫的連結，如 `../other/b.md`）自己讀，引用時寫那份文件與行號 |
    | 原文引用另一份文件，Ophion 沒有 | 請使用者上傳那份文件，並說明三件事：缺哪份文件、哪個段落；缺了無法分析什麼；不補上，這些知識會遺失。上傳前，已知的部分照常提交；依賴它的部分以引用宣告保存為待補，不猜測它的內容 |
    | 引用對到多份候選文件 | 請使用者指定是哪一份。使用者指定前保存為歧義待補，由使用者決定，agent 不自選 |
    | 原文用到知識庫沒有定義的概念 | 請使用者說明定義。規則照存，缺少定義的概念保留為開放述詞並列為缺口；定義由使用者或其他文件提供，agent 不自行編造 |
@@ -108,7 +108,7 @@ description: >-
 
 1. `run_status`（`work_id`，`wait_seconds` 15）等到 `task.ready`。
 2. `read_task`（`work_id`，`target` 為 `task`）讀完任務，以 `mapping_*` 工具完成 mapping，每個任務以 `mapping_finish` 結束。一個概念葉子只對一個欄位。值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`（關聯逐跳列出，`table`、`column` 填最後一跳到達的表與欄）；類別（`kind` 為 `value`）可以跨一對多。值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；欄位已有儲存概念時，節點輸入用該儲存概念的完整名稱。換算缺依據時保留為提案，不自行補係數。
-3. 重複到 `run_status` 顯示這份文件為 `ready_to_commit`。最後一個 `mapping_finish` 之後，系統還要寫入並檢查 mapping，可能要一分鐘：這段時間沒有任務，`run_status` 帶 `wait_seconds` 會等滿再回覆，回覆的 `next_step` 說明要再等；照做，直到文件為 `ready_to_commit`。這份文件的待補項目要等到這時才用 `resume_item` 補：mapping 進行中，`pending_items` 的項目帶 `resume_after`，說明先完成哪個 `work_id` 的 mapping。
+3. 重複到 `run_status` 顯示這份文件為 `ready_to_commit`。最後一個 `mapping_finish` 之後，系統還要寫入並檢查 mapping，可能要一分鐘：這段時間沒有任務，`run_status` 帶 `wait_seconds`（`next_step` 寫 30）會等滿再回覆，這時呼叫的 `read_task`、`mapping_*` 與這份文件的 `resume_item` 也會先等它結束再回覆；回覆的 `next_step` 說明要再等時照做，直到文件為 `ready_to_commit`。這份文件的待補項目要等到這時才用 `resume_item` 補：mapping 進行中，`pending_items` 的項目帶 `resume_after`，說明先完成哪個 `work_id` 的 mapping。
 
 完成後向主代理回報一次：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。處理過程中不傳進度訊息。
 
