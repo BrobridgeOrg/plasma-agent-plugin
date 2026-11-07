@@ -30,6 +30,9 @@ description: >-
 | `evidence` | 已發布或暫存的知識已有依據，`fill_basis` 指出是什麼 | 依第 2 節的範圍補齊 |
 | `retry` | 系統處理失敗，不用問人 | 依第 2 節的範圍再做一次 |
 | `person` | 系統裡找不到依據 | 先依第 2 節查一次；仍無依據就問使用者 |
+| `later` | 要等系統之後支援，沒有要問的、也不用 `resume_item` | 在最後的回報如實告訴使用者，`fill_basis` 是原因 |
+
+帶 `how` 的項目不用 `resume_item` 開啟：`how` 說明它由什麼補上（使用者在 Commit 頁裁定，或等系統支援），照 `how` 處理。
 
 把需要使用者回答的問題整理後一次問使用者，附上出處讓使用者知道問的是哪一段。
 
@@ -60,7 +63,8 @@ description: >-
 | mapping | `mapping:…` | `gap`，缺口說明為「使用者取消，待另一人做 mapping」 | 使用者取消了這份文件的對應，交給另一個人（通常是 IT）：`resume_item` 重新開啟這份文件的 mapping，照文件分析 skill 第 6 節完成，完成後重新查詢 `pending_items` |
 | mapping | `mapping:…` | `gap`，`reason` 為缺口種類（如 `mapping_refuted`、`unmapped`） | mapping 已完成但留下資料對應缺口：照 `question` 請使用者提供資料來源或確認對應，並轉交回答（第 4 節）；之後用 `resume_item` 重新開啟這份文件的 mapping 再做一次（回答文件可用 `mapping_read_source` 讀取），完成後重新查詢 `pending_items` |
 | 純缺口 | `gap:…`、`read-pending:…`（以及 `formula-gap:…`、`policy-validation:…`） | `gap` | 沒有自己片段的缺口。`resume_item` 會開啟處理它的片段：`read-pending:…` 開啟寫讀法的那段文字（綁定後的用語也算），範圍涵蓋的欄寫讀法轉換規則，範圍外的欄以 `submit_annotation`（`kind` `read_format`、`format` `as_stored`）標記照原樣讀；其他缺口開啟宣告缺少概念的片段；回覆的 `resumed_for` 是原項目，依原文、回答或授權的來源在該片段補齊。找不到片段時，`resume_item` 的錯誤說明怎麼補：由定義它的文件補齊（使用者上傳後依文件分析 skill 處理，以同一符號寫出定義），或請使用者回答並轉交（第 4 節），在回答文件中以同一符號寫出定義並引用回答。系統失敗如實回報給使用者。補齊後重新查詢 `pending_items`，確認這一項已消失 |
-| 事實衝突 | `metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…` | `gap` | 不同文件對同一項資料事實或常數說法不一：請使用者到 Commit 頁（`setup.commit_page`）的「事實衝突」區，填上自己的名字裁定採用哪一個；裁定後重新查詢 `pending_items` |
+| 事實衝突 | `metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…`、`versioning:…` | `gap` | 不同文件對同一項資料事實、常數或版本選取規則（`versioning:…`）說法不一：請使用者到 Commit 頁（`setup.commit_page`）的「事實衝突」區，填上自己的名字裁定採用哪一個；裁定後重新查詢 `pending_items` |
+| 跨表正負號 | `sign:…` | `gap`，`fill` 為 `later` | 正負號在另一張表的欄位，目前的正負號註記還不能沿關聯讀取：註記保留，讀帶號值的地方列為缺口。沒有要問的，也不用 `resume_item`；在最後的回報告訴使用者 |
 | 待裁定的讀取規則 | `metadata-reader:…` | `gap` | 讀取了有衝突的資料事實的規則，先保留不發布：上一列的衝突裁定後，下一次發布自然帶入 |
 | 規則檢查 | `rule-check:…` | `gap`，`reason` 為檢查種類（如 `narrower_than`） | 已暫存的規則，經後到文件帶來的概念比對後，可能讓使用端寫出錯誤 SQL；或規則讀的代碼，後來才有代碼表關聯（`code_name_unchecked`）。`question` 說明原因：用 `resume_item` 以該規則的摘錄重開（第 5 節），重新匯出修正規則（原文同時寫了名稱與代碼時，送 `submit_backbone` kind `code_name`），或在 `finish_document` 以 `rule_check_answers` 說明規則為何正確、原文沒寫名稱；之後重新查詢 `pending_items` 確認這一項已消失 |
 | 概念 DAG | `dag:…`，或 `gap:…` 且 `reason` 為 `unit_unknown`、`unit_mismatch`、`conversion_unmapped`、`grain_mismatch`、`measure_incomplete`、`incomplete` | `gap` | 單位、換算、粒度或統計定義缺資訊：`unit_unknown` 請 IT 說明欄位存放的單位；`unit_mismatch` 請說明換算依據（係數或查表）；`conversion_unmapped` 請說明係數或匯率在哪個欄位；`grain_mismatch` 請說明關聯是一對一還是一對多；`measure_incomplete` 依 `detail` 列出的欄位逐項問業務（例如是總和比還是各列比率平均）；`incomplete` 是上層概念因子概念不完整而不完整，已摺疊在根本原因那一項底下（`causes` 是缺口的 `references`，`all: true` 時看 `waits_on`），補根本原因那一項。回答依第 4 節轉交，補上的單位或係數引用該回答 |
