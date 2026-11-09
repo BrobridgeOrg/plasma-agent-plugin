@@ -74,6 +74,7 @@ description: >-
 
 `resume_item` 用於片段（包括已處理完成的片段）、純缺口、文件版本、mapping 與規則檢查項目；事實衝突、待裁定的讀取規則與系統狀態由回答或裁定處理，之後重新查詢 `pending_items` 確認。
 項目帶 `resume_after` 時，它的文件還在這個連線做 mapping：照 `resume_after` 先完成那個 `work_id` 的 mapping（`read_task` 與 `mapping_*` 帶該 `work_id`，到 `run_status` 顯示 `ready_to_commit`），再 `resume_item` 這一項。
+`resume_item` 的 `fragment_id` 用 `pending_items` 或 `read_translation`（摘錄分組的 `fragment_id`）給的值；摘錄代號（`x` 加 8 位十六進位）、`finish_document` 列出的缺口 id、`read_translation` 列出的規則或關聯 id，也會開啟它所屬的片段。
 `resume_item` 回覆錯誤時，錯誤說明這一項如何補齊，照該說明處理。
 
 ## 4. 轉交使用者的回答
@@ -83,7 +84,7 @@ description: >-
 1. 呼叫 `submit_answer`：`question` 是你問的問題，`answer` 照錄使用者的原話，回答某個待補項目時 `gap_fragment_id` 帶該項的 `fragment_id`。
    回答會存成一份回答文件並記下回答的使用者，回覆它的 `upload_id` 與回答所在的行（`answer_lines`）。
 2. 交給一個子代理以 `open_document` 開啟這個 `upload_id`，之後每次呼叫帶回覆的 `work_id`；像一般文件一樣讀取並以行號引用回答，完成到結束與 mapping。
-   回答的是純缺口時，在這份回答文件中以缺口的同一符號寫出定義。
+   回答的是純缺口時，在這份回答文件中以缺口的同一符號寫出定義。使用者確認的是既有概念讀哪個欄位時，以 `record_clue`（`concept` 為該概念的完整名稱、`kind` 為 `column`、`text` 照錄欄位）記下；既有概念用完整名稱讀，不放進 `new_predicates`。
 3. 依第 3 節的種類收尾：片段與 mapping 項目用 `resume_item` 補齊（下一節）；純缺口在回答文件完成後重新查詢 `pending_items`。
 
 只轉交使用者實際說的話；使用者沒有回答的問題維持待補。
