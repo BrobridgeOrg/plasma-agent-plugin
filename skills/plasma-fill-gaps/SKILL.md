@@ -52,7 +52,8 @@ description: >-
 - **問使用者**：把要問的整理後一次問，附上出處，讓使用者知道問的是哪一段。
 - **每項一次修補**：一個項目開一次 `resume_item`，修補一次，看回覆，再換下一項。
 - **同一份文件的多個項目依序做**：除了最後一項，`resume_item` 都帶 `more_repairs: true`，文件停在 `mapping_held`；最後一項不帶，完成時一次 mapping 涵蓋全部修補。最後一項開不起來或已不用補時，對這份文件的 `mapping:` 項目呼叫 `resume_item`，由它完成累積的 mapping。
-- **結束條件**：範圍內的項目都走完一次、所有文件都到 `ready_to_commit`、沒有文件停在 `mapping_held`。
+- **開了才發現不用改**：對重做目標 `close_fragment` 帶 `discard: true`，再 `finish_document`；這次修補放棄，那段摘錄和文件維持原樣（work 結束為 `repair_dropped`），接著做下一項；它若是同一份文件 `more_repairs` 的最後一項，照 next_step 對該文件的 `mapping:` 項目 `resume_item`，完成前面修補的 mapping。
+- **結束條件**：範圍內的項目都走完一次、所有文件都到 `ready_to_commit`（或 work 以 `repair_dropped`、`unchanged` 結束）、沒有文件停在 `mapping_held`。
 
 ## 3. 碰到各種項目時
 
