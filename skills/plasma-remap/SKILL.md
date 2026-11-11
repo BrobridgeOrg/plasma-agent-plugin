@@ -30,14 +30,21 @@ description: >-
    作業等你接任務時，已開著的文件仍可照常 `finish_document`；只是不開始新的上傳與分析。
 3. `task.ready` 時，以 `read_task`（`target` 為 `task`）讀完這個任務，一次呼叫讀一頁，讀到 `next` 等於 `total`；
    再以 `mapping_*` 工具完成對應，每個任務以 `mapping_finish` 結束。對應的作法與 [文件分析](../plasma-document-analysis/SKILL.md) 第 6 節相同：
-   一個概念葉子只對一個欄位；值在別的表、要計算、單位逐列不同或要換幣別時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；
+   一個概念葉子只對一個欄位。值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`（關聯逐跳列出，`table`、`column` 填最後一跳到達的表與欄）；類別（`kind` 為 `value`）可以跨一對多。值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；節點讀的是這個實體的概念：要用某一欄的值，先宣告一個對應葉子並對到那一欄，再把它當節點輸入。欄位可以用 `table` 加 `column` 指名，也可以用 `stored` 寫它的儲存概念（`exp.derived.stored.<db>.<table>.<column>`），兩者是同一筆對應。
+   - 文字欄對到日期或時間的概念：欄位自己有讀法註記時程式自動轉換；沒有時，任務列出的讀法通則若涵蓋這一欄，在 `read` 帶它的 ID；都不適用就照送不帶 `read`，系統會記成 `format_unknown`，等說明讀法的註記到了再對應。
+   
    缺依據時保留為提案或記為待補，不自行猜欄位、值或換算係數。
-4. 重複第 2、3 步，直到作業結束。`error` 不為空時，把錯誤原樣告訴使用者並停止。
+4. 重複第 2、3 步，直到作業結束。
+
+碰到這些情況：
+
+- **作業停下來了**（`running` 為 false，`error` 不為空）：已對應的部分保存著，schema 變更仍在等待，所有上傳都還被擋。把錯誤告訴使用者，然後照 `next_step` 再呼叫一次 `run_mapping`，從第 2 步接著做。同一個錯誤連續出現兩次時，停下來回報使用者。
+- **`run_mapping` 說另一個作業在跑**：照回覆，以 `run_status`（`work_id` `workspace`）等它結束或接它的任務；結束後再呼叫 `run_mapping`。
 
 ## 3. 確認並交給使用者發布
 
 再呼叫一次 `run_status`：`setup.remap_needed` 不再出現，表示重新對應完成，新文件可以上傳。
-仍為 true 時，作業沒有完整結束：把 `message` 與 `error` 告訴使用者，不要重複呼叫 `run_mapping`。
+仍為 true 時，作業沒有完整結束：照上一節「作業停下來了」再做一次；同一個錯誤連續兩次時，把 `message` 與 `error` 告訴使用者。
 
 最後的回報固定包含以下四項，使用者另有交代（例如這輪先不上傳）時也一樣：
 
