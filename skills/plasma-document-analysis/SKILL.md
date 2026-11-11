@@ -116,6 +116,7 @@ description: >-
 2. `read_task`（`work_id`，`target` 為 `task`）讀完任務，以 `mapping_*` 工具完成 mapping，每個任務以 `mapping_finish` 結束。
    - 一個概念葉子只對一個欄位。
    - 值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`。類別（`kind` 為 `value`）可以跨一對多。
+   - 文字欄對到日期或時間的概念：欄位自己有讀法註記時程式自動轉換；沒有時，任務列出的讀法通則若涵蓋這一欄，在 `read` 帶它的 ID；都不適用就照送不帶 `read`，系統會記成 `format_unknown`，等說明讀法的註記到了再對應。
    - 值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；節點讀的是這個實體的概念：要用某一欄的值，先宣告一個對應葉子並用 `mapping_submit_mapping` 對到那一欄，再把這個葉子當節點輸入。換算缺依據時保留為提案，不自行補係數。
 3. 重複到文件為 `ready_to_commit`。
 
