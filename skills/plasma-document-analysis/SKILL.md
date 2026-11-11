@@ -60,8 +60,8 @@ description: >-
 2. 用 `read_task` 讀完 document protocol。
 3. 讀文件；怎麼讀、讀幾次、依什麼順序由你決定。依 protocol 摘錄、開片段並提交，每條產物都以出處行號引用原文。
    - 判斷一段原文是概念還是描述，看它說了什麼，不看它寫成句子、清單、表格還是標題。原文說出某一列資料具有、是或屬於的東西，就是概念。只講文件或資料集整體、沒有說到任何一列的內容（導覽、指向其他文件、版面、文件沿革），才是描述。講某個資料集或資料表本身（在哪、涵蓋什麼、保證什麼）的，是 `data_note`。
-   - 表格文件的欄位列宣告該欄的**儲存概念**：一欄一個，記在宣告的 `column`，橋接由程式產生，不需要規則。表的意義寫進實體型別的 term 與 doc，粒度句寫進 grain。做法照 protocol 的 Tables 一段。
-   - 業務用詞（營收、已付款訂單）另開概念，用定義規則讀儲存概念，原文說的條件、單位與轉換都寫進這條規則；做法照 protocol 的 Words for data 一段。
+   - 原文對某一欄的說明，寫成欄位的註記：它叫什麼、存什麼用 `submit_annotation` 的 `column_words`（`term` 是原文對這欄的稱呼，`description` 是原文說它存什麼）；單位、時間基準、讀法、代碼的意思照舊各用自己的種類。概念宣告不帶表或欄位，每一欄的儲存概念由程式從 schema 建立。表的意義寫進實體型別的 term 與 doc，粒度句寫進 grain。做法照 protocol 的 What the source says of a column 一段。
+   - 業務用詞（營收、已付款訂單）宣告成業務概念，原文點名的欄位用 `record_clue`（`kind` 為 `column`）記在它身上，由 mapping 接到資料。原文說這個值只在某個條件下才算時，把「記錄的值」另開一個概念，再寫規則由它得出原概念；後到的文件替既有概念加條件也這樣寫。做法照 protocol 的 Words for data 一段。
    - 開片段（`begin_fragment`）時，在 `statement` 填這段原文的陳述模式：內容類型（`content_type`）、進件管道（`channel`）與模式（`mode`）。
 4. 宣告概念前，先用 `lookup_knowledge` 查知識庫已有的概念、規則與定義（包含其他文件暫存、尚未發布的），並用 `pending_items` 查等待補齊的項目：同一個概念沿用既有符號，不同概念才建立新符號。
 5. 單位、計算與統計依 protocol 明確寫出：
@@ -116,7 +116,7 @@ description: >-
 2. `read_task`（`work_id`，`target` 為 `task`）讀完任務，以 `mapping_*` 工具完成 mapping，每個任務以 `mapping_finish` 結束。
    - 一個概念葉子只對一個欄位。
    - 值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`。類別（`kind` 為 `value`）可以跨一對多。
-   - 值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；欄位已有儲存概念時，節點輸入用該儲存概念的完整名稱。換算缺依據時保留為提案，不自行補係數。
+   - 值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；節點讀的是這個實體的概念：要用某一欄的值，先宣告一個對應葉子並用 `mapping_submit_mapping` 對到那一欄，再把這個葉子當節點輸入。換算缺依據時保留為提案，不自行補係數。
 3. 重複到文件為 `ready_to_commit`。
 
 完成後向主代理回報一次：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。處理過程中不傳進度訊息。
@@ -129,7 +129,7 @@ description: >-
 - **mapping 失敗**：照回覆的 `next_step`，用 `resume_item` 開 `mapping:` 項目再做一次，然後回到第 6 節第 1 步。
 - **文件被 Commit 區延後**（狀態 `deferred`）：表示分析時系統出錯，Commit 頁寫了原因。照 `next_step` 重新開啟文件，從第 4 節接著做。
 - **文件內容和已發布的版本相同**（狀態 `unchanged`）：沒有東西要發布，直接回報。
-- **儲存概念讀的表或欄位不在 schema 裡**：這不用重做 mapping。它是一項待補，問使用者表還沒匯入還是名稱不同；回報主代理。
+- **概念要讀的表或欄位不在 schema 裡**：mapping 會把它記成沒有資料來源（`no_source`）。這不用重做文件的片段：問使用者表還沒匯入還是名稱不同，回報主代理；表匯入後重新對應。
 
 ## 7. 問綁定缺口
 
@@ -140,7 +140,7 @@ description: >-
 >
 > 都對請回「是」；有不對的，回題號與正確的表或欄位。
 
-- 使用者回「是」或指定了表、欄位：逐題呼叫 `bind_term`（`term`、`target` 為 `db`、`db.table` 或 `db.table.column`）。綁定和其他寫入一樣，先進 Commit 區，發布後這則說明才移過去。回覆帶 `possibly_affected` 時（綁定的是讀法陳述），在同一步用 `resume_item` 重開 `read_statement_fragments` 的片段，為範圍涵蓋的每個欄位寫讀法轉換規則，不再問使用者。
+- 使用者回「是」或指定了表、欄位：逐題呼叫 `bind_term`（`term`、`target` 為 `db`、`db.table` 或 `db.table.column`）。綁定和其他寫入一樣，先進 Commit 區，發布後這則說明才移過去。綁定的是讀法陳述時不用再做別的：哪些欄位適用由 mapping 判斷。
 - 使用者不確定、不想現在回答，或沒有人可以問：不用處理，它會留在待處理的缺口，之後可以在 console 的 IT 規則頁綁定。不要替使用者挑候選。
 
 ## 8. 請使用者確認翻譯

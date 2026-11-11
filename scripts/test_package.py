@@ -467,11 +467,18 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
     def text(self):
         return (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
 
-    def test_column_rows_declare_stored_concepts_not_rules(self):
+    def test_a_column_is_noted_not_declared(self):
+        """Ophion design 2026-11-11: the concept layer names no column. What
+        a source says of a column is the column's words and storage notes;
+        a business concept carries the column as a clue; the program builds
+        each column's stored concept from the schema."""
         text = self.text()
-        self.assertIn('儲存概念', text)
-        self.assertIn('橋接由程式產生', text)
-        self.assertNotIn('欄位記成 clue', text)
+        self.assertIn('column_words', text)
+        self.assertIn('概念宣告不帶表或欄位', text)
+        self.assertIn('儲存概念由程式從 schema 建立', text)
+        self.assertIn('record_clue', text)
+        self.assertNotIn('記在宣告的 `column`', text)
+        self.assertNotIn('橋接由程式產生', text)
         self.assertNotIn('就是概念，寫成規則', text)
         self.assertIn('看它說了什麼，不看它寫成句子、清單、表格還是標題', text)
 

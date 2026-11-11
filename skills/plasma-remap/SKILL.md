@@ -30,7 +30,7 @@ description: >-
    作業等你接任務時，已開著的文件仍可照常 `finish_document`；只是不開始新的上傳與分析。
 3. `task.ready` 時，以 `read_task`（`target` 為 `task`）讀完這個任務，一次呼叫讀一頁，讀到 `next` 等於 `total`；
    再以 `mapping_*` 工具完成對應，每個任務以 `mapping_finish` 結束。對應的作法與 [文件分析](../plasma-document-analysis/SKILL.md) 第 6 節相同：
-   一個概念葉子只對一個欄位。值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`（關聯逐跳列出，`table`、`column` 填最後一跳到達的表與欄）；類別（`kind` 為 `value`）可以跨一對多。值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；欄位已有儲存概念時，節點輸入用該儲存概念的完整名稱。
+   一個概念葉子只對一個欄位。值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`（關聯逐跳列出，`table`、`column` 填最後一跳到達的表與欄）；類別（`kind` 為 `value`）可以跨一對多。值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；節點讀的是這個實體的概念：要用某一欄的值，先宣告一個對應葉子並對到那一欄，再把它當節點輸入。欄位可以用 `table` 加 `column` 指名，也可以用 `stored` 寫它的儲存概念（`exp.derived.stored.<db>.<table>.<column>`），兩者是同一筆對應。
    
    缺依據時保留為提案或記為待補，不自行猜欄位、值或換算係數。
 4. 重複第 2、3 步，直到作業結束。
