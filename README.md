@@ -60,7 +60,7 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 | Skill | 用途 |
 |---|---|
 | `plasma-guide` | 入口：使用者問能做什麼時，看連線與知識庫現況，列出現在能做的事並帶到對應的技能 |
-| `plasma-mcp-setup` | 連結服務、核對 workspace／scopes 與知識庫模式、診斷 |
+| `plasma-mcp-setup` | 連結服務、核對 workspace／scopes、診斷 |
 | `plasma-knowledge-query` | 查知識：欄位、代碼、業務規則、概念存在哪與怎麼關聯；內含兩種模式從知識取得 SQL 的 sql-path |
 | `plasma-create-view` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview；兩種模式皆可 |
 | `plasma-create-bi` | 以 pview 為來源產生 BI：Power BI 專案（PBIP）或單一 HTML 頁面 |
@@ -70,8 +70,8 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 | `plasma-remap` | 進階模式：schema 變更後重新對應既有概念 |
 | `plasma-code-notes` | 進階模式：讀程式碼、DDL 或資料庫物件，寫成筆記以穩定路徑上傳分析 |
 
-知識庫的模式（一般或進階）建立後不會改變；兩種模式能做的事相同，差別在文件的處理方式與使用知識的路徑。
-skills 依工具清單判斷模式：有 `read_knowledge`、`compile_query` 是進階模式，有 `search_knowledge` 是一般模式。
+知識庫的模式（一般或進階）建立後不會改變，各自提供的功能不同。
+skills 依工具清單判斷模式：有 `read_knowledge`、`compile_query` 是進階模式，有 `search_knowledge` 是一般模式；對使用者只說明並使用這個系統有的功能。
 
 三個版本均無本機 hooks、Bash launcher、Go binary、下載快取或狀態檔依賴。
 `scripts/` 僅供維護者封裝與測試，不會放進安裝包；使用者不需要 Python 或 Go。

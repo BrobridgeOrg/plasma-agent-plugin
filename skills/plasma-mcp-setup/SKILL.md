@@ -111,18 +111,18 @@ Plasma view 工具與知識庫工具均使用該連線；不要混用不同連�
 | scope | 允許的操作 |
 |---|---|
 | `views:read` | 讀取 view／mview／pview 與同步排程；每次授權都會包含這項 |
-| `knowledge:read` | 讀知識：一般模式查資料表／欄位意義、值域與 lineage；進階模式讀已發布的概念並以 `compile_query` 編譯 SQL |
-| `knowledge:write` | 只在知識庫為進階模式時提供：上傳文件、提交分析結果與回答問題；發布仍須由人在 Commit 頁確認 |
+| `knowledge:read` | 讀這個 workspace 的知識：資料表與欄位的意義、業務規則與來源文件 |
+| `knowledge:write` | 寫入這個 workspace 的知識：上傳文件、提交分析結果與回答問題；發布仍須由人在頁面上確認。這個系統提供知識寫入時才會出現 |
 | `query:run` | 執行唯讀 SQL 與 pview 驗證查詢；回傳樣本不代表完整資料 |
 | `views:write` | 建立 mview／pview、啟動同步與設定排程；同步仍需 skill 個別確認 |
 
-授權一次會取得上表全部權限，所以正常情況不會缺 scope。仍以 `whoami` 的實際
+授權一次會取得這個系統提供的全部權限，所以正常情況不會缺 scope。仍以 `whoami` 的實際
 scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部分權限。
 遇到工具回報缺少 scope 時，請使用者重新授權一次即可，不要重複呼叫遭拒工具。
+其他權限齊全而只少 `knowledge:write` 時，是這個系統不提供知識寫入，不必重新授權。
 
-知識庫的模式（一般或進階）在建立時決定、之後不會改變，兩種模式提供的知識工具不同：
-工具清單有 `read_knowledge`、`compile_query` 是進階模式，有 `search_knowledge`、`get_table_card` 是一般模式。
-核對連線時一併告訴使用者是哪一種；兩種模式能做的事相同，只是使用知識的方式不同，判斷細節見 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md)。
+知識工具以工具清單實際提供的為準，怎麼查依 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md)。
+核對連線時只說明這個系統有的功能。
 
 ## 診斷
 
@@ -138,7 +138,7 @@ scopes 為準：舊的連線可能是在這個行為之前建立的，只帶部�
 | 工具缺少 scope | 依上節重新授權；plugin 不能代替 gateway 授予權限 |
 | Plasma `403` | 與缺少 scope 不同，由 Plasma 管理員檢查 workspace 成員與權限 |
 | 有 Plasma 工具但沒有知識工具 | 用 `whoami` 區分未配置知識庫、缺 `knowledge:read` 或服務不可用 |
-| 知識工具 `404`／尚無已發布知識 | 由管理員產生並發布該 workspace 的知識版本 |
+| 知識工具 `404`／尚無已發布知識 | 這個 workspace 還沒有已發布的知識，不是連線問題；依 [查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md) 的「工具缺少或失敗」處理 |
 | workspace 不符 | 重新授權並選擇正確 workspace；不自行替換參數繞過 |
 | 連線只使用舊式 SSE | 使用支援 Streamable HTTP 的連線方式 |
 
@@ -162,10 +162,9 @@ OAuth 最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。
 
 連線確認後，依使用者要做的事接續：
 
+- 使用者還沒決定要做什麼，或想知道能做什麼：[Plasma 能做什麼](../plasma-guide/SKILL.md)，依這個系統的現況列出能做的事
 - 查知識：[查 Plasma 知識庫](../plasma-knowledge-query/SKILL.md)
 - 建立 pview／mview：[建立 pview 技能](../plasma-create-view/SKILL.md)。預設輸出 pview，明確指定 mview 時停在 mview；同步及排程前由 skill 等待使用者確認
-- 進階模式出報表：[出報表](../plasma-report/SKILL.md)
-- 進階模式上傳文件：[文件分析](../plasma-document-analysis/SKILL.md)
 
 
 本流程不要求匯出或 API 發布權限，API 由使用者自行建立。
