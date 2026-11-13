@@ -1,8 +1,8 @@
 {
   "name": "plasma-plugin",
-  "version": "0.24.1",
+  "version": "0.26.0",
   "mcpServers": "./.mcp.json",
-  "description": "以 Plasma 知識庫查核資料與 SQL，在 mview 完成運算並預設輸出參數化 pview，再以 pview 產生 Power BI（PBIP）或 HTML BI；同步與排程前請使用者確認。",
+  "description": "從 plasma-guide 開始看這個 workspace 能做什麼：查 Plasma 知識庫的資料表、欄位與業務規則，進階模式可上傳文件分析成規則、依規則出報表；在 mview 完成運算並預設輸出參數化 pview，再以 pview 產生 Power BI（PBIP）或 HTML BI；同步與排程前請使用者確認。",
   "author": {
     "name": "Brobridge",
     "email": "bbgai@brobridge.com"
@@ -26,6 +26,7 @@
       "Write"
     ],
     "defaultPrompt": [
+      "Plasma 現在能幫我做什麼？",
       "幫我登入 Plasma 並核對 workspace。",
       "幫我將這份報表建立成可指定日期區間的 pview。",
       "這份報表以 mview 為最終輸出，同步前先讓我確認。",

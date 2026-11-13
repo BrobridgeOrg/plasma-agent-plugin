@@ -11,7 +11,7 @@ from package_plugin import ROOT, build
 
 SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-query',
                'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-remap',
-               'plasma-code-notes'}
+               'plasma-code-notes', 'plasma-guide'}
 
 
 def by_host(archives):
@@ -338,6 +338,56 @@ class KnowledgeQueryTest(unittest.TestCase):
                      'references/standard.md', 'references/advanced.md',
                      'references/sql-path/standard.md', 'references/sql-path/advanced.md'):
             self.assertIn(word, entry, word)
+
+    def test_the_guide_reads_the_state_and_hands_over(self):
+        """Asked what Plasma can do, the agent reads the connection and the
+        knowledge base first, lists what this workspace can do now and hands
+        over to the skill that does it: the guide repeats no procedure."""
+        guide = self.text('plasma-guide', 'SKILL.md')
+        self.assertTrue(guide.startswith('---\nname: plasma-guide\n'))
+        for word in ('`whoami`', '`overview`', '沒有 `overview` 時略過', 'references/advanced.md',
+                     'references/standard.md', '只接受唯讀查詢', '對使用者只說這個系統有的功能'):
+            self.assertIn(word, guide, word)
+        pages = {name: self.text('plasma-guide', 'references', name + '.md') for name in ('advanced', 'standard')}
+        for word in ('`rules`', 'knowledge:read', 'knowledge:write', 'query:run', 'views:write'):
+            self.assertIn(word, pages['advanced'], word)
+        linked = guide + ''.join(pages.values()).replace('../../', '../')
+        for name in SKILL_NAMES - {'plasma-guide'}:
+            self.assertIn(f'../{name}/SKILL.md', linked, name)
+        for text in (guide, *pages.values()):
+            for tool in ('compile_query(', 'create_view', 'request_upload'):
+                self.assertNotIn(tool, text, f'{tool}: the procedure belongs to its own skill')
+
+    def test_a_system_is_told_only_what_it_has(self):
+        """One plugin serves two kinds of knowledge base (user 2026-11-13):
+        the setup skill compares none, and the guide lists a system's own
+        page, so a person is never told of what the other kind does."""
+        setup = self.text('plasma-mcp-setup', 'SKILL.md')
+        for word in ('進階模式', '一般模式', '兩種模式', '能做的事相同'):
+            self.assertNotIn(word, setup, word)
+        self.assertIn('../plasma-guide/SKILL.md', setup)
+        guide = self.text('plasma-guide', 'SKILL.md')
+        pages = {name: self.text('plasma-guide', 'references', name + '.md') for name in ('advanced', 'standard')}
+        for name, text in (('guide', guide), *pages.items()):
+            for word in ('進階模式', '一般模式', '兩種模式'):
+                self.assertNotIn(word, text, f'{name}: {word}')
+        for name in ('plasma-report', 'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-remap', 'plasma-code-notes'):
+            self.assertNotIn(name, pages['standard'], name)
+            self.assertIn(name, pages['advanced'], name)
+        for word in ('上傳', 'Commit'):
+            self.assertNotIn(word, pages['standard'], word)
+
+    def test_the_inventory_and_a_columns_notes_are_read_from_the_knowledge(self):
+        """Which databases and tables there are is read from overview, and a
+        table's or a column's notes and a calculated column's formula from
+        read_schema: the published schema, not the engine's own catalog."""
+        lookup = self.text('plasma-knowledge-query', 'references', 'advanced.md')
+        for word in ('`overview`', '`database`', '`has_more`', '`rules`', '`next`', '`column`', '`notes`',
+                     '`calculated`', '`sources`', '`unit`', '`concepts`', '`usage`', '從表或欄位問起時',
+                     '工具清單沒有 `overview` 時'):
+            self.assertIn(word, lookup, word)
+        for text in (lookup, self.text('plasma-guide', 'SKILL.md')):
+            self.assertNotIn('information_schema', text)
 
     def test_create_view_takes_its_sql_from_either_path(self):
         view = self.text('plasma-create-view', 'SKILL.md')
