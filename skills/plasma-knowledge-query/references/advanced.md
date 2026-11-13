@@ -29,7 +29,8 @@
 - **怎麼讀**：實體層附註，包括單位與倍率、時間基準（UTC、當地時間及位移欄位、日曆日期）、讀取格式（文字日期、小數逗號、空值標記、哨兵值、去空白轉大寫）、
   值的意義（代碼 → 意思），以及版本語意（依查詢截點每個鍵取哪一版：得知時間欄位 `known_at`、刪除旗標、截點當時有效的期間）。依每列日期挑另一張表當時有效的列，是規則裡的區間條件，不屬於版本語意。
 - **從表或欄位問起時**（使用者說的是表名、欄位名，不是業務概念）：用 `read_schema`（`mode` 為 `table`，`table` 為 `db.table`）。使用者只說表名時，先以 `overview` 或 `read_schema`（`mode` 為 `search`）找到它的 `db.table`。回覆有這張表自己的附註（`notes`）、計算欄與它的公式（`calculated`），每個欄位的 `notes` 是它有幾則附註；
-  再帶 `column` 讀單一欄位：完整的描述、每一則附註（`kind` 是種類，例如 `unit`、`time_basis`、`read_format`、`value_meaning`、`source_system`、`description`；`content` 是內容）與說這件事的文件（`sources`）。沒有那一種附註時，照實說知識庫沒有寫。`column` 給計算欄的名稱時，回它的公式與出處，也就是這個值怎麼從同一張表的欄位算出來。
+  再帶 `column` 讀單一欄位：完整的描述、每一則附註（`kind` 是種類，例如 `unit`、`time_basis`、`read_format`、`value_meaning`、`source_system`、`description`；`content` 是內容）與說這件事的文件（`sources`）。沒有那一種附註時，照實說知識庫沒有寫。
+  同一份回覆的 `concepts` 是對應到這個欄位的已發布概念（`name` 與它的用語 `term`）；使用者問哪些規則用到這個欄位、或有什麼是從它算出來的，以 `read_knowledge`（`mode` 為 `usage`）帶這些 `name` 查讀到它的規則，連同同一張表的計算欄一起回答。`column` 給計算欄的名稱時，回它的公式與出處，也就是這個值怎麼從同一張表的欄位算出來。
 - **怎麼關聯**：用 `read_knowledge`（`mode` 為 `dependencies`）看概念讀到哪些概念與關聯，說明連接的欄位與基數（一對一、多對一、一對多），以及基數是否經資料驗證。
 - **還缺什麼**：沒有欄位對應的葉子概念、單位未知、基數未知等缺口，附上缺口的問句，交給 [補齊缺口](../../plasma-fill-gaps/SKILL.md) 處理。
 

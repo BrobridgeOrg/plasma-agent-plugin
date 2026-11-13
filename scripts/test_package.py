@@ -383,7 +383,8 @@ class KnowledgeQueryTest(unittest.TestCase):
         read_schema: the published schema, not the engine's own catalog."""
         lookup = self.text('plasma-knowledge-query', 'references', 'advanced.md')
         for word in ('`overview`', '`database`', '`has_more`', '`rules`', '`next`', '`column`', '`notes`',
-                     '`calculated`', '`sources`', '`unit`', '從表或欄位問起時', '工具清單沒有 `overview` 時'):
+                     '`calculated`', '`sources`', '`unit`', '`concepts`', '`usage`', '從表或欄位問起時',
+                     '工具清單沒有 `overview` 時'):
             self.assertIn(word, lookup, word)
         for text in (lookup, self.text('plasma-guide', 'SKILL.md')):
             self.assertNotIn('information_schema', text)
