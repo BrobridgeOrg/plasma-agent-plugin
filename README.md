@@ -59,6 +59,7 @@ OAuth 的最後一步是從 gateway 導回 `127.0.0.1` 的本機接收埠。**ga
 
 | Skill | 用途 |
 |---|---|
+| `plasma-guide` | 入口：使用者問能做什麼時，看連線與知識庫現況，列出現在能做的事並帶到對應的技能 |
 | `plasma-mcp-setup` | 連結服務、核對 workspace／scopes 與知識庫模式、診斷 |
 | `plasma-knowledge-query` | 查知識：欄位、代碼、業務規則、概念存在哪與怎麼關聯；內含兩種模式從知識取得 SQL 的 sql-path |
 | `plasma-create-view` | 統一建立 mview 運算層與 pview 篩選層；明確指定 mview 時停在 mview；兩種模式皆可 |

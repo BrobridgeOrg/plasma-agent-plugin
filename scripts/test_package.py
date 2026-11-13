@@ -11,7 +11,7 @@ from package_plugin import ROOT, build
 
 SKILL_NAMES = {'plasma-create-view', 'plasma-create-bi', 'plasma-mcp-setup', 'plasma-knowledge-query',
                'plasma-document-analysis', 'plasma-fill-gaps', 'plasma-report', 'plasma-remap',
-               'plasma-code-notes'}
+               'plasma-code-notes', 'plasma-guide'}
 
 
 def by_host(archives):
@@ -338,6 +338,31 @@ class KnowledgeQueryTest(unittest.TestCase):
                      'references/standard.md', 'references/advanced.md',
                      'references/sql-path/standard.md', 'references/sql-path/advanced.md'):
             self.assertIn(word, entry, word)
+
+    def test_the_guide_reads_the_state_and_hands_over(self):
+        """Asked what Plasma can do, the agent reads the connection and the
+        knowledge base first, lists what this workspace can do now and hands
+        over to the skill that does it: the guide repeats no procedure."""
+        guide = self.text('plasma-guide', 'SKILL.md')
+        self.assertTrue(guide.startswith('---\nname: plasma-guide\n'))
+        for word in ('`whoami`', '`overview`', '`rules`', '工具清單沒有 `overview` 時略過',
+                     'knowledge:read', 'knowledge:write', 'query:run', 'views:write', '只接受唯讀查詢'):
+            self.assertIn(word, guide, word)
+        for name in SKILL_NAMES - {'plasma-guide'}:
+            self.assertIn(f'../{name}/SKILL.md', guide, name)
+        for tool in ('compile_query', 'read_knowledge', 'create_view', 'request_upload'):
+            self.assertNotIn(tool, guide, f'{tool}: the procedure belongs to its own skill')
+
+    def test_the_inventory_and_a_columns_notes_are_read_from_the_knowledge(self):
+        """Which databases and tables there are is read from overview, and a
+        table's or a column's notes and a calculated column's formula from
+        read_schema: the published schema, not the engine's own catalog."""
+        lookup = self.text('plasma-knowledge-query', 'references', 'advanced.md')
+        for word in ('`overview`', '`database`', '`has_more`', '`rules`', '`next`', '`column`', '`notes`',
+                     '`calculated`', '`sources`', '`unit`', '從表或欄位問起時', '工具清單沒有 `overview` 時'):
+            self.assertIn(word, lookup, word)
+        for text in (lookup, self.text('plasma-guide', 'SKILL.md')):
+            self.assertNotIn('information_schema', text)
 
     def test_create_view_takes_its_sql_from_either_path(self):
         view = self.text('plasma-create-view', 'SKILL.md')
