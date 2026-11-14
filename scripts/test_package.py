@@ -532,10 +532,18 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
         self.assertNotIn('就是概念，寫成規則', text)
         self.assertIn('看它說了什麼，不看它寫成句子、清單、表格還是標題', text)
 
-    def test_a_fragment_carries_its_statement_mode(self):
+    def test_every_submission_carries_its_source_and_statement_mode(self):
         text = self.text()
-        self.assertIn('begin_fragment', text)
+        self.assertIn('`source`', text)
         self.assertIn('陳述模式', text)
+
+    def test_the_skills_name_no_tool_the_document_flow_dropped(self):
+        # Ophion's document flow has no review, no fragment to open, end or
+        # close, and no deferral tool: a submission carries its own source.
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            text = (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
+            for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts'):
+                self.assertNotIn(gone, text, f'{name} names {gone}')
 
     def test_existing_definitions_and_rule_checks_are_handled_before_finishing(self):
         text = self.text()
