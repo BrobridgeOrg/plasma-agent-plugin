@@ -409,13 +409,15 @@ class KnowledgeQueryTest(unittest.TestCase):
 
     def test_the_inventory_and_a_columns_notes_are_read_from_the_knowledge(self):
         """Which databases and tables there are is read from overview, and a
-        table's or a column's notes and a calculated column's formula from
-        read_schema: the published schema, not the engine's own catalog."""
+        table's or a column's notes from read_schema: the published schema,
+        not the engine's own catalog. read_schema has no calculated columns
+        (Ophion 2262b5d5): what is computed from a column is a rule."""
         lookup = self.text('plasma-knowledge-query', 'references', 'advanced.md')
         for word in ('`overview`', '`database`', '`has_more`', '`rules`', '`next`', '`column`', '`notes`',
-                     '`calculated`', '`sources`', '`unit`', '`concepts`', '`usage`', '從表或欄位問起時',
+                     '`sources`', '`unit`', '`concepts`', '`usage`', '從表或欄位問起時',
                      '工具清單沒有 `overview` 時'):
             self.assertIn(word, lookup, word)
+        self.assertNotIn('`calculated`', lookup)
         for text in (lookup, self.text('plasma-guide', 'SKILL.md')):
             self.assertNotIn('information_schema', text)
 
