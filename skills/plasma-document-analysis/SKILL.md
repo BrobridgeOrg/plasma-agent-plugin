@@ -190,7 +190,7 @@ description: >-
 使用者指出某一項不對時：
 
 1. 用 `lookup_knowledge` 找出那條規則的 ID 與版本：已發布的與 Commit 區裡暫存的都查得到。
-2. 以 `submit_answer` 照錄使用者的原話存成回答文件，不帶 `gap_fragment_id`：它就是這次修改的出處。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
+2. 以 `submit_answer` 照錄使用者的原話存成回答文件，不帶 `item_id`：它就是這次修改的出處。使用者說的和原文衝突時，列出兩者的出處，請使用者決定，不自行選擇。
 3. 主代理自己處理，不交給子代理（要等使用者確認）：`open_document` 開這份回答文件、讀 protocol，以回答的行為 `source`，用 `revise_rule` 寫出那條規則的新版本（`base_version` 填查到的版本），或用 `delete_knowledge` 刪除。只改使用者說的部分，其他照原樣。
 4. 先確認再入區：把 `revise_rule` 回覆的 `reading`（新版本的中文讀法）原樣貼給使用者；刪除則說明要刪的是哪條規則或概念，以及回覆的 `impact` 列出哪些規則讀它。
    - 使用者確認後才 `finish_document`，送進 Commit 區。

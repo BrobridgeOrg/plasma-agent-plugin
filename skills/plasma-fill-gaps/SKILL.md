@@ -31,7 +31,7 @@ description: >-
 
 呼叫 `pending_items`；只看某份文件時帶 `document`（檔名、路徑或文件 ID）。每一項有：
 
-- `fragment_id`：用 `resume_item` 開它時用的 id。
+- `item_id`：用 `resume_item` 開它時用的 id。
 - 出處證據、缺什麼（`missing`）、受影響的規則，以及要問使用者的問題（`question`，有的話）。
 - `closes_with`：一句話說明由哪個工具、哪個產物補上，依據去哪裡找。**補一項時照它做。**
 - `fill`：
@@ -87,7 +87,7 @@ description: >-
 其他規則：
 
 - 項目帶 `resume_after` 時，它的文件還在這個連線做 mapping：先完成那個 `work_id` 的 mapping，到 `ready_to_commit`，再 `resume_item` 這一項。
-- `resume_item` 的 `fragment_id` 用 `pending_items` 或 `read_translation` 給的值。也可以給產物的 id（`read_translation`、`finish_document` 或 `lookup_knowledge` 列出的規則、概念、註記或關聯），會開啟它所屬的文件。
+- `resume_item` 的 `item_id` 用 `pending_items` 給的 `item_id`，或 `read_translation` 給的 `fragment_id`。也可以給產物的 id（`read_translation`、`finish_document` 或 `lookup_knowledge` 列出的規則、概念、註記或關聯），會開啟它所屬的文件。
 - `resume_item` 的回覆有 `item`：這一項的原因、缺什麼、問題與 `closes_with`。打開後先看它。
 - `resume_item` 回覆錯誤時，錯誤說明這一項怎麼補，照它做。
 
@@ -95,7 +95,7 @@ description: >-
 
 使用者回答後：
 
-1. 呼叫 `submit_answer`：`question` 是你問的問題，`answer` 照錄使用者的原話；回答某個待補項目時，`gap_fragment_id` 帶該項的 `fragment_id`。回答會存成一份回答文件並記下回答的使用者，回覆它的 `upload_id` 與回答所在的行（`answer_lines`）。轉交後，這一項的 `fill` 會變成 `evidence`，`fill_basis` 指向這份回答，不要再問一次。
+1. 呼叫 `submit_answer`：`question` 是你問的問題，`answer` 照錄使用者的原話；回答某個待補項目時，`item_id` 帶該項的 `item_id`。回答會存成一份回答文件並記下回答的使用者，回覆它的 `upload_id` 與回答所在的行（`answer_lines`）。轉交後，這一項的 `fill` 會變成 `evidence`，`fill_basis` 指向這份回答，不要再問一次。
 2. 交給一個子代理以 `open_document` 開啟這個 `upload_id`，之後每次呼叫帶回覆的 `work_id`；像一般文件一樣讀取，並以行號引用回答，完成到結束與 mapping。
    - 回答的是概念沒有定義（`gap:…`）時，在這份回答文件中以缺口的同一符號寫出定義。
    - 使用者確認的是既有概念讀哪個欄位時，以 `record_clue`（`concept` 為該概念的完整名稱、`kind` 為 `column`、`text` 照錄欄位）記下；既有概念用完整名稱讀，不放進 `new_predicates`。
@@ -106,7 +106,7 @@ description: >-
 
 ## 5. 補齊一個項目
 
-`resume_item`（`fragment_id`）把一個項目開成一份工作，回覆它的 `work_id`。補這一項的每次呼叫（文件工具、`run_status`、`read_task`、`mapping_*`）都帶上它。
+`resume_item`（`item_id`）把一個項目開成一份工作，回覆它的 `work_id`。補這一項的每次呼叫（文件工具、`run_status`、`read_task`、`mapping_*`）都帶上它。
 
 查已有的知識直接用 `lookup_knowledge`：還沒開工作，或自己的工作已結束時，不帶 `work_id` 也查得到已發布與 Commit 區暫存的知識。
 

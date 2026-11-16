@@ -485,7 +485,7 @@ class RevisionGuidanceTest(unittest.TestCase):
         deletion, and a person's correction in conversation is an answer
         document revising the rule (design 2026-11-03 §4.2, §4.3, §4.6)."""
         text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
-        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `gap_fragment_id`'):
+        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `item_id`'):
             self.assertIn(want, text)
         self.assertNotIn('帶 `correction` 照錄使用者的原話', text)
 
@@ -542,7 +542,7 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
         # close, and no deferral tool: a submission carries its own source.
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
-            for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts'):
+            for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts', 'gap_fragment_id'):
                 self.assertNotIn(gone, text, f'{name} names {gone}')
 
     def test_existing_definitions_and_rule_checks_are_handled_before_finishing(self):
