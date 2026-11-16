@@ -32,7 +32,7 @@ description: >-
 呼叫 `pending_items`；只看某份文件時帶 `document`（檔名、路徑或文件 ID）。每一項有：
 
 - `item_id`：用 `resume_item` 開它時用的 id。
-- 出處證據、缺什麼（`missing`）、受影響的規則，以及要問使用者的問題（`question`，有的話）。
+- 出處證據（`evidence`）、缺什麼（`missing`）、它在等的引用（`references`）、受影響的規則（`rules`），以及要問使用者的問題（`question`，有的話）。
 - `closes_with`：一句話說明由哪個工具、哪個產物補上，依據去哪裡找。**補一項時照它做。**
 - `fill`：
   - `evidence`：知識庫或已轉交的回答已有依據，`fill_basis` 指出是什麼，直接補。
@@ -59,7 +59,7 @@ description: >-
 
 每一項的 `closes_with` 已經寫了怎麼補；這裡說的是各種項目的意思，和容易走錯的地方。
 
-- **缺口項目**（`fragment:…`，代理或先前的工作回報的缺口）：
+- **回報的缺口**（`reported-gap:…`，代理以 `report_gap` 記下的缺口）：出處是它自己引用的行，`references` 是它在等的引用，`rules` 是它點名的規則。
   - 等引用對象（`awaiting_resolution`，回報缺口時帶了 `waits_on`）：缺的文件請使用者依 [文件分析](../plasma-document-analysis/SKILL.md) 上傳並處理；`missing` 顯示對象已存在時，用 `resume_item` 補。
   - 缺定義或缺資訊（`gap`）：請使用者說明並轉交（第 4 節），或由後到文件以同一符號寫出定義；之後用 `resume_item` 補。
   - 引用對到多份候選（`ambiguity`）：請使用者指定，轉交後用 `resume_item` 連到那一份。
@@ -68,8 +68,9 @@ description: >-
   - mapping 沒做完：`resume_item` 開它，完成到 `ready_to_commit`。
   - mapping 做完但留下資料對應缺口：照 `question` 請使用者提供資料來源或確認對應，轉交回答後再 `resume_item`，用 `mapping_read_source` 讀回答。
   - 使用者取消了對應、交給另一個人：`resume_item` 開它，照文件分析 skill 第 6 節完成。
-- **概念沒有定義**（`gap:…`）：`resume_item` 會開宣告或讀它的那份文件，回覆的 `resumed_for` 是原項目，`products` 列出這個項目相關的產物；依原文、回答或授權的來源補上定義，補上或修改時帶 `source`。兩者都沒有時，項目帶 `how`：由定義它的文件補，或請使用者回答並轉交，在回答文件中以同一符號寫出定義。
-- **讀法待寫**（`read-pending:…`）：`resume_item` 開讀法陳述那段文字，範圍涵蓋的欄寫讀法轉換規則，範圍外的欄以 `submit_annotation`（`kind` `read_format`、`format` `as_stored`）標記照原樣讀。
+- **概念沒有定義**（`gap:…`）：定義要用同一個符號寫出。概念自己的文件寫了定義時，`resume_item` 開宣告或讀它的那份文件，`products` 列出宣告或讀這個概念的產物，在那裡依原文補上，帶 `source`。定義由使用者說時，照第 4 節轉交，在回答文件裡寫出定義。沒有任何產物宣告或讀它時，項目帶 `how`：由定義它的文件補，或請使用者回答並轉交，在回答文件中以同一符號寫出定義。
+- **沒有缺口在等的引用**（`gap:…`，`references` 列出那個引用）：原文引用了還沒上傳的文件，而沒有回報的缺口在等它。請使用者上傳那份文件，或說明引用的是什麼並轉交（第 4 節），再用 `resume_item` 開這一項，把引用連到那份文件。
+- **讀法待寫**（`read-pending:…`）：`resume_item` 開讀法陳述所在的文件，範圍涵蓋的欄寫讀法轉換規則，範圍外的欄以 `submit_annotation`（`kind` `read_format`、`format` `as_stored`）標記照原樣讀。
 - **概念要讀的表或欄位不在 schema 裡**（mapping 記成 `no_source`）：問使用者：表或欄位還沒匯入，還是文件用了另一個名稱？是另一個名稱時，重新對應並把使用者說的表或欄位當依據，文件的分析不用重做；還沒匯入時，等匯入後重新對應。
 - **計算或統計缺資訊**（`dag:…`）：這些都在節點所在的那份文件裡補，不在回答文件裡；回答文件不能修改別份文件的節點。所以使用者回答後，先照第 4 節轉交，再 `resume_item` 這一項，在打開的工作裡以 `submit_node` 補上，`source` 引用原文說這件事的行。各種缺口要補的東西：
   - 一筆對到幾筆（`grain_mismatch`）：關聯的基數。先用 `lookup_knowledge` 查兩邊的表，看文件有沒有寫（例如「N:M」「一對多」）。有寫，就 `resume_item` 打開關聯所在的文件，以 `submit_node` 重送那個關聯，帶上 `params.cardinality`（從第一個參數的列看到第二個參數的列：`N:1`、`1:N`、`1:1` 或 `N:M`），引用那段原文。沒寫才問使用者。
@@ -87,7 +88,7 @@ description: >-
 其他規則：
 
 - 項目帶 `resume_after` 時，它的文件還在這個連線做 mapping：先完成那個 `work_id` 的 mapping，到 `ready_to_commit`，再 `resume_item` 這一項。
-- `resume_item` 的 `item_id` 用 `pending_items` 給的 `item_id`，或 `read_translation` 給的 `fragment_id`。也可以給產物的 id（`read_translation`、`finish_document` 或 `lookup_knowledge` 列出的規則、概念、註記或關聯），會開啟它所屬的文件。
+- `resume_item` 的 `item_id` 用 `pending_items` 給的 `item_id`，或任何產物的 ID（`read_translation` 每一項的 `id`，`finish_document` 或 `lookup_knowledge` 列出的規則 ID、概念名稱、註記或線索的 ID），會開啟它所屬的文件。
 - `resume_item` 的回覆有 `item`：這一項的原因、缺什麼、問題與 `closes_with`。打開後先看它。
 - `resume_item` 回覆錯誤時，錯誤說明這一項怎麼補，照它做。
 
@@ -98,7 +99,7 @@ description: >-
 1. 呼叫 `submit_answer`：`question` 是你問的問題，`answer` 照錄使用者的原話；回答某個待補項目時，`item_id` 帶該項的 `item_id`。回答會存成一份回答文件並記下回答的使用者，回覆它的 `upload_id` 與回答所在的行（`answer_lines`）。轉交後，這一項的 `fill` 會變成 `evidence`，`fill_basis` 指向這份回答，不要再問一次。
 2. 交給一個子代理以 `open_document` 開啟這個 `upload_id`，之後每次呼叫帶回覆的 `work_id`；像一般文件一樣讀取，並以行號引用回答，完成到結束與 mapping。
    - 回答的是概念沒有定義（`gap:…`）時，在這份回答文件中以缺口的同一符號寫出定義。
-   - 使用者確認的是既有概念讀哪個欄位時，以 `record_clue`（`concept` 為該概念的完整名稱、`kind` 為 `column`、`text` 照錄欄位）記下；既有概念用完整名稱讀，不放進 `new_predicates`。
+   - 使用者確認的是既有概念讀哪個欄位時，以 `record_clue`（`concept` 為該概念的名稱、`kind` 為 `column`、`text` 照錄欄位）記下；既有概念直接用名稱讀（短名或全名），不放進 `new_predicates`。
    - 回答的是計算或統計的缺口（`dag:…`）時，回答文件只保存原話；之後照第 3 節 `resume_item` 那一項，在節點所在的文件補上。
 3. 依第 3 節的種類收尾，缺口、節點與 mapping 項目用 `resume_item` 補齊（第 5 節）。
 
@@ -108,22 +109,24 @@ description: >-
 
 `resume_item`（`item_id`）把一個項目開成一份工作，回覆它的 `work_id`。補這一項的每次呼叫（文件工具、`run_status`、`read_task`、`mapping_*`）都帶上它。
 
+相關的產物分屬幾份文件時，回覆的 `opened` 為 `false`，`documents` 列出每份文件與它的產物，什麼都沒有開：照 `next_step`，用要改的那個產物的 `id` 再呼叫 `resume_item`；同一個產物在幾份文件都有時，再帶 `document`（那份文件的檔名）。
+
 查已有的知識直接用 `lookup_knowledge`：還沒開工作，或自己的工作已結束時，不帶 `work_id` 也查得到已發布與 Commit 區暫存的知識。
 
 項目多時，每項交給一個子代理，由主代理協調共用的概念與要問使用者的問題。
 
-- **缺口項目與產物**：`resume_item` 開的是這個項目所屬文件的一份工作。回覆的 `item` 說缺什麼、怎麼算補上，`products` 列出相關的產物，每個附 id 與行號。
-  - 先用 `read_task`（`target` 為 `document`）讀完 protocol，重新讀取相關的行。補上缺的東西用提交工具，每筆帶 `source`（這份文件的任何行都可以引用）；沒有點名的產物原樣保留。完成後呼叫 `finish_document`；之後照文件分析 skill 第 6 節完成 mapping。mapping 只派發這次修補動到的概念。
-  - 修一個計算節點：`submit_node` 帶既有概念的名稱（這份文件的概念用短名，別份文件的概念用完整名稱），節點換成新的寫法，其他產物照舊。
-  - 改規則：用 `revise_rule` 帶那條規則的 id 與 `base_version`，寫出完整的新版本。`submit_rules` 每次呼叫都是新增。要拿掉一個產物用 `delete_knowledge` 帶它的 id。
-  - 你開的那個缺口在這份工作結束時關閉；還缺東西就再呼叫一次 `report_gap`，用 `rules` 寫出它讓哪些規則不完整、用 `waits_on` 寫出它在等哪個引用（`declare_reference` 回覆的 `ref_id`）。
+- **缺口項目與產物**：`resume_item` 開的是這個項目所屬文件的一份工作。回覆的 `item` 說缺什麼、怎麼算補上，`products` 列出相關的產物，每個附 `id`、種類（`kind`）、版本（`version`）、行號（`lines`）與摘要（`summary`）。每個產物各自用自己的 ID 修改或拿掉。
+  - 先用 `read_task`（`target` 為 `document`）讀完 protocol，重新讀取相關的行。補上缺的東西用提交工具，每筆帶 `source`（這份文件的任何行都可以引用）；修補只改你點名的產物，沒有點名的原樣保留。完成後呼叫 `finish_document`；之後照文件分析 skill 第 6 節完成 mapping。mapping 只派發這次修補動到的概念。
+  - 修一個計算節點：`submit_node` 帶概念的名稱（短名或全名），節點換成新的寫法，其他產物照舊。
+  - 改規則：用 `revise_rule` 帶那條規則的 ID（`rule_id`）與 `base_version`（`products` 給的 `version`），寫出完整的新版本。`submit_rules` 每次呼叫都是新增。要拿掉一個產物用 `delete_knowledge` 帶它的 ID、種類（`kind`）、原因（`reason`）與 `source`；還有別的產物讀它時會被拒，回覆列出讀它的產物，先處理那些。
+  - 你開的那個缺口在這份工作的 `finish_document` 成功時關閉；還缺東西就再呼叫一次 `report_gap`，用 `rules` 寫出它讓哪些規則不完整、用 `waits_on` 寫出它在等哪個引用（`declare_reference` 回覆的 `ref_id`）。回覆的 `gap_id` 是新缺口的 ID。
 - **文件版本項目**：像一般文件一樣讀完 protocol，完成整份文件與 mapping。
 - **mapping 項目**：直接進行這份文件的 mapping，用 `read_task`（`target` 為 `task`）與 `mapping_*` 工具，每個任務以 `mapping_finish` 結束。`status` 為 `gap` 的項目是再做一次：任務列出還沒對應或有缺口的概念，已對應到欄位的概念保持唯讀；先用 `mapping_read_source` 讀使用者的回答。
 
 修補時碰到這些情況：
 
 - **提交被拒**：修正後再送；原文或回答確實寫不成產物時，以 `report_gap` 記下原文說了什麼與拒絕的原因。這一項會留在待補清單，最後回報原因。被拒而沒有補上的提交，`finish_document` 會在 `rejected_unanswered` 再列一次。
-- **確認結果**：`finish_document` 回覆的 `changes` 說明這次修補對整份文件做了什麼，mapping 結束後看 `run_status` 的 `document.changes`。`gaps_closed` 是補上的缺口；`item_open` 說這一項是否還在待補，`pending` 說這份文件還有幾項待補。沒有 `changes` 時看 `changes_unavailable`，改以 `read_translation` 確認。
+- **確認結果**：`finish_document` 回覆的 `changes` 說明這次修補對整份文件做了什麼，mapping 結束後看 `run_status` 的 `document.changes`。各種產物的 `kept_related` 是 `resume_item` 列出的相關產物裡原樣保留的；`gaps_closed` 是補上的缺口；`item_open` 說這一項是否還在待補，`pending` 說這份文件還有幾項待補。沒有 `changes` 時看 `changes_unavailable`，改以 `read_translation` 確認。
 - **工作被系統收回**（回覆說 `work_id` 已結束）：照回覆做，它會說要再 `resume_item` 哪一項。
 
 ## 6. 使用者指正翻譯

@@ -482,12 +482,21 @@ class ConceptOrDescriptionTest(unittest.TestCase):
 class RevisionGuidanceTest(unittest.TestCase):
     def test_document_analysis_revises_and_deletes_existing_knowledge(self):
         """The agent changes existing knowledge with a new version or a
-        deletion, and a person's correction in conversation is an answer
-        document revising the rule (design 2026-11-03 §4.2, §4.3, §4.6)."""
+        deletion. A person's correction of a published rule is an answer
+        document revising it (design 2026-11-03 §4.2, §4.3, §4.6); a
+        product still in the commit area is reopened by resume_item with
+        the correction, as the server's read_translation and resume_item
+        say."""
         text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
         for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `item_id`'):
             self.assertIn(want, text)
-        self.assertNotIn('帶 `correction` 照錄使用者的原話', text)
+        flow = text[text.index('使用者指出某一項不對時'):]
+        staged = flow[flow.index('還在 Commit 區的產物'):flow.index('已發布的規則')]
+        published = flow[flow.index('已發布的規則'):flow.index('兩種都先確認再入區')]
+        self.assertIn('`correction`', staged)
+        self.assertNotIn('submit_answer', staged)
+        self.assertIn('submit_answer', published)
+        self.assertNotIn('`correction`', published)
 
     def test_a_correction_in_conversation_is_confirmed_before_it_is_staged(self):
         """The new version's reading is shown and confirmed before
@@ -542,8 +551,21 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
         # close, and no deferral tool: a submission carries its own source.
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
             text = (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
-            for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts', 'gap_fragment_id'):
+            for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts', 'gap_fragment_id',
+                         'fragment', 'resumed_for', 'still_declared', 'kept_in_fragment'):
                 self.assertNotIn(gone, text, f'{name} names {gone}')
+
+    def test_products_stand_apart_under_names_of_the_whole_knowledge(self):
+        # Ophion fragmentless design §3.5, §3.8, §14.6: a concept is
+        # exp.derived.<short> and a rule exp.r<n>, read by short or full name;
+        # each product is changed by its own ID; resume_item lists the
+        # products it concerns and opens nothing across several documents.
+        analysis = self.text()
+        for want in ('`exp.derived.<短名>`', '`exp.r<序號>`', '短名（`paidOrder`）或全名', '換一個名稱', '`gap_id`', '`summary`', '`section`'):
+            self.assertIn(want, analysis)
+        gaps = (ROOT / 'skills' / 'plasma-fill-gaps' / 'SKILL.md').read_text(encoding='utf-8')
+        for want in ('`reported-gap:…`', '`references`', '`opened` 為 `false`', '`documents`', '`kept_related`'):
+            self.assertIn(want, gaps)
 
     def test_existing_definitions_and_rule_checks_are_handled_before_finishing(self):
         text = self.text()
