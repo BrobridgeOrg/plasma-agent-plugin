@@ -270,6 +270,19 @@ class AdvancedSkillsTest(unittest.TestCase):
             self.assertNotIn('lookup_knowledge', text, name)
         self.assertIn('沒有 `submit_answer`', self.compiled())
 
+    def test_a_stored_columns_derivation_is_submitted_and_read(self):
+        """A document's statement of how an existing column is computed
+        from other columns is a column_derivation of submit_backbone, and
+        read_schema shows it with what the data said of it."""
+        analysis = self.skill('plasma-document-analysis')
+        for word in ('`column_derivation`', '`expression`', '`lookup_relationships`', 'sum(orders_by_customer_id.cost)', '`submit_node`'):
+            self.assertIn(word, analysis, word)
+        lookup = self.reference('advanced.md')
+        for word in ('`column_derivation`', '`expression`', '`verified`', '`unverified`', '`awaiting_choice`', '`refuted`',
+                     '`reason`', '`unsupported_function`'):
+            self.assertIn(word, lookup, word)
+        self.assertIn('經關聯讀別張表的算法目前不檢查', analysis)
+
     def test_report_skill_corrects_a_refused_request(self):
         """A refused request is corrected and sent again: the suggested
         concepts, select for a value that is no measure, and a paged reply
