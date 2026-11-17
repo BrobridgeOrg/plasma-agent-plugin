@@ -278,8 +278,10 @@ class AdvancedSkillsTest(unittest.TestCase):
         for word in ('`column_derivation`', '`expression`', '`lookup_relationships`', 'sum(orders_by_customer_id.cost)', '`submit_node`'):
             self.assertIn(word, analysis, word)
         lookup = self.reference('advanced.md')
-        for word in ('`column_derivation`', '`expression`', '`verified`', '`unverified`', '`awaiting_choice`', '`refuted`'):
+        for word in ('`column_derivation`', '`expression`', '`verified`', '`unverified`', '`awaiting_choice`', '`refuted`',
+                     '`reason`', '`unsupported_function`'):
             self.assertIn(word, lookup, word)
+        self.assertIn('經關聯讀別張表的算法目前不檢查', analysis)
 
     def test_report_skill_corrects_a_refused_request(self):
         """A refused request is corrected and sent again: the suggested

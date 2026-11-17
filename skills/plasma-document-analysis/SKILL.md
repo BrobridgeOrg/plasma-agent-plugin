@@ -109,7 +109,7 @@ description: >-
    - **兩個實體之間的關聯**：用 `submit_node` 的 `relation`。原文寫了一筆對幾筆，就填 `params.cardinality`：從第一個參數的列看到第二個參數的列，`N:1`、`1:N`、`1:1` 或 `N:M`。原文沒寫就不填。
    - **指標**：用 `submit_node` 的 `op measure`，逐欄填原文說的。原文沒說的欄位留空，系統會列缺口並附問句。
    - **IT 文件的儲存語意**（存放單位、UTC 或當地時間、文字讀法、表的版本語意）：用 `submit_annotation`；整個資料庫或表通用的日期格式用 `read_statement`；資料集檔案本身的讀法用 `record_description` 的 `data_note`。
-   - **原文說某個既有欄位是由其他欄位算出來的**（例：客戶表的 `total` 是該客戶所有訂單 `cost` 的加總）：用 `submit_backbone` 的 `column_derivation`，`subject` 是那一欄（`db.table.column`），`expression` 把原文的算法寫成運算式。同一張表的欄位直接寫欄名；別張表的欄位經關聯讀，寫成 `關聯名稱.欄位`，關聯名稱以 `lookup_relationships` 查；會到多列的關聯放在 `sum`、`count`、`avg`、`min`、`max` 裡，例如 `sum(orders_by_customer_id.cost)`。系統會抽樣檢查資料是否符合，和其他產物一樣在 Commit 頁發布。業務上這個值怎麼算，仍照上面用 `submit_node` 寫；兩者說的是不同的事，原文都說了就都送。
+   - **原文說某個既有欄位是由其他欄位算出來的**（例：客戶表的 `total` 是該客戶所有訂單 `cost` 的加總）：用 `submit_backbone` 的 `column_derivation`，`subject` 是那一欄（`db.table.column`），`expression` 把原文的算法寫成運算式。同一張表的欄位直接寫欄名；別張表的欄位經關聯讀，寫成 `關聯名稱.欄位`，關聯名稱以 `lookup_relationships` 查；會到多列的關聯放在 `sum`、`count`、`avg`、`min`、`max` 裡，例如 `sum(orders_by_customer_id.cost)`。和其他產物一樣在 Commit 頁發布。只讀同一張表欄位的算法，系統會抽樣檢查資料是否符合；經關聯讀別張表的算法目前不檢查，照樣提交，它會標成未驗證。業務上這個值怎麼算，仍照上面用 `submit_node` 寫；兩者說的是不同的事，原文都說了就都送。
 6. 原文補充、限縮或改變既有的規則時，不另寫一條：用 `lookup_knowledge` 查到那條規則與它的 `base_version`，以 `revise_rule` 寫出完整的新版本。原文說某條知識不再成立時，用 `delete_knowledge`。
 
 ### 提交時，碰到這些情況
