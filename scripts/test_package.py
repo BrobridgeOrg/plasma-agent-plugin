@@ -124,26 +124,55 @@ class AdvancedSkillsTest(unittest.TestCase):
         """The advanced sql-path the report and the view skills share."""
         return self.reference('sql-path/advanced.md')
 
-    def test_the_sql_path_proposes_what_it_reads_and_fills_once_confirmed(self):
-        """A person confirms what is read, in business words; the compiler's
-        reading lists their answers, and a compile with holes has no SQL."""
+    def test_the_sql_path_fills_from_facts_and_lists_what_it_inferred(self):
+        """The agent fills a hole from what the knowledge and the schema
+        say, and the person checks each inference (user ruling 2026-11-16);
+        a compile with holes has no SQL."""
         text = self.compiled()
-        for word in ('read_schema', 'answers', '確認'):
+        for word in ('read_schema', 'answers', '核對', '代理推測：'):
             self.assertIn(word, text)
         self.assertNotIn('{{h', text)
         self.assertNotIn('{{h', self.reference('advanced.md'))
 
-    def test_fills_come_after_the_person_confirms_and_name_their_compile(self):
-        """What the agent reads is proposed before anything is sent, and a
-        reply with holes has no SQL to copy names from."""
+    def test_a_fill_rests_on_facts_and_names_its_compile(self):
+        """Facts are looked for before a hole is filled, and a reply with
+        holes has no SQL to copy names from."""
         text = self.compiled()
-        ask = text.index('把每個洞的 `question` 問使用者')
-        confirm = text.index('使用者確認之後才補')
+        facts = text.index('**先找事實。**')
+        decide = text.index('**依事實決定怎麼補。**')
         send = text.index('送出同一個請求並帶 `fills`')
-        self.assertLess(ask, confirm)
-        self.assertLess(confirm, send)
+        self.assertLess(facts, decide)
+        self.assertLess(decide, send)
         self.assertIn('`compile_id`', text[send:send + 200])
         self.assertNotIn('照編譯出的 SQL', text)
+
+    def test_what_the_facts_do_not_settle_is_asked(self):
+        """Readings the facts cannot tell apart, a hole with no basis, and a
+        relationship the data refuted are asked before they are filled (user
+        ruling 2026-11-16)."""
+        text = self.compiled()
+        decide = text[text.index('**依事實決定怎麼補。**'):text.index('**補上。**')]
+        for word in ('事實分不出來', '找不到任何依據', '`relation_refuted`', '一律先問'):
+            self.assertIn(word, decide, word)
+        refuted = text[text.index('- `relation_refuted`：'):]
+        self.assertIn('使用者確認依它讀取後才補', refuted[:200])
+
+    def test_inferences_are_listed_for_the_person_and_kept_only_once_checked(self):
+        """A report gives the two lists with its result; a view is created
+        after the person checked them; nothing inferred is written back to
+        the knowledge before that (user ruling 2026-11-16)."""
+        text = self.compiled()
+        review = text[text.index('### 3.1 列給使用者核對'):text.index('## 4. 要建成 mview 時')]
+        for word in ('**需要你核對的**', '**我自己決定的**', '核對完才建立', '還沒核對的推測不保存'):
+            self.assertIn(word, review, word)
+        checked = review.index('**說對的**')
+        for tool in ('`submit_answer`', '`accept_relationship`', '`complete_relationship`'):
+            self.assertNotIn(tool, text[text.index('## 3. 補洞'):text.index('### 3.1 列給使用者核對')], tool)
+            self.assertGreater(review.index(tool), checked, tool)
+        report = self.skill('plasma-report')
+        for word in ('**需要你核對的**', '**我自己決定的**'):
+            self.assertIn(word, report, word)
+        self.assertIn('核對完才建立', (ROOT / 'skills' / 'plasma-create-view' / 'SKILL.md').read_text(encoding='utf-8'))
 
     def test_a_refused_query_is_told_apart_from_a_wrong_fragment(self):
         """Validation can fail away from the fragments, and an answer may be
@@ -154,7 +183,8 @@ class AdvancedSkillsTest(unittest.TestCase):
 
     def test_a_question_is_read_as_the_knowledge_it_needs(self):
         """The agent looks for what the question needs before it fills a
-        request; what fully matches is used, what does not is asked."""
+        request; what fully matches is used, what does not is read by the
+        facts and listed as an inference."""
         text = self.compiled()
         need = text.index('需要哪些知識')
         match = text.index('完整符合')
@@ -163,7 +193,7 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertLess(need, match)
         self.assertLess(match, near)
         self.assertLess(near, request)
-        self.assertIn('不自己決定', text)
+        self.assertIn('記成一筆推測', text)
 
     def test_a_near_concept_leads_to_the_concepts_it_reads(self):
         """A concept that does not fully match is still an index: what it

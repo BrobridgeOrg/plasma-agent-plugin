@@ -102,6 +102,7 @@ mview 的 SQL 依知識取得，取得方式依知識庫的模式而定（判斷
 - **進階模式**（工具清單有 `compile_query`）：依 [進階模式的 sql-path](../plasma-knowledge-query/references/sql-path/advanced.md)
   由 `compile_query` 編譯 SQL，第 4 節「要建成 mview 時」決定請求怎麼寫（不帶 `as_of`、`window`，期間寫成分組留給 pview）。
   程式產生的 SQL 原樣作為 mview 的運算 SQL，只補洞、不改寫；`complete` 為 true 才往下建立。
+  知識沒說的地方由 agent 依事實推測補上，建立前把每筆推測列給使用者核對（sql-path 第 3.1 節），核對完才建立。
   `reading`、`basis` 與 `release` 是這個 mview 的定義依據，交付時列出。
 
 兩種模式下，代碼的名稱／描述缺漏時，都依 [代碼名稱的候選補充](../plasma-knowledge-query/references/code-names.md) 主動提出 LLM
