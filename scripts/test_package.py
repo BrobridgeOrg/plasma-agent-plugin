@@ -124,26 +124,55 @@ class AdvancedSkillsTest(unittest.TestCase):
         """The advanced sql-path the report and the view skills share."""
         return self.reference('sql-path/advanced.md')
 
-    def test_the_sql_path_proposes_what_it_reads_and_fills_once_confirmed(self):
-        """A person confirms what is read, in business words; the compiler's
-        reading lists their answers, and a compile with holes has no SQL."""
+    def test_the_sql_path_fills_from_facts_and_lists_what_it_inferred(self):
+        """The agent fills a hole from what the knowledge and the schema
+        say, and the person checks each inference (user ruling 2026-11-16);
+        a compile with holes has no SQL."""
         text = self.compiled()
-        for word in ('read_schema', 'answers', '確認'):
+        for word in ('read_schema', 'answers', '核對', '代理推測：'):
             self.assertIn(word, text)
         self.assertNotIn('{{h', text)
         self.assertNotIn('{{h', self.reference('advanced.md'))
 
-    def test_fills_come_after_the_person_confirms_and_name_their_compile(self):
-        """What the agent reads is proposed before anything is sent, and a
-        reply with holes has no SQL to copy names from."""
+    def test_a_fill_rests_on_facts_and_names_its_compile(self):
+        """Facts are looked for before a hole is filled, and a reply with
+        holes has no SQL to copy names from."""
         text = self.compiled()
-        ask = text.index('把每個洞的 `question` 問使用者')
-        confirm = text.index('使用者確認之後才補')
+        facts = text.index('**先找事實。**')
+        decide = text.index('**依事實決定怎麼補。**')
         send = text.index('送出同一個請求並帶 `fills`')
-        self.assertLess(ask, confirm)
-        self.assertLess(confirm, send)
+        self.assertLess(facts, decide)
+        self.assertLess(decide, send)
         self.assertIn('`compile_id`', text[send:send + 200])
         self.assertNotIn('照編譯出的 SQL', text)
+
+    def test_what_the_facts_do_not_settle_is_asked(self):
+        """Readings the facts cannot tell apart, a hole with no basis, and a
+        relationship the data refuted are asked before they are filled (user
+        ruling 2026-11-16)."""
+        text = self.compiled()
+        decide = text[text.index('**依事實決定怎麼補。**'):text.index('**補上。**')]
+        for word in ('事實分不出來', '找不到任何依據', '`relation_refuted`', '一律先問'):
+            self.assertIn(word, decide, word)
+        refuted = text[text.index('- `relation_refuted`：'):]
+        self.assertIn('使用者確認依它讀取後才補', refuted[:200])
+
+    def test_inferences_are_listed_for_the_person_and_kept_only_once_checked(self):
+        """A report gives the two lists with its result; a view is created
+        after the person checked them; nothing inferred is written back to
+        the knowledge before that (user ruling 2026-11-16)."""
+        text = self.compiled()
+        review = text[text.index('### 3.1 列給使用者核對'):text.index('## 4. 要建成 mview 時')]
+        for word in ('**需要你核對的**', '**我自己決定的**', '核對完才建立', '還沒核對的推測不保存'):
+            self.assertIn(word, review, word)
+        checked = review.index('**說對的**')
+        for tool in ('`submit_answer`', '`accept_relationship`', '`complete_relationship`'):
+            self.assertNotIn(tool, text[text.index('## 3. 補洞'):text.index('### 3.1 列給使用者核對')], tool)
+            self.assertGreater(review.index(tool), checked, tool)
+        report = self.skill('plasma-report')
+        for word in ('**需要你核對的**', '**我自己決定的**'):
+            self.assertIn(word, report, word)
+        self.assertIn('核對完才建立', (ROOT / 'skills' / 'plasma-create-view' / 'SKILL.md').read_text(encoding='utf-8'))
 
     def test_a_refused_query_is_told_apart_from_a_wrong_fragment(self):
         """Validation can fail away from the fragments, and an answer may be
@@ -154,7 +183,8 @@ class AdvancedSkillsTest(unittest.TestCase):
 
     def test_a_question_is_read_as_the_knowledge_it_needs(self):
         """The agent looks for what the question needs before it fills a
-        request; what fully matches is used, what does not is asked."""
+        request; what fully matches is used, what does not is read by the
+        facts and listed as an inference."""
         text = self.compiled()
         need = text.index('需要哪些知識')
         match = text.index('完整符合')
@@ -163,7 +193,7 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertLess(need, match)
         self.assertLess(match, near)
         self.assertLess(near, request)
-        self.assertIn('不自己決定', text)
+        self.assertIn('記成一筆推測', text)
 
     def test_a_near_concept_leads_to_the_concepts_it_reads(self):
         """A concept that does not fully match is still an index: what it
@@ -379,13 +409,15 @@ class KnowledgeQueryTest(unittest.TestCase):
 
     def test_the_inventory_and_a_columns_notes_are_read_from_the_knowledge(self):
         """Which databases and tables there are is read from overview, and a
-        table's or a column's notes and a calculated column's formula from
-        read_schema: the published schema, not the engine's own catalog."""
+        table's or a column's notes from read_schema: the published schema,
+        not the engine's own catalog. read_schema has no calculated columns
+        (Ophion 2262b5d5): what is computed from a column is a rule."""
         lookup = self.text('plasma-knowledge-query', 'references', 'advanced.md')
         for word in ('`overview`', '`database`', '`has_more`', '`rules`', '`next`', '`column`', '`notes`',
-                     '`calculated`', '`sources`', '`unit`', '`concepts`', '`usage`', '從表或欄位問起時',
+                     '`sources`', '`unit`', '`concepts`', '`usage`', '從表或欄位問起時',
                      '工具清單沒有 `overview` 時'):
             self.assertIn(word, lookup, word)
+        self.assertNotIn('`calculated`', lookup)
         for text in (lookup, self.text('plasma-guide', 'SKILL.md')):
             self.assertNotIn('information_schema', text)
 
@@ -482,12 +514,21 @@ class ConceptOrDescriptionTest(unittest.TestCase):
 class RevisionGuidanceTest(unittest.TestCase):
     def test_document_analysis_revises_and_deletes_existing_knowledge(self):
         """The agent changes existing knowledge with a new version or a
-        deletion, and a person's correction in conversation is an answer
-        document revising the rule (design 2026-11-03 §4.2, §4.3, §4.6)."""
+        deletion. A person's correction of a published rule is an answer
+        document revising it (design 2026-11-03 §4.2, §4.3, §4.6); a
+        product still in the commit area is reopened by resume_item with
+        the correction, as the server's read_translation and resume_item
+        say."""
         text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
-        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `gap_fragment_id`'):
+        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `item_id`'):
             self.assertIn(want, text)
-        self.assertNotIn('帶 `correction` 照錄使用者的原話', text)
+        flow = text[text.index('使用者指出某一項不對時'):]
+        staged = flow[flow.index('還在 Commit 區的產物'):flow.index('已發布的規則')]
+        published = flow[flow.index('已發布的規則'):flow.index('兩種都先確認再入區')]
+        self.assertIn('`correction`', staged)
+        self.assertNotIn('submit_answer', staged)
+        self.assertIn('submit_answer', published)
+        self.assertNotIn('`correction`', published)
 
     def test_a_correction_in_conversation_is_confirmed_before_it_is_staged(self):
         """The new version's reading is shown and confirmed before
@@ -532,10 +573,31 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
         self.assertNotIn('就是概念，寫成規則', text)
         self.assertIn('看它說了什麼，不看它寫成句子、清單、表格還是標題', text)
 
-    def test_a_fragment_carries_its_statement_mode(self):
+    def test_every_submission_carries_its_source_and_statement_mode(self):
         text = self.text()
-        self.assertIn('begin_fragment', text)
+        self.assertIn('`source`', text)
         self.assertIn('陳述模式', text)
+
+    def test_the_skills_name_no_tool_the_document_flow_dropped(self):
+        # Ophion's document flow has no review, no fragment to open, end or
+        # close, and no deferral tool: a submission carries its own source.
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            text = (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
+            for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts', 'gap_fragment_id',
+                         'fragment', 'resumed_for', 'still_declared', 'kept_in_fragment'):
+                self.assertNotIn(gone, text, f'{name} names {gone}')
+
+    def test_products_stand_apart_under_names_of_the_whole_knowledge(self):
+        # Ophion fragmentless design §3.5, §3.8, §14.6: a concept is
+        # exp.derived.<short> and a rule exp.r<n>, read by short or full name;
+        # each product is changed by its own ID; resume_item lists the
+        # products it concerns and opens nothing across several documents.
+        analysis = self.text()
+        for want in ('`exp.derived.<短名>`', '`exp.r<序號>`', '短名（`paidOrder`）或全名', '換一個名稱', '`gap_id`', '`summary`', '`section`'):
+            self.assertIn(want, analysis)
+        gaps = (ROOT / 'skills' / 'plasma-fill-gaps' / 'SKILL.md').read_text(encoding='utf-8')
+        for want in ('`reported-gap:…`', '`references`', '`opened` 為 `false`', '`documents`', '`kept_related`'):
+            self.assertIn(want, gaps)
 
     def test_existing_definitions_and_rule_checks_are_handled_before_finishing(self):
         text = self.text()
