@@ -13,6 +13,7 @@
 - 帶 `database`：那個資料庫全部的表名；要看某張表的欄位再用 `read_schema`。
 
 知識庫的資料庫與表以 `overview` 與 `read_schema` 讀到的已發布 schema 為準；回答時說明這是已發布的版本（`release`）。
+回覆帶 `schema_changed` 時，資料來源的 schema 在知識對應之後改過：表與欄位是最新的，知識說它們的部分（對應、關聯、概念取自哪一欄）可能過時。照常回答，把這件事連同答案告訴使用者，並說明可用 [重新對應](../../plasma-remap/SKILL.md) 更新。
 工具清單沒有 `overview` 時（知識服務的版本較舊），以 `read_schema`（`mode` 為 `search`）用使用者的用語找表，並告訴使用者目前列不出完整清單。
 
 ## 1. 找到概念

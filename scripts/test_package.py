@@ -140,10 +140,11 @@ class AdvancedSkillsTest(unittest.TestCase):
         text = self.compiled()
         facts = text.index('**先找事實。**')
         decide = text.index('**依事實決定怎麼補。**')
-        send = text.index('送出同一個請求並帶 `fills`')
+        send = text.index('以 `compile_query` 帶 `fills`')
         self.assertLess(facts, decide)
         self.assertLess(decide, send)
         self.assertIn('`compile_id`', text[send:send + 200])
+        self.assertIn('不用把請求重送一次', text[send:send + 300])
         self.assertNotIn('照編譯出的 SQL', text)
 
     def test_what_the_facts_do_not_settle_is_asked(self):
@@ -333,6 +334,36 @@ class AdvancedSkillsTest(unittest.TestCase):
                      '最後的回報固定包含', '待補', '確認發布'):
             self.assertIn(word, remap, word)
         self.assertIn('plasma-remap', self.skill('plasma-document-analysis'))
+
+    def test_the_three_layers_change_what_the_skills_say(self):
+        """Ophion three layers (2026-11-19, 2026-11-20): a mapping is a
+        record of a concept and its column, named by table and column; a
+        consumer is told when the schema changed since the mapping; a
+        member's several values are counted or chosen by the person; a
+        compile_id names its request; a confirmation of a relationship is
+        read at once; a stored rule's reply lists what it reads that nothing
+        gives yet."""
+        remap = self.skill('plasma-remap')
+        self.assertNotIn('`stored`', remap)
+        self.assertNotIn('exp.derived.stored', remap)
+        self.assertIn('對應紀錄', remap)
+        self.assertIn('`schema_changed`', remap)
+        self.assertIn('`schema_changed`', self.reference('advanced.md'))
+        self.assertIn('plasma-remap', self.reference('advanced.md'))
+        text = self.compiled()
+        several = text[text.index('不只一個值'):]
+        for word in ('`aggregate` 帶 `each` 為 true', '`select` 的 `each`', '只取哪一個'):
+            self.assertIn(word, several[:300], word)
+        self.assertIn('標示 `stored`', text)
+        review = text[text.index('### 3.1 列給使用者核對'):]
+        accepted = review.index('`accept_relationship`')
+        self.assertIn('確認立即生效', review[accepted:accepted + 120])
+        completed = review.index('`complete_relationship`')
+        self.assertIn('發布後 Plasma 驗證', review[completed:completed + 120])
+        analysis = self.skill('plasma-document-analysis')
+        stored = analysis[analysis.index('收下的回覆會列出'):]
+        for word in ('`submit_rules`', 'mapping', '不自行編寫定義'):
+            self.assertIn(word, stored[:200], word)
 
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
@@ -579,7 +610,8 @@ class StoredConceptsGuidanceTest(unittest.TestCase):
         text = self.text()
         self.assertIn('column_words', text)
         self.assertIn('概念宣告不帶表或欄位', text)
-        self.assertIn('儲存概念由程式從 schema 建立', text)
+        self.assertIn('概念存在哪一欄由 mapping 對應，記成對應紀錄', text)
+        self.assertNotIn('儲存概念', text)
         self.assertIn('record_clue', text)
         self.assertNotIn('記在宣告的 `column`', text)
         self.assertNotIn('橋接由程式產生', text)
