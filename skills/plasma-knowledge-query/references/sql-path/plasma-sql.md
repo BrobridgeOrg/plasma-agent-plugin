@@ -1,7 +1,7 @@
 # Plasma SQL 寫法
 
 Plasma SQL 採 Trino SQL 語法：以 ANSI SQL 為基礎，加上 Trino 的函式與寫法。
-agent 寫的 SQL（一般模式的整份 SQL、進階模式補洞的片段與外層呈現）都照這裡寫。
+agent 寫的 SQL（一般模式的整份 SQL、進階模式補洞的運算式與外層呈現）都照這裡寫。
 
 識別名稱採兩段式 `database.table`，workspace 已提供 catalog 範圍。一般 snake_case 名稱不需
 引號；保留字或特殊字元用雙引號包住單一識別名稱，不包住整段含點號路徑。

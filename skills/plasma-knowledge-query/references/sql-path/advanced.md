@@ -46,7 +46,7 @@
 呼叫 `compile_query`。`complete` 為 false 時回覆只有 `reading`、`holes` 與 `expects`，沒有 `sql`；`complete` 為 true 時才有 `sql`。回覆中：
 
 - `reading`：這份 SQL 算的是什麼。原樣放進給使用者的說明（第 3.1 節），不改寫。
-- `holes`：知識沒說的地方。每個洞有 `question`（要問使用者的話）、`reason`、`expects`（要補的是條件、值或幾欄的列）與 `gaps`（對應的知識庫缺口）。
+- `holes`：知識沒說的地方。每個洞有 `question`（要問使用者的話）、`reason`、`expects`（要寫什麼，見第 3 節）與 `gaps`（對應的知識庫缺口）。
 - `basis`：依據的規則、對應與假設（例如「以封閉世界讀強否定」）；假設也告訴使用者。
 - `release`：依據的發布版本。
 
@@ -57,23 +57,27 @@
 
 ## 3. 補洞：先依事實推測，再請使用者核對
 
-1. **先找事實。** 對每個洞，用 `read_knowledge`（定義、依賴、附註）、`read_schema`（表、欄位、欄位的附註、候選欄位）與洞的 `expects`、`gaps` 找出它該讀什麼：`read_schema` 查表與欄位，`expects` 說片段能讀哪些來源。`read_schema` 的搜尋回 `has_more` 為 true 而沒有 `cursor` 時，是符合的太多：縮小搜尋的字詞再查。
+1. **先找事實。** 對每個洞，用 `read_knowledge`（定義、依賴、附註）、`read_schema`（表、欄位、欄位的附註、候選欄位）與洞的 `expects`、`gaps` 找出它該讀什麼：`read_schema` 查表與欄位，`expects.t` 是這個洞所說的那一列 t 的表。`read_schema` 的搜尋回 `has_more` 為 true 而沒有 `cursor` 時，是符合的太多：縮小搜尋的字詞再查。
 2. **依事實決定怎麼補。**
    - 事實指向一個讀法：用它補，記下一筆推測：知識庫缺什麼、補成什麼、依據是什麼（哪個概念的定義、哪個欄位的附註、哪份文件的哪一行）。
    - 幾個讀法都說得通而事實分不出來，或找不到任何依據：這個洞問使用者。用使用者聽得懂的業務說法問洞的 `question`，附上 `reading`，SQL、`expects` 與內部名稱留給自己；要問的一次問完。其他的洞照常推測，不等這一題。
    - 被資料推翻的關聯（`relation_refuted`）一律先問（第 4 點）。
 3. **補上。**
-   - 洞有 `expects.leaf` 時，它是一個還沒對應到欄位的葉概念：以 `read_schema`（`mode` 為 `candidates`，`concept` 為洞的 `where`）搜尋實體層的候選欄位；附註與定義分得出是哪一欄就選它，分不出來時把候選用業務說法列給使用者選。選定後在請求帶 `bind`（`concept`、`column` 為 `db.table.column`、`answer` 為依據），不用寫片段。分類沒有欄位可選，缺的是定義時用 `define`（第 1.1 節）；`bind` 只回答值在哪一欄，換算或單位的洞還在，要另外補；
-   - 只有 `bind` 與 `define` 都表達不了時，才把洞寫成一段 SQL：一個運算式，或用括號包起來的一個子查詢，只用 `expects` 列出的別名與欄位，或 schema 裡的表與欄位，寫法照 [Plasma SQL 寫法](plasma-sql.md)。有洞時回覆沒有 SQL：表名照 `read_schema` 查到的寫（例如 `"manufacturing"."ar_invoice"`），`expects.rows` 列到的實體一律讀它的 `from`；單位的洞填一個正數，存放值乘上它就是宣告的單位；
-   - 洞的 `expects.rows` 給出那個實體的資料列（`from`：已套用截點與版本的那段查詢，以別名 `t` 讀）與一列的身分（`identity`）：洞要的是列時，以 `SELECT <identity> AS c1, … FROM <from> t` 為底，再接上需要的表；
-   - 以 `compile_query` 帶 `fills`（洞的 id → SQL 片段）、`answers`（洞的 id → 這一筆的依據）與 `compile_id`（給出這些洞的那次編譯回覆的值）再送；`compile_id` 指名那次的請求，不用把請求重送一次。`answers` 與 `bind` 的 `answer` 寫這一筆補的依據：使用者說的照錄原話；推測的以「代理推測：」開頭，寫補成什麼與依據。`reading` 會列出每一筆，所以看得出哪些是推測。其餘部分由程式產生；補齊後回傳的 `sql` 是實際要執行的那份，別名與結構可能和寫片段時不同：通常是最佳化過的版本（`optimized` 為 true），Plasma 驗證不過時退回照規則逐段寫的版本（`optimized` 為 false）。
+   - 洞有 `expects.leaf` 時，它是一個還沒對應到欄位的葉概念：以 `read_schema`（`mode` 為 `candidates`，`concept` 為洞的 `where`）搜尋實體層的候選欄位；附註與定義分得出是哪一欄就選它，分不出來時把候選用業務說法列給使用者選。選定後在請求帶 `bind`（`concept`、`column` 為 `db.table.column`、`answer` 為依據），不用寫運算式。分類沒有欄位可選，缺的是定義時用 `define`（第 1.1 節）；`bind` 只回答值在哪一欄，換算或單位的洞還在，要另外補；
+   - 只有 `bind` 與 `define` 都表達不了時，才為洞寫**一個運算式**，寫法照 [Plasma SQL 寫法](plasma-sql.md)。`expects.write` 說要寫什麼：
+     - `value`：`expects.t` 那張表的一列 t 的值，用 t 的欄位寫（欄位在 `t_columns`，種類在 `kind`），例如 `date_trunc('month', t."posted_on")`；
+     - `condition`：哪些列 t 算在內，例如 `t."status" = 'POSTED'`；有 `expects.u` 時，寫 t 與 `u` 那張表的一列怎麼對上，例如 `t."supplier_id" = u."supplier_id"`；
+     - 沒有 t、只有 `aliases` 的值或條件，用那些別名寫；`rows` 只出現在整份報表都是洞的時候：寫一個用括號包起來的查詢，輸出 `expects.columns` 那幾欄。
+   - 要用到其他列時（彙總明細、取最新一筆、比對區間），在運算式裡放一個只回一欄、以 t 對應的子查詢，條件則用 `EXISTS`，例如 `(SELECT sum(l."net_minor") FROM "manufacturing"."ar_invoice_line" l WHERE l."invoice_id" = t."invoice_id")`。表名照 `read_schema` 查到的寫，程式會照這份查詢的截點與版本讀它；不要在子查詢裡再包一層讀 t 的子查詢；取某時點以前最新的一筆用 `max_by(值, 時間)`，不用 `ORDER BY … LIMIT 1`（這兩種 Plasma SQL 都不支援，會回「correlated subquery is not supported」）。
+   - 列的身分、`c1` 與 t 的資料列都由程式寫，運算式裡不寫；單位的洞填一個正數，存放值乘上它就是宣告的單位；
+   - 以 `compile_query` 帶 `fills`（洞的 id → 運算式）、`answers`（洞的 id → 這一筆的依據）與 `compile_id`（給出這些洞的那次編譯回覆的值）再送；`compile_id` 指名那次的請求，不用把請求重送一次。`answers` 與 `bind` 的 `answer` 寫這一筆補的依據：使用者說的照錄原話；推測的以「代理推測：」開頭，寫補成什麼與依據。`reading` 會列出每一筆，所以看得出哪些是推測。其餘部分由程式產生；補齊後回傳的 `sql` 是實際要執行的那份，別名與結構可能和寫運算式時不同：通常是最佳化過的版本（`optimized` 為 true），Plasma 驗證不過時退回照規則逐段寫的版本（`optimized` 為 false）。
 4. **關聯洞**（`reason` 為 `relation_unverified` 或 `relation_refuted`）是知識庫有這條關聯、但程式這次不讀它。洞的 `relation` 帶著這條關聯的完整內容：兩端的表（`from`、`to`）、連接欄位（`on`）、經過的表（`through`）與條件（`condition`）、基數與文件寫的原文（`stated`、`qualifier`）、出處（`doc`、`line`），以及狀態與原因（`status`、`use`、`reason`、`detail`；推翻時有抽樣筆數 `checked_rows` 與違反筆數 `violations`）。
    - `relation_unverified`：文件寫了兩張表怎麼連接，Plasma 還沒驗證或無法驗證。依 `relation` 自己寫出那一段，記成一筆推測，依據是文件的原文與出處。
    - `relation_refuted`：Plasma 抽樣驗證時推翻了這條關聯。把洞的 `question` 原樣問使用者（問句已說明是哪條關聯、為什麼沒讀與違反筆數），使用者確認依它讀取後才補；每份 SQL 都會再出現這個洞，每次都問，不沿用上次的回答。
-   - 補法：洞要的列以 `expects.rows` 的 `from` 與 `identity` 為底（`c1` 是成員的身分，屬性的洞另有 `c2` 為值），照 `relation` 的 `on` 連到 `to` 的表；有 `through` 時依序經過那些表，並套用 `condition`。以 `fills` 再編譯。
+   - 補法：照洞的 `expects.write` 寫一個運算式。有 `expects.u` 時，依 `relation` 的 `on` 寫 t 與 u 怎麼對上；有 `through` 時用 `EXISTS` 經過那些表，並套用 `condition`。以 `fills` 再編譯。
    - `relation.reason` 為 `join_unknown` 時，文件沒有寫連接鍵各是哪個欄位：兩張表的鍵與欄位附註指得出來時照它推測；指不出來時問使用者。
    - 編譯可能要等 Plasma 就地驗證需要的關聯（每次最多幾條，抽樣執行）；照常等待 `compile_query` 回覆，驗證通過的關聯不再是洞。
-5. 回覆的 `complete` 為 true 才有 SQL；`validation.valid` 為 false 時這份 SQL 不能執行。錯誤在你寫的片段：依錯誤自己修改片段再送，直到通過，不必問使用者。錯誤不在片段：這是編譯器的問題，不要改片段，如實告訴使用者並附上錯誤。
+5. 回覆的 `complete` 為 true 才有 SQL；`validation.valid` 為 false 時這份 SQL 不能執行。錯誤在你寫的運算式：依錯誤自己修改再送，直到通過，不必問使用者。錯誤不在運算式：這是編譯器的問題，不要改運算式，如實告訴使用者並附上錯誤。
 6. 知識允許一個成員有好幾個值的地方，SQL 讀成每個成員一個值，執行時會檢查。執行時查詢說某個成員有不只一個值：問使用者每個值都要算（`aggregate` 帶 `each` 為 true，或把那個屬性放進 `select` 的 `each`，一個值一列，再編譯一次），還是只取哪一個。
 
 ### 3.1 列給使用者核對

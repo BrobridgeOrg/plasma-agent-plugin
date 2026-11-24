@@ -176,10 +176,10 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertIn('核對完才建立', (ROOT / 'skills' / 'plasma-create-view' / 'SKILL.md').read_text(encoding='utf-8'))
 
     def test_a_refused_query_is_told_apart_from_a_wrong_fragment(self):
-        """Validation can fail away from the fragments, and an answer may be
+        """Validation can fail away from the expressions, and an answer may be
         the faithful query rather than the optimized one."""
         text = self.compiled()
-        self.assertIn('錯誤不在片段', text)
+        self.assertIn('錯誤不在運算式', text)
         self.assertIn('`optimized`', text)
 
     def test_a_question_is_read_as_the_knowledge_it_needs(self):
@@ -206,8 +206,8 @@ class AdvancedSkillsTest(unittest.TestCase):
     def test_a_new_concept_is_built_of_blocks_and_returns_to_the_commit_area(self):
         text = self.compiled()
         define = text.index('`define`')
-        fragment = text.index('寫成一段 SQL')
-        self.assertLess(define, fragment, 'a fragment is the last resort')
+        fragment = text.index('寫**一個運算式**')
+        self.assertLess(define, fragment, 'an expression is the last resort')
         self.assertIn('Commit 區', text[define:])
         self.assertIn('session.', text)
 
@@ -295,10 +295,11 @@ class AdvancedSkillsTest(unittest.TestCase):
     def test_report_skill_asks_what_the_knowledge_lacks(self):
         """A grouping or condition no published concept is goes in the
         request as ask; the person is asked in plain words and answers a
-        column; the fill reads expects.rows; a failed validation is fixed,
-        not asked (Q06 2026-10-28)."""
+        column; the fill is one expression over the row t the hole names
+        (expects.write, expects.t; mfg-full9: the rows frame was what failed);
+        a failed validation is fixed, not asked (Q06 2026-10-28)."""
         report = self.compiled()
-        for word in ('"ask"', 'expects.rows', 'identity', 'validation', '母體'):
+        for word in ('"ask"', 'expects.write', 'expects.t', 'validation', '母體'):
             self.assertIn(word, report, word)
 
     def test_report_skill_asks_by_the_attributes_own_name(self):
