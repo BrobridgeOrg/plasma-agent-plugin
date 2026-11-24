@@ -20,6 +20,7 @@
 
 用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找概念或實體，再以 `mode` 為 `definition` 讀它：
 定義、對應的欄位與表（橋接）、完整與否（`completeness`）與缺口。對到多個候選時列給使用者選。
+每個概念另附實際生效的樣子（`effective`）：查詢讀的對應、欄位與表的附註（含條件式讀法）、所屬的群組與群組規則、完整的缺口與編譯器為它寫的 SQL；回答一個概念實際怎麼算時，照這一段說。使用者問某個指標能依什麼分組時，用 `mode` 為 `dimensions`（`predicate_names` 為那個指標或實體）。
 任何工具的回覆說內容未完（附 `cursor`、`has_more` 為 true）時，先以 `read_tool_reply` 帶那個 `cursor` 讀到 `has_more` 為 false，再呼叫其他工具。
 
 ## 2. 回答存放與讀取方式

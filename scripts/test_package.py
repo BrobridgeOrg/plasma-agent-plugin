@@ -269,7 +269,7 @@ class AdvancedSkillsTest(unittest.TestCase):
                            ('sql-path', self.compiled())):
             self.assertIn('read_knowledge', text, name)
             self.assertNotIn('lookup_knowledge', text, name)
-        self.assertIn('沒有 `submit_answer`', self.compiled())
+        self.assertIn('沒有 `keep_fills`', self.compiled())
 
     def test_a_stored_columns_derivation_is_submitted_and_read(self):
         """A document's statement of how an existing column is computed
@@ -365,6 +365,54 @@ class AdvancedSkillsTest(unittest.TestCase):
         stored = analysis[analysis.index('收下的回覆會列出'):]
         for word in ('`submit_rules`', 'mapping', '不自行編寫定義'):
             self.assertIn(word, stored[:200], word)
+
+    def test_storage_batch2_changes_what_the_skills_say(self):
+        """Ophion storage batch 2 (2026-11-24): a hole carries what the
+        knowledge says of it; a row's value is no constant unless the person
+        says so; fills accumulate per compile_id; a choice hole is chosen;
+        group rules apply and are cancelled by scopes; definition gives the
+        effective view and dimensions what to group by; what the person
+        confirmed is kept with keep_fills or keep_agreed; documents state
+        groups, conditional readings, value entities, table standing and
+        sensitive columns; mapping probes a column with profile_column; and
+        the new pending items are closed."""
+        text = self.compiled()
+        for word in ('`gap_details`', '`related`', '`column_notes`', '`constant`', '`choose`', '`scopes`',
+                     '`filled_from`', '送空字串 `""`', '`group_rules`', '`sensitive_columns`', '`effective`',
+                     '`dimensions`', '`values.matches`'):
+            self.assertIn(word, text, word)
+        holes = text[text.index('## 3. 補洞'):text.index('### 3.1 列給使用者核對')]
+        self.assertIn('每一列都是同一個值時', holes[holes.index('`constant`') - 120:])
+        review = text[text.index('### 3.1 列給使用者核對'):text.index('## 4. 要建成 mview 時')]
+        checked = review.index('**說對的**')
+        for word in ('`keep_fills`', '`keep_agreed`', '`words`', '`lacked`', '`rests_on`', '`choice`'):
+            self.assertGreater(review.index(word), checked, word)
+        report = self.skill('plasma-report')
+        for word in ('`keep_fills`', '`keep_agreed`', '`scopes`', '`column_notes`'):
+            self.assertIn(word, report, word)
+        lookup = self.reference('advanced.md')
+        for word in ('`effective`', '`dimensions`'):
+            self.assertIn(word, lookup, word)
+        analysis = self.skill('plasma-document-analysis')
+        placed = analysis[analysis.index('### 一句話放在哪裡'):analysis.index('### 提交時，碰到這些情況')]
+        for word in ('`submit_group`', '`group`', '`scope`', '`event_time`', '`measure_convention`', '`value_entity`',
+                     '`crosswalk`', '`classification`', '`conditional_reading`', '`table_standing`', '`sensitive`',
+                     '`format`', '`readers_of`', '`otherwise`', 'shop.orders', '只在原文說兩邊存的值不同，或原文陳述分類時才送'):
+            self.assertIn(word, placed, word)
+        probe = analysis[analysis.index('### 抽樣探測'):]
+        for word in ('`profile_column`', '三種情況', '敏感', '`data_probe`', '`data_profile`', '`data_state`',
+                     '`probe-conflict:`', '資料推測'):
+            self.assertIn(word, probe, word)
+        remap = self.skill('plasma-remap')
+        for word in ('`profile_column`', '`data_probe`', '`probe-conflict:`'):
+            self.assertIn(word, remap, word)
+        gaps = self.skill('plasma-fill-gaps')
+        for word in ('`coverage:…`', '`answer-fill:…`', '`probe-conflict:…`', '`keep_fills`', '`keep_agreed`'):
+            self.assertIn(word, gaps, word)
+        version = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
+        notes = (ROOT / 'releases' / f'v{version}.md').read_text(encoding='utf-8')
+        for word in ('feat/storage-batch2', 'feat/profile-column'):
+            self.assertIn(word, notes, word)
 
     def test_no_experiment_connection_is_left(self):
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
@@ -542,8 +590,6 @@ class KnowledgeQueryTest(unittest.TestCase):
             self.assertNotIn('approx_percentile', text, path)
 
 
-if __name__ == '__main__':
-    unittest.main()
 
 
 class ConceptOrDescriptionTest(unittest.TestCase):
@@ -681,3 +727,7 @@ class CodeNotesTest(unittest.TestCase):
         text = self.text()
         for want in ('iota', 'now()', '預期', '樂觀鎖', 'migration', '前端', 'feature flag', '測試', 'DeletedAt'):
             self.assertIn(want, text)
+
+
+if __name__ == '__main__':
+    unittest.main()

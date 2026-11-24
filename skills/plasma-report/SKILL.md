@@ -17,7 +17,7 @@ description: >-
 ## 1. 取得 SQL
 
 依 [進階模式的 sql-path](../plasma-knowledge-query/references/sql-path/advanced.md) 第 1 至 3 節：
-以 `read_knowledge` 找到指標與概念、組成請求，`compile_query` 編譯；每個洞先用 `read_knowledge` 與 `read_schema` 找事實，依事實推測補上並記下這一筆，事實分不出來或被資料推翻的關聯才先問使用者，直到 `complete` 為 true 才有 `sql`。
+以 `read_knowledge` 找到指標與概念、組成請求，`compile_query` 編譯；每個洞先讀它帶的 `gap_details`、`related` 與 `column_notes`，不夠再用 `read_knowledge` 與 `read_schema` 找事實，依事實推測補上並記下這一筆，事實分不出來或被資料推翻的關聯才先問使用者，直到 `complete` 為 true 才有 `sql`。
 一次性報表可以帶 `as_of` 與 `window`；使用者說民國年時換成西元期間並說明換算。
 
 ## 2. 執行並交出結果
@@ -25,9 +25,9 @@ description: >-
 1. 以 `run_query` 執行 `complete` 的 `sql`。
    使用者要的呈現方式編譯結果沒有提供時（例如年份以民國年顯示、日期格式、排序、四捨五入、欄名），照 sql-path 第 3.1 節在外面包一層，
    內層原封不動，外層做了什麼要在回報中說明。
-2. 交出結果時一併說明：算的是什麼（`reading`）、截點、依據的發布版本與規則，以及 `basis` 中的假設。
+2. 交出結果時一併說明：算的是什麼（`reading`）、截點、依據的發布版本與規則，以及 `basis` 中的假設；套用的群組規則（`basis.group_rules`）、條件式讀法、讀到的退役表與輸出的敏感欄位（`basis.sensitive_columns`）也附來源說明。使用者明說不要某條群組規則時，照 sql-path 第 2 節以 `scopes` 取消後重新編譯。
 3. 接著照 sql-path 第 3.1 節列出兩段：**需要你核對的**（每筆推測：知識庫缺什麼、補成什麼、依據、不對時結果哪裡會變）與**我自己決定的**（欄名、排序、呈現這類不改變定義的選擇）。沒有推測時明說這份結果全部依已發布的知識。
-4. 使用者核對後照第 3.1 節處理：說對的才寫回知識庫，說不對的依他的話重補、重新執行。
+4. 使用者核對後照第 3.1 節處理：說對的才寫回知識庫，帶使用者的原話：補洞的用 `keep_fills`，你自己依規則寫的 SQL 用 `keep_agreed`；說不對的依他的話重補、重新執行。
 5. 結果看起來不合理時，先回頭核對 `reading` 與補上的運算式，把可疑的那一筆列在需要核對的最前面。
 
 ## 問題無法由知識庫回答時
