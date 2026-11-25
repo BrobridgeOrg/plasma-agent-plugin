@@ -409,8 +409,7 @@ class AdvancedSkillsTest(unittest.TestCase):
         gaps = self.skill('plasma-fill-gaps')
         for word in ('`coverage:…`', '`answer-fill:…`', '`probe-conflict:…`', '`keep_fills`', '`keep_agreed`'):
             self.assertIn(word, gaps, word)
-        version = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
-        notes = (ROOT / 'releases' / f'v{version}.md').read_text(encoding='utf-8')
+        notes = (ROOT / 'releases' / 'v0.36.0.md').read_text(encoding='utf-8')
         for word in ('feat/storage-batch2', 'feat/profile-column'):
             self.assertIn(word, notes, word)
 
