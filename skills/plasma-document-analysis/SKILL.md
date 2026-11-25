@@ -111,9 +111,29 @@ description: >-
    - **跨列的總和或計數**：用 `submit_node` 的 `aggregate`，寫明經哪個關聯、哪些列計入。
    - **兩個實體之間的關聯**：用 `submit_node` 的 `relation`。原文寫了一筆對幾筆，就填 `params.cardinality`：從第一個參數的列看到第二個參數的列，`N:1`、`1:N`、`1:1` 或 `N:M`。原文沒寫就不填。
    - **指標**：用 `submit_node` 的 `op measure`，逐欄填原文說的。原文沒說的欄位留空，系統會列缺口並附問句。
-   - **IT 文件的儲存語意**（存放單位、UTC 或當地時間、文字讀法、表的版本語意）：用 `submit_annotation`；整個資料庫或表通用的日期格式用 `read_statement`；資料集檔案本身的讀法用 `record_description` 的 `data_note`；講的是某一張表時，帶 `subject_table` 寫那張表，沒帶就記在整份文件上。
+   - **IT 文件的儲存語意**（存放單位、UTC 或當地時間、文字讀法、表的版本語意）：用 `submit_annotation`；整個資料庫或表通用的日期格式用 `read_statement`；資料集檔案本身的讀法用 `record_description` 的 `data_note`；講的是某一張表時，帶 `subject_table` 寫那張表，沒帶就記在整份文件上。群組與群組規則、條件式讀法、用值識別的實體與對照、表的地位、敏感欄位與格式，照下面「一句話放在哪裡」。
    - **原文說某個既有欄位是由其他欄位算出來的**（例：客戶表的 `total` 是該客戶所有訂單 `cost` 的加總）：用 `submit_backbone` 的 `column_derivation`，`subject` 是那一欄（`db.table.column`），`expression` 把原文的算法寫成運算式。同一張表的欄位直接寫欄名；別張表的欄位經關聯讀，寫成 `關聯名稱.欄位`，關聯名稱以 `lookup_relationships` 查；會到多列的關聯放在 `sum`、`count`、`avg`、`min`、`max` 裡，例如 `sum(orders_by_customer_id.cost)`。和其他產物一樣在 Commit 頁發布。只讀同一張表欄位的算法，系統會抽樣檢查資料是否符合；經關聯讀別張表的算法目前不檢查，照樣提交，它會標成未驗證。業務上這個值怎麼算，仍照上面用 `submit_node` 寫；兩者說的是不同的事，原文都說了就都送。
 6. 原文補充、限縮或改變既有的規則時，不另寫一條：用 `lookup_knowledge` 查到那條規則與它的 `base_version`，以 `revise_rule` 寫出完整的新版本。原文說某條知識不再成立時，用 `delete_knowledge`。
+
+### 一句話放在哪裡
+
+以一家小店為例，各舉一句：
+
+- **群組與群組規則**（`submit_group`）——「營收是讀到訂單金額的每個數字；只計已付款訂單，以付款日歸期，分母沒有已付款訂單時結果為空」：
+  - `kind` `group`：群組 `revenue`，`term` 是原文的稱呼，成員用 `readers_of`（`orderAmount`：讀到它的概念現在與之後都算）或原文列出的 `members`；
+  - `kind` `scope`：`table` 為 `shop.orders`，原文的每個條件一個 `parts`，各帶原文 `says` 與 `condition`（`shop.orders.status(?row, "PAID")`；別張表的欄位經 `lookup_relationships` 查到的關聯讀），或以已發布概念比較（`concept`、`op`、`value`）；
+  - `kind` `event_time`：`time` 為 `paidOn`，只依月份分組、時間窗或截點沒指名時間時用它；
+  - `kind` `measure_convention`：`zero_denominator`（`null`、`zero`、`exclude`）、`nulls`、`cutoff`，補指標本身沒寫明的。
+  每條規則有 `name`，查詢以這個名稱取消它；整個 workspace 的預設寫在群組 `all`。
+- **條件式讀法或對應的條件**——讀成同一種值、只是寫法不同（正負號、比例、單位、幣別、文字格式），是條件式讀法；讓這一列變成另一種業務事物（計畫日與實際日、銷售與退貨），是概念的對應條件，由 mapping 寫。
+  「退貨列的金額存成不帶正負號」：`submit_annotation` `kind` `conditional_reading`，主詞 `shop.orders.amount`，`cases` 依序比對，這一句是一個 case：`when` 為 `shop.orders.kind(?row, "RETURN")`、`reading` 的 `sign` 為 -1；其餘列照存放值讀（`otherwise` 省略）。`reading` 也可寫 `scale`、`unit`、`currency`、`format`、`null_meaning`，或 `applies` 為 false（這些列這一欄沒有意義）。逐列不同的單位每個單位一個 case。
+  「kind 為 RETURN 的列是退貨，不是訂單」：宣告退貨的概念，原文點名的欄位以 `record_clue` 記在它身上，由 mapping 寫成對應條件。
+- **用值識別的實體、跨資料庫對照、分類**（`submit_group`）——只在原文說兩邊存的值不同，或原文陳述分類時才送；成對的值只送原文寫的。
+  「網店把通路記成 01、02，門市收銀機記成 S、W；01 與 S 是門市，02 與 W 是網路」：`kind` `value_entity`（`entity` 為 `Channel`，`value_members` 為門市與網路），再為每一欄送一筆 `kind` `crosswalk`（`column` 為那一欄，`pairs` 從存放值對到成員，原文有期間時帶 `valid_from`、`valid_to`；清單太長時以 `rows` 指向存放成對值的表）。
+  「門市與網路通路都屬零售」：`kind` `classification`（`name`、`entity`、`term`，`pairs` 從成員對到分類值）。有一張表列出全部成員的實體照一般實體寫。
+- **表的地位**（`submit_annotation` `kind` `table_standing`）——「legacy_orders 是舊系統的鏡像，保留給稽核；不得用它的匯率換算新訂單」：主詞 `shop.legacy_orders`，`standing` 為 `legacy_mirror`（另有 `deprecated`、`restricted`），`kept_for` 為「稽核」，`restrictions` 一筆（`columns` 為匯率欄，`use` 為 `conversion`，`says` 照錄原文）；原文點名標準表時寫進 `replacements`。
+- **敏感欄位**（`submit_annotation` `kind` `sensitive`）——「customers.email 是個人資料」：主詞 `shop.customers.email`，`category` 為 `personal_data`，`description` 照錄原文。
+- **格式**——「shipped_at 存成 ISO 時間文字」：`submit_annotation` `kind` `read_format`（`text_timestamp`），主詞 `shop.orders.shipped_at`。原文說一欄每個值都照某個樣式寫（例如 `AB-1234`）時，用 `submit_backbone` `kind` `format`，`pattern` 寫成整個值的 RE2 正規表示式（`[A-Z]{2}-[0-9]{4}`）；Plasma 以資料檢查它，讀這一欄的人看得到，查詢不套用。
 
 ### 提交時，碰到這些情況
 
@@ -165,6 +185,7 @@ description: >-
    - 值在別的表的某一欄、沿知識庫的關聯每一跳都只到一列（多對一或一對一）時，用 `mapping_submit_mapping` 帶 `through`。類別（`kind` 為 `value`）可以跨一對多。
    - 文字欄對到日期或時間的概念：欄位自己有讀法註記時程式自動轉換；沒有時，任務列出的讀法通則若涵蓋這一欄，在 `read` 帶它的 ID；都不適用就照送不帶 `read`，系統會記成 `format_unknown`，等說明讀法的註記到了再對應。
    - 值要計算、換算單位或幣別、依單位或有效期間查表，或要對多列加總時，用 `mapping_submit_node` 建出對應子圖，再以 `realizes` 接回概念；節點讀的是這個實體的概念：要用某一欄的值，先宣告一個對應葉子並用 `mapping_submit_mapping` 對到那一欄，再把這個葉子當節點輸入。換算缺依據時保留為提案，不自行補係數。
+   - 碰到下面「抽樣探測」說的三種欄位時，以 Plasma 的 `profile_column` 查那一欄，記下結論，mapping 結束後交出。
 3. 重複到文件為 `ready_to_commit`。
 
 完成後向主代理回報一次：文件狀態、新建或沿用的符號、待補項目（`pending_items` 可查）、要問使用者的問題。處理過程中不傳進度訊息。
@@ -178,6 +199,19 @@ description: >-
 - **文件被 Commit 區延後**（狀態 `deferred`）：表示分析時系統出錯，Commit 頁寫了原因。照 `next_step` 重新開啟文件，從第 4 節接著做。
 - **文件內容和已發布的版本相同**（狀態 `unchanged`）：沒有東西要發布，直接回報。
 - **概念要讀的表或欄位不在 schema 裡**：mapping 會把它記成沒有資料來源（`no_source`）。這不用重做文件的分析：問使用者表還沒匯入還是名稱不同，回報主代理；表匯入後重新對應。
+
+### 抽樣探測
+
+文件沒說一欄怎麼讀、而查詢會因此算錯時，以 Plasma 的 `profile_column`（需要 `query:run`；`table` 寫 `db.table`）看那一欄的抽樣：最多 30 個常見值與筆數、最小與最大值、空值比例。只在這三種情況探測：
+
+1. 文字欄被規則排序或比大小，卻沒有讀法註記或讀法通則說它怎麼讀；
+2. 數值欄被指標加總，卻沒有附註說哪個值代表「沒有值」（特殊值）；
+3. 代碼欄被規則拿來和某個代碼比較，卻沒有值域列出它的值。
+
+只探測沒有標記為敏感的欄位。結果是抽樣：沒出現的值仍可能存在，筆數也不是整張表的。
+
+文件到 `ready_to_commit` 後，以 `resume_item`（帶讀到這一欄的規則 ID）開這份文件，把結論記在那一欄：`submit_annotation` 的 `read_format`（含特殊值 `sentinel`）、`value_meaning` 或 `conditional_reading`，或 `submit_backbone` 的 `value_domain`。`source` 不寫行號，寫 `quote`（結論依據的探測結果，只放結論需要的值）、`locator`（`profile_column db.table.column`）與 `statement`（`content_type` 為 `data_profile`、`channel` 為 `data_probe`、`mode` 為 `data_state`）。
+它以「資料推測」進 Commit 區，使用者發布就是確認。和文件寫的說法衝突的結論不會保存，系統把它列成 `probe-conflict:` 待補項目交給人決定（[補齊缺口](../plasma-fill-gaps/SKILL.md)）。交完照第 5、6 節結束這份工作再回報。
 
 ## 7. 問綁定缺口
 

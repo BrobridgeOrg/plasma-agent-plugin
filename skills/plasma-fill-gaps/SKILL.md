@@ -79,6 +79,9 @@ description: >-
   - 單位對不上（`unit_mismatch`）：加一個 `convert` 節點，係數照文件寫明的（`params.factor`，`basis` 引用係數），或寫明查表；沒有依據就問使用者係數。
   - 換算係數的欄位沒對應（`conversion_unmapped`）：`resume_item` 開 mapping 項目，對應那個欄位。
   - 不完整（`incomplete`）：上層概念因子概念不完整而不完整，已摺疊在根本原因底下（`causes` 是缺口的 `references`，`all: true` 時看 `waits_on`）；補根本原因那一項。
+- **覆蓋檢查**（`coverage:…`）：下一版發布後，查詢會在這裡開洞（試編譯每個指標、分類與群組規則得出的；`affected` 列出受影響的指標與分類）。`resume_item` 開宣告或讀到所缺概念的文件，那份文件寫了的就在那裡補上；文件沒寫時照 `question` 問使用者，以 `submit_answer` 轉交（第 4 節）。補上的產物進 Commit 區，等正常 commit。
+- **確認過的補洞**（`answer-fill:…`）：使用者在報表確認、以 `keep_fills` 或 `keep_agreed` 保存，而程式沒辦法直接轉成知識的內容（讀別張表的子查詢、運算式、知識庫沒有的概念、代理自己寫的 SQL）。`resume_item` 開保存它的回答文件，裡面有使用者原話、同意的 SQL 與依據：引用回答文件的行，把它寫成知識（條件或值寫成規則或概念，欄位寫成線索交給 mapping，欄位的讀法寫成註記），再 `finish_document`。不用再問使用者。
+- **探測衝突**（`probe-conflict:…`）：資料抽樣的結論和文件寫的不一樣，結論沒有保存。照 `question` 把兩邊列給使用者，請他決定以哪一個為準，以 `submit_answer`（`item_id` 為這一項）轉交，這一項就關閉。文件對時不用再做；資料對時，照 `how` 以 `resume_item` 開寫了那個說法的文件改正，再重新提交探測的結論。
 - **規則檢查**（`rule-check:…`）：用 `resume_item` 開該規則的文件，以 `revise_rule` 修正規則；原文同時寫了名稱與代碼時，送 `submit_backbone` kind `code_name`。或在 `finish_document` 以 `rule_check_answers` 說明規則為何正確。
 - **事實衝突**（`metadata-contract:…`、`metadata-value:…`、`constant-contract:…`、`constant-value:…`、`versioning:…`）：不同文件說法不一，請使用者到 Commit 頁的「事實衝突」區裁定。讀取了這些事實的規則（`metadata-reader:…`）會在裁定後的下一次發布自然帶入。
 - **綁定**（`binding:…`）：文件說明了一個 schema 裡沒有的名稱。使用者確認是哪張表或哪個欄位後，用 `bind_term` 綁定，不用 `resume_item`。
