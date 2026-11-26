@@ -271,18 +271,14 @@ class AdvancedSkillsTest(unittest.TestCase):
             self.assertNotIn('lookup_knowledge', text, name)
         self.assertIn('沒有 `keep_fills`', self.compiled())
 
-    def test_a_stored_columns_derivation_is_submitted_and_read(self):
-        """A document's statement of how an existing column is computed
-        from other columns is a column_derivation of submit_backbone, and
-        read_schema shows it with what the data said of it."""
-        analysis = self.skill('plasma-document-analysis')
-        for word in ('`column_derivation`', '`expression`', '`lookup_relationships`', 'sum(orders_by_customer_id.cost)', '`submit_node`'):
-            self.assertIn(word, analysis, word)
+    def test_a_stored_columns_derivation_is_read(self):
+        """read_schema shows how a document says an existing column is
+        computed, with what the data said of it; how it is submitted is the
+        tool's own description (v0.37.0)."""
         lookup = self.reference('advanced.md')
         for word in ('`column_derivation`', '`expression`', '`verified`', '`unverified`', '`awaiting_choice`', '`refuted`',
                      '`reason`', '`unsupported_function`'):
             self.assertIn(word, lookup, word)
-        self.assertIn('經關聯讀別張表的算法目前不檢查', analysis)
 
     def test_report_skill_corrects_a_refused_request(self):
         """A refused request is corrected and sent again: the suggested
@@ -342,8 +338,7 @@ class AdvancedSkillsTest(unittest.TestCase):
         consumer is told when the schema changed since the mapping; a
         member's several values are counted or chosen by the person; a
         compile_id names its request; a confirmation of a relationship is
-        read at once; a stored rule's reply lists what it reads that nothing
-        gives yet."""
+        read at once."""
         remap = self.skill('plasma-remap')
         self.assertNotIn('`stored`', remap)
         self.assertNotIn('exp.derived.stored', remap)
@@ -361,10 +356,6 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertIn('確認立即生效', review[accepted:accepted + 120])
         completed = review.index('`complete_relationship`')
         self.assertIn('發布後 Plasma 驗證', review[completed:completed + 120])
-        analysis = self.skill('plasma-document-analysis')
-        stored = analysis[analysis.index('收下的回覆會列出'):]
-        for word in ('`submit_rules`', 'mapping', '不自行編寫定義'):
-            self.assertIn(word, stored[:200], word)
 
     def test_storage_batch2_changes_what_the_skills_say(self):
         """Ophion storage batch 2 (2026-11-24): a hole carries what the
@@ -372,10 +363,11 @@ class AdvancedSkillsTest(unittest.TestCase):
         says so; fills accumulate per compile_id; a choice hole is chosen;
         group rules apply and are cancelled by scopes; definition gives the
         effective view and dimensions what to group by; what the person
-        confirmed is kept with keep_fills or keep_agreed; documents state
-        groups, conditional readings, value entities, table standing and
-        sensitive columns; mapping probes a column with profile_column; and
-        the new pending items are closed."""
+        confirmed is kept with keep_fills or keep_agreed; mapping probes a
+        column with profile_column when the task's protocol says so, and
+        its conclusion waits as 資料推測; and the new pending items are
+        closed. What a document states of groups, readings and tables is the
+        product tools' to say (v0.37.0)."""
         text = self.compiled()
         for word in ('`gap_details`', '`related`', '`column_notes`', '`constant`', '`choose`', '`scopes`',
                      '`filled_from`', '送空字串 `""`', '`group_rules`', '`sensitive_columns`', '`effective`',
@@ -393,19 +385,12 @@ class AdvancedSkillsTest(unittest.TestCase):
         lookup = self.reference('advanced.md')
         for word in ('`effective`', '`dimensions`'):
             self.assertIn(word, lookup, word)
-        analysis = self.skill('plasma-document-analysis')
-        placed = analysis[analysis.index('### 一句話放在哪裡'):analysis.index('### 提交時，碰到這些情況')]
-        for word in ('`submit_group`', '`group`', '`scope`', '`event_time`', '`measure_convention`', '`value_entity`',
-                     '`crosswalk`', '`classification`', '`conditional_reading`', '`table_standing`', '`sensitive`',
-                     '`format`', '`readers_of`', '`otherwise`', 'shop.orders', '只在原文說兩邊存的值不同，或原文陳述分類時才送'):
-            self.assertIn(word, placed, word)
-        probe = analysis[analysis.index('### 抽樣探測'):]
-        for word in ('`profile_column`', '三種情況', '敏感', '`data_probe`', '`data_profile`', '`data_state`',
-                     '`probe-conflict:`', '資料推測'):
-            self.assertIn(word, probe, word)
-        remap = self.skill('plasma-remap')
-        for word in ('`profile_column`', '`data_probe`', '`probe-conflict:`'):
-            self.assertIn(word, remap, word)
+        for name in ('plasma-document-analysis', 'plasma-remap'):
+            text = self.skill(name)
+            probe = text[text.index('協定說要抽樣探測某一欄'):]
+            for word in ('`profile_column`', '`query:run`', '照協定交出結論', '資料推測'):
+                self.assertIn(word, probe[:160], f'{name}: {word}')
+        self.assertIn('`probe-conflict:`', self.skill('plasma-remap'))
         gaps = self.skill('plasma-fill-gaps')
         for word in ('`coverage:…`', '`answer-fill:…`', '`probe-conflict:…`', '`keep_fills`', '`keep_agreed`'):
             self.assertIn(word, gaps, word)
@@ -420,16 +405,14 @@ class AdvancedSkillsTest(unittest.TestCase):
                 self.assertNotIn(stale, text, f'{name} still says {stale!r}')
             self.assertIn('commit_page', text, name)
 
-    def test_skills_teach_units_nodes_and_completeness(self):
-        """1G: a value concept states its unit with the source quote, a
-        computation or metric is a node, and gaps name units, measures and
-        the root causes an incomplete concept points to."""
-        analysis = self.skill('plasma-document-analysis')
-        for want in ('arg_values', 'unit_quote', 'submit_node', 'op measure', 'submit_annotation'):
-            self.assertIn(want, analysis)
+    def test_a_computation_gap_is_filled_where_it_was_declared(self):
+        """A gap of a computation or a metric is filled on the document that
+        declared it, after the source is looked up and before the person is
+        asked; which fields it lacks is the item's own closes_with."""
         gaps = self.skill('plasma-fill-gaps')
-        for want in ('unit_unknown', 'unit_mismatch', 'measure_incomplete', 'incomplete', 'causes'):
-            self.assertIn(want, gaps)
+        dag = gaps[gaps.index('（`dag:…`）'):]
+        for want in ('先查原文有沒有寫', '宣告它的那份文件上補', '沒寫才照 `question` 問使用者', '根本原因'):
+            self.assertIn(want, dag[:200], want)
 
     def test_setup_lists_knowledge_write(self):
         self.assertIn('`knowledge:write`', self.skill('plasma-mcp-setup'))
@@ -591,112 +574,206 @@ class KnowledgeQueryTest(unittest.TestCase):
 
 
 
-class ConceptOrDescriptionTest(unittest.TestCase):
-    def test_document_analysis_judges_by_meaning_not_layout(self):
-        """What a passage says, not its layout, makes it a concept or a
-        description; how the agent reads is its own."""
+class ReadingTest(unittest.TestCase):
+    def test_how_the_document_is_read_is_the_agents(self):
+        """How the agent reads is its own; what a passage is submitted as is
+        the protocol's to say, and a line that states no knowledge stays
+        uncovered without a record (Ophion D8)."""
         text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
-        for want in ('看它說了什麼，不看它寫成句子、清單、表格還是標題', '怎麼讀、讀幾次、依什麼順序由你決定'):
+        for want in ('怎麼讀、讀幾次、依什麼順序由你決定', '留著就是未覆蓋，不用記錄'):
             self.assertIn(want, text)
         self.assertNotIn('讀完全部內容才開始審查', text)
 
 
 class RevisionGuidanceTest(unittest.TestCase):
-    def test_document_analysis_revises_and_deletes_existing_knowledge(self):
-        """The agent changes existing knowledge with a new version or a
-        deletion. A person's correction of a published rule is an answer
-        document revising it (design 2026-11-03 §4.2, §4.3, §4.6); a
-        product still in the commit area is reopened by resume_item with
-        the correction, as the server's read_translation and resume_item
-        say."""
-        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
-        for want in ('revise_rule', 'delete_knowledge', 'base_version', 'version_conflicts', '不帶 `item_id`'):
-            self.assertIn(want, text)
-        flow = text[text.index('使用者指出某一項不對時'):]
-        staged = flow[flow.index('還在 Commit 區的產物'):flow.index('已發布的規則')]
-        published = flow[flow.index('已發布的規則'):flow.index('兩種都先確認再入區')]
-        self.assertIn('`correction`', staged)
-        self.assertNotIn('submit_answer', staged)
-        self.assertIn('submit_answer', published)
-        self.assertNotIn('`correction`', published)
-
-    def test_a_correction_in_conversation_is_confirmed_before_it_is_staged(self):
-        """The new version's reading is shown and confirmed before
-        finish_document; a read version rejected since is a conflict too
-        (final review 16, 7)."""
-        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
-        flow = text[text.index('使用者指出某一項不對時'):]
-        self.assertLess(flow.index('`reading`'), flow.index('`finish_document`'))
-        self.assertIn('使用者確認後才', flow)
-        self.assertIn('read_rejected', text)
-        self.assertIn('`staged`', text)
-
-    def test_a_revision_rereads_only_what_changed(self):
-        """A revised document: only git diff's changed lines are read again,
-        each affected rule is revised, deleted or kept, and an unhandled one
-        is decided before finishing (design 2026-11-03 §5)."""
-        text = (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
-        for want in ('affected_rules', 'keep_rule', 'affected_unhandled', '只重讀'):
-            self.assertIn(want, text)
-
-
-class StoredConceptsGuidanceTest(unittest.TestCase):
-    """Document analysis follows the stored-concepts protocol (Ophion spec
-    2026-11-04): column rows declare stored concepts, a fragment carries its
-    statement mode, a kept existing definition stands with its reason."""
-
     def text(self):
         return (ROOT / 'skills' / 'plasma-document-analysis' / 'SKILL.md').read_text()
 
-    def test_a_column_is_noted_not_declared(self):
-        """Ophion design 2026-11-11: the concept layer names no column. What
-        a source says of a column is the column's words and storage notes;
-        a business concept carries the column as a clue; the program builds
-        each column's stored concept from the schema."""
+    def test_a_correction_is_the_persons_words_and_its_reading_is_confirmed(self):
+        """A person's correction of a product, in the commit area or
+        published, is kept as an answer document that the new version
+        cites; the new version's reading is shown to the person (Ophion
+        read_translation, submit_answer)."""
         text = self.text()
-        self.assertIn('column_words', text)
-        self.assertIn('概念宣告不帶表或欄位', text)
-        self.assertIn('概念存在哪一欄由 mapping 對應，記成對應紀錄', text)
-        self.assertNotIn('儲存概念', text)
-        self.assertIn('record_clue', text)
-        self.assertNotIn('記在宣告的 `column`', text)
-        self.assertNotIn('橋接由程式產生', text)
-        self.assertNotIn('就是概念，寫成規則', text)
-        self.assertIn('看它說了什麼，不看它寫成句子、清單、表格還是標題', text)
+        flow = text[text.index('使用者指出某一項不對時'):text.index('## 9. 交給使用者發布')]
+        self.assertLess(flow.index('`submit_answer`'), flow.index('`reading`'))
+        for want in ('照錄使用者的原話', '只改使用者說的部分', '貼給使用者確認', '請使用者決定', '`withdraw_mapping`'):
+            self.assertIn(want, flow, want)
 
-    def test_every_submission_carries_its_source_and_statement_mode(self):
+    def test_a_revision_rereads_what_changed_and_reconfirms_what_it_touched(self):
+        """A revised document is its own upload: only the changed lines are
+        read again, and each published product whose lines changed or went
+        stays published until it is sent again, rewritten, kept or
+        withdrawn (Ophion D13)."""
         text = self.text()
-        self.assertIn('`source`', text)
-        self.assertIn('陳述模式', text)
+        revision = text[text.index('## 10. 文件改版'):]
+        for want in ('`document_coverage`', '`diff`', '`to_reconfirm`', '自動沿用', '只重讀', '維持已發布',
+                     '重送或保留', '改寫', '撤回', '請他決定'):
+            self.assertIn(want, revision, want)
+        self.assertIn('文件改版', (ROOT / 'skills' / 'plasma-code-notes' / 'SKILL.md').read_text())
+        self.assertIn('`reconfirm:…`', (ROOT / 'skills' / 'plasma-fill-gaps' / 'SKILL.md').read_text())
+
+
+# The tools Ophion removed with the stateless contract (Ophion
+# docs/proposal-submission-contract.md D2, §4.4, §4.5): none is kept beside
+# the new ones, so a skill that names one sends the agent to a tool that
+# does not exist.
+REMOVED_TOOLS = ('open_document', 'finish_document', 'resume_item', 'document_status',
+                 'submit_rules', 'submit_node', 'submit_annotation', 'submit_backbone', 'submit_metadata',
+                 'submit_group', 'record_clue', 'record_description', 'report_gap', 'declare_reference',
+                 'identify_document', 'revise_rule', 'keep_rule', 'delete_knowledge',
+                 'mapping_submit_mapping', 'mapping_submit_node', 'mapping_record_unmapped')
+
+# One tool for each kind of product and of mapping (Ophion
+# pkg/api/advanced/agentmcp/testdata/tools.golden.json at PR #260). Which
+# kinds there are and what each takes is the MCP's to say: no skill names one.
+KIND_TOOLS = ('submit_entity', 'submit_attribute', 'submit_relation', 'submit_condition', 'submit_metric',
+              'submit_scope', 'submit_metric_group', 'submit_workspace_convention', 'submit_constant',
+              'submit_code_meaning', 'submit_note', 'submit_column', 'submit_table',
+              'submit_table_relationship', 'submit_column_derivation',
+              'map_entity', 'map_rows', 'map_attribute', 'map_value', 'map_relation', 'map_computed',
+              'map_unmapped')
+
+# The other submit, mapping and withdraw tools of the same list, which the
+# skills name where the flow calls them.
+FLOW_TOOLS = ('submit_answer', 'withdraw_knowledge', 'withdraw_mapping', 'mapping_finish', 'mapping_read_source',
+              'mapping_lookup_columns', 'mapping_lookup_relationships')
+
+# Parameters of the product tools: how a product is written is read from the
+# tool, not from a skill.
+PRODUCT_PARAMETERS = ('source', 'statement', 'content_type', 'channel', 'lines', 'cells', 'quote', 'locator',
+                      'unclear', 'resolutions', 'rule_check_answers', 'drop_changes', 'rule_id', 'base_version',
+                      'declare', 'clues', 'value_type', 'unit', 'unit_quote', 'cardinality', 'through', 'realizes',
+                      'basis', 'expected_document_revision', 'new_predicates', 'arg_values')
+
+FLOW_SKILLS = ('plasma-document-analysis', 'plasma-fill-gaps', 'plasma-remap', 'plasma-code-notes')
+
+
+def named(word, text):
+    """Whether text names word as a whole identifier."""
+    return re.search(r'(?<![A-Za-z0-9_])' + re.escape(word) + r'(?![A-Za-z0-9_])', text) is not None
+
+
+class StatelessContractTest(unittest.TestCase):
+    """The document flow follows Ophion's stateless contract (Ophion
+    docs/proposal-submission-contract.md, PR #260): nothing is opened or
+    finished, a product names its document by upload_id, and the skills
+    tell the flow only (A9)."""
+
+    def text(self, name='plasma-document-analysis'):
+        return (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
+
+    def shipped(self):
+        """Every page an agent or a person installing the plugin reads."""
+        pages = [*sorted((ROOT / 'skills').rglob('*.md')), ROOT / 'README.md', *sorted((ROOT / 'docs').glob('*.md')),
+                 ROOT / '.opencode-plugin' / 'INSTALL.md']
+        self.assertGreater(len(pages), 20)
+        return {str(p.relative_to(ROOT)): p.read_text(encoding='utf-8') for p in pages}
+
+    def test_no_page_names_a_removed_tool_or_a_work(self):
+        """A9, A10: the removed tools and work_id are gone from every skill
+        and the README; the release notes alone say which they were."""
+        for path, text in self.shipped().items():
+            for gone in (*REMOVED_TOOLS, 'work_id'):
+                self.assertFalse(named(gone, text), f'{path} names {gone}')
+        notes = (ROOT / 'releases' / 'v0.37.0.md').read_text(encoding='utf-8')
+        for gone in (*REMOVED_TOOLS, 'work_id'):
+            self.assertTrue(named(gone, notes), f'the release notes do not say {gone} is gone')
+
+    def test_a_skill_names_only_tools_the_contract_has(self):
+        """A submit, map, mapping or withdraw tool a skill names is one of
+        the contract's list."""
+        for path, text in self.shipped().items():
+            for tool in re.findall(r'`((?:submit|map|mapping|withdraw)_[a-z_]+)`', text):
+                self.assertIn(tool, (*KIND_TOOLS, *FLOW_TOOLS), f'{path} names {tool}')
+
+    def test_what_a_product_is_is_read_from_the_mcp(self):
+        """A9: a skill names no kind's tool and no parameter of a product;
+        it sends the agent to the protocol and the tools' own descriptions."""
+        for path, text in self.shipped().items():
+            for tool in KIND_TOOLS:
+                self.assertFalse(named(tool, text), f'{path} names {tool}')
+        for name in FLOW_SKILLS:
+            text = self.text(name)
+            for parameter in PRODUCT_PARAMETERS:
+                self.assertNotIn('`' + parameter + '`', text, f'{name} names the parameter {parameter}')
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
+            self.assertIn('`read_task`（`target` 為 `document`）的協定，與每個工具自己的說明', self.text(name), name)
+        for name in ('plasma-document-analysis', 'plasma-remap'):
+            self.assertIn('`read_task`（`target` 為 `task`）', self.text(name), name)
+        for name in ('plasma-document-analysis', 'plasma-fill-gaps', 'plasma-remap'):
+            self.assertIn('只寫流程，以及和使用者之間的事', self.text(name), name)
+
+    def test_a_product_names_its_document_and_nothing_is_opened(self):
+        """Every submission carries its document's upload_id and where the
+        file states it; a refused one keeps nothing and is sent again; the
+        sub-agents share nothing but each its own upload_id."""
+        text = self.text()
+        analyse = text[text.index('## 4. 分析一份文件'):text.index('## 5. 把問題問使用者')]
+        for want in ('`read_document`', '`upload_id` 與出處', '當下進 Commit 區', '這一筆什麼都沒留下', '整筆重送',
+                     '後提交的一方', '`document_coverage`'):
+            self.assertIn(want, analyse, want)
+        agents = text[text.index('## 3. 每份文件一個子代理'):text.index('## 4. 分析一份文件')]
+        for want in ('`upload_id`', '同時', '一個子代理只處理一份'):
+            self.assertIn(want, agents, want)
+
+    def test_mapping_runs_when_the_person_says_so(self):
+        """A7, D11: once the documents are analysed the person is asked
+        whether to run the mapping, and told that a concept with no mapping
+        is published as a gap; run_mapping is called after they agree."""
+        text = self.text()
+        mapping = text[text.index('## 7. 請使用者決定是否執行對應'):text.index('## 8. 請使用者確認翻譯')]
+        ask = mapping.index('問使用者一次')
+        agreed = mapping.index('使用者同意後')
+        run = mapping.index('呼叫 `run_mapping`')
+        self.assertLess(ask, agreed)
+        self.assertLess(agreed, run)
+        for want in ('先不執行也可以發布', '列為缺口', '`task.ready`', '`mapping_finish`', '`map_*`'):
+            self.assertIn(want, mapping, want)
+        publish = text[text.index('## 9. 交給使用者發布'):text.index('## 10. 文件改版')]
+        self.assertIn('還沒執行對應', publish)
+
+    def test_the_report_and_the_persons_rulings(self):
+        """The agent reports what the document's products cover and what
+        waits; a definition two documents keep both of, and a conflict of
+        facts, wait for the person on the commit page, which publishes."""
+        text = self.text()
+        report = text[text.index('## 6. 回報'):text.index('## 7. 請使用者決定是否執行對應')]
+        for want in ('覆蓋情況', '被擋下而沒能解決的提交', '等使用者在 Commit 頁裁決的衝突', '`pending_items`'):
+            self.assertIn(want, report, want)
+        publish = text[text.index('## 9. 交給使用者發布'):text.index('## 10. 文件改版')]
+        for want in ('`setup.commit_page`', '發布由使用者在頁面上操作', '事實衝突', '裁決前只有牽涉的產物不發布',
+                     '發布之後還能替同一份文件補產物'):
+            self.assertIn(want, publish, want)
+
+    def test_an_item_is_filled_on_the_document_that_states_it(self):
+        """A pending item is completed by a product submitted on the
+        document that states what it lacks, by its upload_id; the person's
+        answer is a document of its own (Ophion pending_items)."""
+        gaps = self.text('plasma-fill-gaps')
+        fill = gaps[gaps.index('## 5. 補齊一個項目'):gaps.index('## 6. 使用者指正翻譯或對應')]
+        for want in ('照這一項的 `closes_with`', '說明所缺內容的那份文件上提交缺的產物', '`upload_id`',
+                     '再查一次 `pending_items`'):
+            self.assertIn(want, fill, want)
+        answer = gaps[gaps.index('## 4. 轉交使用者的回答'):gaps.index('## 5. 補齊一個項目')]
+        for want in ('`submit_answer`', '使用者的原話', '`item_id`', '以行號引用回答'):
+            self.assertIn(want, answer, want)
 
     def test_the_skills_name_no_tool_the_document_flow_dropped(self):
         # Ophion's document flow has no review, no fragment to open, end or
         # close, and no deferral tool: a submission carries its own source.
         for name in ('plasma-document-analysis', 'plasma-fill-gaps'):
-            text = (ROOT / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
+            text = self.text(name)
             for gone in ('review_units', 'begin_fragment', 'close_fragment', 'defer_fragment', '`finish`', 'lost_products', 'retry_target', 'carried_excerpts', 'gap_fragment_id',
                          'fragment', 'resumed_for', 'still_declared', 'kept_in_fragment'):
                 self.assertNotIn(gone, text, f'{name} names {gone}')
 
-    def test_products_stand_apart_under_names_of_the_whole_knowledge(self):
-        # Ophion fragmentless design §3.5, §3.8, §14.6: a concept is
-        # exp.derived.<short> and a rule exp.r<n>, read by short or full name;
-        # each product is changed by its own ID; resume_item lists the
-        # products it concerns and opens nothing across several documents.
-        analysis = self.text()
-        for want in ('`exp.derived.<短名>`', '`exp.r<序號>`', '短名（`paidOrder`）或全名', '換一個名稱', '`gap_id`', '`summary`', '`section`'):
-            self.assertIn(want, analysis)
-        gaps = (ROOT / 'skills' / 'plasma-fill-gaps' / 'SKILL.md').read_text(encoding='utf-8')
-        for want in ('`reported-gap:…`', '`references`', '`opened` 為 `false`', '`documents`', '`kept_related`'):
-            self.assertIn(want, gaps)
-
-    def test_existing_definitions_and_rule_checks_are_handled_before_finishing(self):
-        text = self.text()
-        for want in ('existing_definition', 'rule_checks', '不擋發布'):
-            self.assertIn(want, text)
-
-    def test_the_person_is_told_about_versioning_conflicts(self):
-        self.assertIn('版本規則', self.text())
+    def test_the_release_is_published_with_ophion(self):
+        """D2: no old tool is kept, so the plugin and Ophion are released
+        together and a client reads the tool list again."""
+        notes = (ROOT / 'releases' / 'v0.37.0.md').read_text(encoding='utf-8')
+        for want in ('不相容', 'Ophion PR #260', '同版一起發布', '重新取得工具清單'):
+            self.assertIn(want, notes, want)
 
 
 class CodeNotesTest(unittest.TestCase):
