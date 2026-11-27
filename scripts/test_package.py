@@ -331,6 +331,7 @@ class AdvancedSkillsTest(unittest.TestCase):
                 self.assertIn(word, text, word)
             self.assertNotIn('另列這些字詞找到的附註', text, 'a search lists no note')
         self.assertIn('`compile_asks`', self.compiled())
+        self.assertIn('`below`', self.compiled())
 
     def test_report_skill_reads_a_metric_whole_with_trace(self):
         """A search lists concepts and, finding none, the nearest names; a
