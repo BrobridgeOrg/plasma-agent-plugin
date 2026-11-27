@@ -321,6 +321,17 @@ class AdvancedSkillsTest(unittest.TestCase):
             self.assertIn(word, report, word)
         self.assertNotIn('FROM (<編譯出的 sql', report, 'the wrap is the outer, not SQL copied around the compile')
 
+    def test_search_is_the_first_of_two_levels(self):
+        """A search lists names and short definitions only; the concept that
+        looks like the one meant is expanded with definition or trace, where
+        the notes on its columns and tables are (Ophion two-level search
+        2026-11-27)."""
+        for text in (self.compiled(), self.reference('advanced.md')):
+            for word in ('第一層', '簡短定義', '`notes`'):
+                self.assertIn(word, text, word)
+            self.assertNotIn('另列這些字詞找到的附註', text, 'a search lists no note')
+        self.assertIn('`compile_asks`', self.compiled())
+
     def test_report_skill_reads_a_metric_whole_with_trace(self):
         """A search lists concepts and, finding none, the nearest names; a
         metric's knowledge is read whole by trace before the request is
