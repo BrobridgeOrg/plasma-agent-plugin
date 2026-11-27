@@ -310,13 +310,25 @@ class AdvancedSkillsTest(unittest.TestCase):
         self.assertIn('分子、分母', self.compiled())
 
     def test_report_skill_presents_around_the_compiled_query(self):
-        """Presentation (a ROC year, a format, an order) wraps the compiled
-        query unchanged in an outer SELECT and is told; another calendar is
-        knowledge, not a bucket; a ROC year in a condition becomes the
-        Gregorian period (2026-10-29)."""
+        """What the question asks of the compiled result (its names, a
+        ratio, some columns or rows, a ROC year, a format, an order) is
+        compile_query's outer, which reads report only, the compiled query
+        unchanged, and is told; another calendar is knowledge, not a
+        bucket; a ROC year in a condition becomes the Gregorian period
+        (2026-10-29; Ophion outer 2026-11-27)."""
         report = self.skill('plasma-report') + self.compiled()
-        for word in ('外面包一層', '原封不動', '民國', '農曆', 'bucket'):
+        for word in ('`outer`', 'FROM report', '原封不動', '民國', '農曆', 'bucket'):
             self.assertIn(word, report, word)
+        self.assertNotIn('FROM (<編譯出的 sql', report, 'the wrap is the outer, not SQL copied around the compile')
+
+    def test_report_skill_reads_a_metric_whole_with_trace(self):
+        """A search lists concepts and, finding none, the nearest names; a
+        metric's knowledge is read whole by trace before the request is
+        composed (Ophion agent reading load 2026-11-27)."""
+        compiled = self.compiled()
+        for word in ('`trace`', '`near`', '`concepts`'):
+            self.assertIn(word, compiled, word)
+        self.assertIn('`trace`', self.skill('plasma-report'))
 
     def test_document_analysis_lists_uploads_when_it_checks_them(self):
         """run_status lists every upload only with uploads=true (Ophion

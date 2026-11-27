@@ -38,9 +38,9 @@
 BI 發現相同缺漏時也回到這裡，不自行補值。
 
 - **一般模式**：依 [一般模式的 sql-path](sql-path/standard.md) 第 4 點「核准的名稱／描述補充」，以 `VALUES` CTE 保存映射並 LEFT JOIN。
-- **進階模式**：編譯出的 SQL 原封不動，在外層以 `CASE` 轉換：
-  `SELECT r.<其他欄位>, …, CASE r.<代碼欄> WHEN '<代碼>' THEN '<核准名稱>' … ELSE r.<名稱欄> END AS <名稱欄> FROM (<編譯出的 sql>) r`
-  （逐欄列出、不用 `r.*`，避免名稱欄重複；原本沒有名稱欄時 `ELSE NULL`，名稱欄為新增的欄）。這是 [進階模式 sql-path](sql-path/advanced.md) 外層允許的轉換，不加連接、條件或分組，不改變列數。
+- **進階模式**：編譯出的 SQL 原封不動，以 `compile_query` 的 `outer` 用 `CASE` 轉換：
+  `SELECT r.<其他欄位>, …, CASE r.<代碼欄> WHEN '<代碼>' THEN '<核准名稱>' … ELSE r.<名稱欄> END AS <名稱欄> FROM report r`
+  （逐欄列出、不用 `r.*`，避免名稱欄重複；原本沒有名稱欄時 `ELSE NULL`，名稱欄為新增的欄）。這是 [進階模式 sql-path](sql-path/advanced.md) 第 3.1 節的 `outer`，只做這個轉換，不加條件或分組，不改變列數。
 
 驗證補充前後筆數、計數、分子／分母與排名一致，僅核准的缺漏文字改變。
 mview 描述與交付欄位來源須標明哪些值來自「使用者確認的補充映射」，並記錄
