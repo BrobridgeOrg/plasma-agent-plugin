@@ -18,10 +18,11 @@
 
 ## 1. 找到概念
 
-用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找概念或實體：`concepts` 逐筆列出找到的概念，帶種類（`kind`）、實體、狀態與一句話說明，另列這些字詞找到的附註。
+用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找概念或實體。搜尋只回第一層：`concepts` 逐筆列出名稱、種類（`kind`）、實體、狀態與簡短定義（`definition`），`columns` 是這些字詞點名的表與欄位，各一行。
+先依簡短定義判斷哪個看起來是使用者說的，只展開那幾個：用 `definition` 或 `trace` 讀細節。
 沒有找到概念時，`near` 列出名稱最接近的幾個概念（不同說法、多字或少字也找得到），從中挑使用者說的那個來讀；都不是時照 `next` 換較少的字詞再搜尋，或用 `read_schema` 依意思找欄位。
-選定後以 `mode` 為 `definition` 讀它：定義、對應的欄位與表（橋接）、完整與否（`completeness`）與缺口。對到多個候選時列給使用者選。
-要一次看懂一個指標或條件用到的全部知識時，用 `mode` 為 `trace`（`predicate_names` 為那個概念）：它從這個概念往下列出讀到的每個概念各一次（指標的組成、條件的子句、值與關聯的規則、讀自哪些欄位、還缺什麼），附上實際生效的樣子與宣告這些概念的文件對全篇的附註（例如「所有生效區間左閉右開」）。
+選定後以 `mode` 為 `definition` 讀它：定義、對應的欄位與表（橋接）、完整與否（`completeness`）、缺口，以及它讀的欄位與表的附註（`notes`）。對到多個候選時列給使用者選。
+要一次看懂一個指標或條件用到的全部知識時，用 `mode` 為 `trace`（`predicate_names` 為那個概念）：指名的概念附完整讀法（指標的組成、條件的子句、知識缺什麼 `lacks`、`compile_query` 會問人的問題 `compile_asks`）；往下讀到的每個概念在 `below` 各一行（深度｜名稱｜標籤｜類型｜狀態｜欄位，有缺口才附 `lacks`、`compile_asks`），要看某一個的子句或規則再對它用 `definition` 或 `trace`；另附實際生效的樣子與這些欄位、表的附註（`notes`）。
 每個概念另附實際生效的樣子（`effective`）：讀自哪些欄位（`read_from`）、欄位與表的附註（含條件式讀法）與所屬群組的規則；回答一個概念實際怎麼算時，照這一段與它的規則說。缺口標 `incomplete` 時，`parts` 指出缺在哪些組成概念。使用者問某個指標能依什麼分組時，用 `mode` 為 `dimensions`（`predicate_names` 為那個指標或實體）。
 任何工具的回覆說內容未完（附 `cursor`、`has_more` 為 true）時，先以 `read_tool_reply` 帶那個 `cursor` 讀到 `has_more` 為 false，再呼叫其他工具。
 
