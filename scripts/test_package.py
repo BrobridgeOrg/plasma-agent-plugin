@@ -804,6 +804,79 @@ class CodeNotesTest(unittest.TestCase):
         for want in ('iota', 'now()', '預期', '樂觀鎖', 'migration', '前端', 'feature flag', '測試', 'DeletedAt'):
             self.assertIn(want, text)
 
+    def test_a_migration_that_rewrites_data_states_the_data(self):
+        """History is a past design that no longer applies and nothing uses
+        it (Ophion 2026-11-27); a migration that rewrites existing rows says
+        what the data is now."""
+        text = self.text()
+        migration = text[text.index('- **migration**'):]
+        self.assertIn('寫成資料現況', migration[:120])
+
+
+class HistoryAndTableWordsTest(unittest.TestCase):
+    def test_a_table_says_what_it_stores_and_history_is_read_when_asked(self):
+        """A table's description is a note of kind table_words; a past
+        design that no longer applies is read with history true and is used
+        by no query (Ophion 2026-11-27)."""
+        lookup = (ROOT / 'skills' / 'plasma-knowledge-query' / 'references' / 'advanced.md').read_text(encoding='utf-8')
+        self.assertIn('`table_words`', lookup)
+        history = lookup[lookup.index('`history` 為 true'):]
+        self.assertIn('不參與查詢與 SQL', history[:80])
+
+
+# Words of the test corpora (user 2026-11-27: no tool description and no
+# example in the plugin carries what a test corpus knows). The corpora are
+# MIMIC-IV, the manufacturing benchmark, the HIS corpus and the shop corpus;
+# the plugin cites nothing of BIRD/Spider-Ent, so none of its words is listed.
+# 判準三問:
+# 1. Neither derived nor tuned: the list is the corpora's own vocabulary,
+#    read from their documents: table and column names, domain nouns and
+#    values only a corpus has, among them every one the examples carried
+#    before 0.37.1. A corpus added later adds its words here.
+# 2. It assumes a corpus shows through its distinctive words. A corpus rule
+#    restated in generic words passes it and is caught in review. Generic
+#    words a neutral example shares with a corpus (orders, customers,
+#    store) are left out, so the conventional examples stay usable.
+# 3. A prose-heavy corpus with no SQL and one concept a file shows as its
+#    domain nouns rather than identifiers: list those nouns when it is
+#    added; its sentences stay the reviewer's.
+CORPUS_WORDS = (
+    # MIMIC-IV
+    'admission', 'icustay', 'patient', 'hadm_id', 'subject_id', 'stay_id', 'itemid', 'labevents',
+    'chartevents', 'icd_code', 'seq_num', 'mortality', 'mimic', '住院', '入院', '病人', '病患', '人次',
+    # manufacturing benchmark
+    'plant_id', 'work_order', 'bom_header', 'bom_component', 'lot_id', 'lot_genealogy', 'ar_invoice',
+    'payment_allocation', 'shipment_allocation', 'supplier', 'uom_conversion', 'manufacturing', 'otif',
+    'erp2', 'as400', 'de01', 'tw01', 'vn01', '製令', '料號', '工單', '批號', '良率', '工廠', '過帳', 'posted',
+    # HIS
+    'informix', 'opd_', 'nhi_', 'reg_no', '掛號', '病歷', '門診', '健保', '檢驗', '醫囑', '護理', '批價', '疾病',
+    # shop
+    'category_code', 'product_categories', 'invoice_seq', 'code_system', 'customer_tier', 'order_status',
+    'deleted_flag', 'price_periods', 'v_open_orders', 'placed_on', '金卡', '免運', '杯類',
+)
+# What a word cannot say: a corpus's database name, its money columns in
+# minor units and MIMIC's shifted years (2100-2199).
+CORPUS_PATTERNS = (r'\bshop\b', r'_minor\b', r'\b21\d\d\b')
+
+
+class NeutralExamplesTest(unittest.TestCase):
+    def shipped(self):
+        """Every text an agent reads from the plugin: the skills, the
+        manifests, the opencode files and the README."""
+        paths = [*sorted((ROOT / 'skills').rglob('*.md')), ROOT / 'README.md',
+                 *sorted((ROOT / '.claude-plugin').glob('*.json')), ROOT / '.codex-plugin' / 'plugin.json',
+                 *sorted((ROOT / '.opencode-plugin').iterdir())]
+        return {str(p.relative_to(ROOT)): p.read_text(encoding='utf-8') for p in paths}
+
+    def test_no_text_carries_a_test_corpus(self):
+        for name, text in self.shipped().items():
+            lower = text.lower()
+            for word in CORPUS_WORDS:
+                self.assertNotIn(word, lower, f'{name}: {word}')
+            for pattern in CORPUS_PATTERNS:
+                found = re.search(pattern, lower)
+                self.assertIsNone(found, f'{name}: {found and found.group(0)}')
+
 
 if __name__ == '__main__':
     unittest.main()

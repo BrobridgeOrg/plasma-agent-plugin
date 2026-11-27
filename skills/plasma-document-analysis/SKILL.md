@@ -94,8 +94,8 @@ description: >-
 
 表名或欄名對不上的問題收到就問，不等全部文件結束，寫成是非題：每題寫出文件、原文的說法、建議的表或欄位與理由；只有一個候選時直接說明系統只有它，請使用者確認。例如：
 
-> 1. reading.md 的「本資料庫」：系統只有 `shop` 這個資料庫，是指它嗎？
-> 2. product_categories.md 的 `category_code`：系統只有 `shop.products` 有這個欄位，是指它嗎？
+> 1. notes.md 的「本資料庫」：系統只有 `sales` 這個資料庫，是指它嗎？
+> 2. glossary.md 的 `region_code`：系統只有 `sales.stores` 有這個欄位，是指它嗎？
 >
 > 都對請回「是」；有不對的，回題號與正確的表或欄位。
 

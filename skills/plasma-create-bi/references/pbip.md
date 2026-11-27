@@ -166,8 +166,8 @@ expression PlasmaData =
 		    Typed = Table.TransformColumnTypes(Raw, {
 		        {"period_start", type date},
 		        {"section", type text},
-		        {"total_admissions", Int64.Type},
-		        {"mortality_rate", type number}
+		        {"total_orders", Int64.Type},
+		        {"conversion_rate", type number}
 		    })
 		in
 		    Typed
@@ -190,7 +190,7 @@ expression PlasmaData =
 單月 pview 的參數與傳參範例（只有實測確認同名 GET query 生效時才採用）：
 
 ```text
-expression ReportMonth = #date(2150, 6, 1) meta [IsParameterQuery=true, Type="Date", IsParameterQueryRequired=true]
+expression ReportMonth = #date(2026, 6, 1) meta [IsParameterQuery=true, Type="Date", IsParameterQueryRequired=true]
 
 Query = [report_month = Date.ToText(ReportMonth, "yyyy-MM-dd")]
 ```
@@ -209,15 +209,15 @@ Query = [report_month = Date.ToText(ReportMonth, "yyyy-MM-dd")]
 table KPI
 	lineageTag: <GUID>
 
-	measure 'Total Admissions' = SUM('KPI'[total_admissions])
+	measure 'Total Orders' = SUM('KPI'[total_orders])
 		formatString: #,0
 		lineageTag: <GUID>
 
-	measure 'Mortality Rate' = DIVIDE(SUM('KPI'[death_cnt]), SUM('KPI'[adm_cnt]))
+	measure 'Conversion Rate' = DIVIDE(SUM('KPI'[order_cnt]), SUM('KPI'[visit_cnt]))
 		formatString: 0.00%
 		lineageTag: <GUID>
 
-	measure 'Unique Patients' = IF(COUNTROWS('KPI') = 1, SELECTEDVALUE('KPI'[distinct_patients]))
+	measure 'Unique Customers' = IF(COUNTROWS('KPI') = 1, SELECTEDVALUE('KPI'[distinct_customers]))
 		formatString: #,0
 		lineageTag: <GUID>
 
@@ -228,12 +228,12 @@ table KPI
 		summarizeBy: none
 		sourceColumn: period_start
 
-	column total_admissions
+	column total_orders
 		dataType: int64
 		formatString: #,0
 		lineageTag: <GUID>
 		summarizeBy: none
-		sourceColumn: total_admissions
+		sourceColumn: total_orders
 
 	partition KPI = m
 		mode: import
@@ -256,11 +256,11 @@ table KPI
 若來源為長表 `metric_code`／`metric_value`，先篩選指標再判斷列數，例如：
 
 ```dax
-VAR MetricRows = FILTER('KPI', 'KPI'[metric_code] = "alos")
+VAR MetricRows = FILTER('KPI', 'KPI'[metric_code] = "aov")
 RETURN IF(COUNTROWS(MetricRows) = 1, MAXX(MetricRows, 'KPI'[metric_value]))
 ```
 
-這裡 `MAXX` 只取已確認的唯一一列，不是重新計算平均住院天數；來源為 null 時保留空白。
+這裡 `MAXX` 只取已確認的唯一一列，不是重新計算平均客單價；來源為 null 時保留空白。
 各量值套用對應的代碼與 `formatString`。不能直接對含不同指標的 `metric_value` 加總。
 
 DAX 的實體資料表引用一律加單引號（如 `'KPI'`），表格變數則不用；`KPI` 即使沒有
@@ -366,7 +366,7 @@ Power BI Desktop 實際存出的 PBIR 報表（2026-10 統計 1,023 個 visual.j
 
 每個 projection 另加 `"queryRef": "<資料表>.<名稱>"` 與 `"nativeQueryRef": "<名稱>"`；
 類別欄位可加 `"active": true`。`SourceRef.Entity` 與 `Property` 必須與 TMDL 名稱完全相同。
-`displayName` 可指定讀者可見的名稱（如「入院類型」「住院人次」），避免圖例或 tooltip
+`displayName` 可指定讀者可見的名稱（如「門市」「訂單數」），避免圖例或 tooltip
 顯示 `dimension_label` 等技術欄位名；不為改顯示名稱而變更 `Entity`、`Property`、`queryRef`。
 
 KPI 卡片範例：
@@ -374,7 +374,7 @@ KPI 卡片範例：
 ```json
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
-  "name": "kpi_total_admissions",
+  "name": "kpi_total_orders",
   "position": { "x": 0, "y": 0, "z": 0, "width": 300, "height": 140 },
   "visual": {
     "visualType": "cardVisual",
@@ -382,9 +382,9 @@ KPI 卡片範例：
       "queryState": {
         "Data": {
           "projections": [{
-            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "KPI" } }, "Property": "Total Admissions" } },
-            "queryRef": "KPI.Total Admissions",
-            "nativeQueryRef": "Total Admissions"
+            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "KPI" } }, "Property": "Total Orders" } },
+            "queryRef": "KPI.Total Orders",
+            "nativeQueryRef": "Total Orders"
           }]
         }
       }
@@ -398,7 +398,7 @@ KPI 卡片範例：
 ```json
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
-  "name": "admissions_by_type",
+  "name": "orders_by_store",
   "position": { "x": 0, "y": 300, "z": 1, "width": 620, "height": 400 },
   "visual": {
     "visualType": "pieChart",
@@ -406,23 +406,23 @@ KPI 卡片範例：
       "queryState": {
         "Category": {
           "projections": [{
-            "field": { "Column": { "Expression": { "SourceRef": { "Entity": "ByType" } }, "Property": "admission_type" } },
-            "queryRef": "ByType.admission_type",
-            "nativeQueryRef": "admission_type",
+            "field": { "Column": { "Expression": { "SourceRef": { "Entity": "ByStore" } }, "Property": "store_name" } },
+            "queryRef": "ByStore.store_name",
+            "nativeQueryRef": "store_name",
             "active": true
           }]
         },
         "Y": {
           "projections": [{
-            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByType" } }, "Property": "Admissions" } },
-            "queryRef": "ByType.Admissions",
-            "nativeQueryRef": "Admissions"
+            "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByStore" } }, "Property": "Orders" } },
+            "queryRef": "ByStore.Orders",
+            "nativeQueryRef": "Orders"
           }]
         }
       },
       "sortDefinition": {
         "sort": [{
-          "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByType" } }, "Property": "Admissions" } },
+          "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "ByStore" } }, "Property": "Orders" } },
           "direction": "Descending"
         }],
         "isDefaultSort": true
@@ -431,7 +431,7 @@ KPI 卡片範例：
     "visualContainerObjects": {
       "title": [{ "properties": {
         "show": { "expr": { "Literal": { "Value": "true" } } },
-        "text": { "expr": { "Literal": { "Value": "'各入院類型住院人次'" } } }
+        "text": { "expr": { "Literal": { "Value": "'各門市訂單數'" } } }
       } }]
     }
   }
@@ -473,20 +473,20 @@ KPI 卡片範例：
 可讀標題。必要時用 `selector.metadata` 指定 queryRef。字級只作起點，須配合容器大小
 與容器寬高調整；不可把英文量值名隱藏後連中文業務標題也一起移除。
 
-圓餅圖及橫條圖的人次資料標籤使用 `visual.objects.labels[].properties` 的
+圓餅圖及橫條圖的計數資料標籤使用 `visual.objects.labels[].properties` 的
 `labelDisplayUnits`（`1D`）與 `labelPrecision`（`0L`）；卡片與圖表的 property 路徑不同。
 橫條圖的數值軸亦核對 `valueAxis.labelDisplayUnits`。需要保留數值小數時依指標設定，
 不能把所有指標都設成整數。官方 report theme schema 定義顯示單位 `0=Auto`、`1=None`。
 
-疾病等長類別名稱被截斷時，可調整橫條圖 `categoryAxis.maxMarginFactor`（整數百分比，
+商品名稱等長類別名稱被截斷時，可調整橫條圖 `categoryAxis.maxMarginFactor`（整數百分比，
 例如 `55L`），讓類別軸保留更多寬度，再配合字級與圖表寬度設計；避免只把字縮得極小。
 `categoryAxis.showAxisTitle=false`、`valueAxis.showAxisTitle=false` 可隱藏無助理解的
 自動軸標題，但須保留讀者需要的單位。以上皆放在 `visual.objects` 的對應物件陣列中。
 
 - `Literal.Value` 是字串：布林寫 `"true"`，文字外層再包單引號 `"'文字'"`。
 - 數值格式（百分比、千分位）寫在 TMDL 量值的 `formatString`；顯示單位另於視覺層
-  設為 None。即使模型為 `#,0`，Auto 顯示單位仍可能將 `6,037` 縮成「6 千」。
-  人次及需精確閱讀的數值，卡片、資料標籤與表格都須檢查，不用 DAX `FORMAT`
+  設為 None。即使模型為 `#,0`，Auto 顯示單位仍可能將 `4,215` 縮成「4 千」。
+  計數及需精確閱讀的數值，卡片、資料標籤與表格都須檢查，不用 DAX `FORMAT`
   把數字改成文字來迴避視覺設定。
 - 視覺位置在頁面範圍內（`x + width ≤ 頁寬`、`y + height ≤ 頁高`），`z` 依疊放順序遞增。
 - 不在 visual.json 內嵌指標資料；使用者指定的 slicer 預設選取值可寫入選取條件，
