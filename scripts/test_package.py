@@ -834,9 +834,12 @@ class HistoryAndTableWordsTest(unittest.TestCase):
 #    values only a corpus has, among them every one the examples carried
 #    before 0.37.1. A corpus added later adds its words here.
 # 2. It assumes a corpus shows through its distinctive words. A corpus rule
-#    restated in generic words passes it and is caught in review. Generic
-#    words a neutral example shares with a corpus (orders, customers,
-#    store) are left out, so the conventional examples stay usable.
+#    restated in generic words passes it and is caught in review. The shop
+#    corpus is itself e-commerce, so its plain table names and nouns are
+#    listed too, and the examples use a small library (loans, members,
+#    branches, fines), as Ophion's tool descriptions do. "orders" is also
+#    a verb ("a rule orders rows"): the table names are matched only where
+#    they stand as identifiers (quoted, dotted, after FROM or JOIN).
 # 3. A prose-heavy corpus with no SQL and one concept a file shows as its
 #    domain nouns rather than identifiers: list those nouns when it is
 #    added; its sentences stay the reviewer's.
@@ -852,11 +855,15 @@ CORPUS_WORDS = (
     'informix', 'opd_', 'nhi_', 'reg_no', '掛號', '病歷', '門診', '健保', '檢驗', '醫囑', '護理', '批價', '疾病',
     # shop
     'category_code', 'product_categories', 'invoice_seq', 'code_system', 'customer_tier', 'order_status',
-    'deleted_flag', 'price_periods', 'v_open_orders', 'placed_on', '金卡', '免運', '杯類',
+    'deleted_flag', 'price_periods', 'v_open_orders', 'placed_on', 'customer_id', 'order_id', 'product_id',
+    'invoice_id', '金卡', '免運', '杯類', '訂單', '客戶', '商品', '發票',
 )
-# What a word cannot say: a corpus's database name, its money columns in
-# minor units and MIMIC's shifted years (2100-2199).
-CORPUS_PATTERNS = (r'\bshop\b', r'_minor\b', r'\b21\d\d\b')
+# What a word cannot say: a corpus's database name, the shop's plain table
+# names where they stand as identifiers, its money columns in minor units
+# and MIMIC's shifted years (2100-2199).
+SHOP_TABLES = r'(?:orders|customers|order_lines|products|invoices)'
+CORPUS_PATTERNS = (r'\bshop\b', rf'(?:[`"\'.\[]|\bfrom\s+|\bjoin\s+){SHOP_TABLES}\b',
+                   rf'\b{SHOP_TABLES}(?=[.`"\'\]])', r'_minor\b', r'\b21\d\d\b')
 
 
 class NeutralExamplesTest(unittest.TestCase):
