@@ -18,8 +18,10 @@
 
 ## 1. 找到概念
 
-用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找概念或實體，再以 `mode` 為 `definition` 讀它：
-定義、對應的欄位與表（橋接）、完整與否（`completeness`）與缺口。對到多個候選時列給使用者選。
+用 `read_knowledge`（`mode` 為 `search`）以使用者的用語找概念或實體：`concepts` 逐筆列出找到的概念，帶種類（`kind`）、實體、狀態與一句話說明，另列這些字詞找到的附註。
+沒有找到概念時，`near` 列出名稱最接近的幾個概念（不同說法、多字或少字也找得到），從中挑使用者說的那個來讀；都不是時照 `next` 換較少的字詞再搜尋，或用 `read_schema` 依意思找欄位。
+選定後以 `mode` 為 `definition` 讀它：定義、對應的欄位與表（橋接）、完整與否（`completeness`）與缺口。對到多個候選時列給使用者選。
+要一次看懂一個指標或條件用到的全部知識時，用 `mode` 為 `trace`（`predicate_names` 為那個概念）：它從這個概念往下列出讀到的每個概念各一次（指標的組成、條件的子句、值與關聯的規則、讀自哪些欄位、還缺什麼），附上實際生效的樣子與宣告這些概念的文件對全篇的附註（例如「所有生效區間左閉右開」）。
 每個概念另附實際生效的樣子（`effective`）：讀自哪些欄位（`read_from`）、欄位與表的附註（含條件式讀法）與所屬群組的規則；回答一個概念實際怎麼算時，照這一段與它的規則說。缺口標 `incomplete` 時，`parts` 指出缺在哪些組成概念。使用者問某個指標能依什麼分組時，用 `mode` 為 `dimensions`（`predicate_names` 為那個指標或實體）。
 任何工具的回覆說內容未完（附 `cursor`、`has_more` 為 true）時，先以 `read_tool_reply` 帶那個 `cursor` 讀到 `has_more` 為 false，再呼叫其他工具。
 
@@ -34,7 +36,7 @@
   再帶 `column` 讀單一欄位：完整的描述、每一則附註（`kind` 是種類，例如 `unit`、`time_basis`、`read_format`、`value_meaning`、`source_system`、`description`、`table_words`（表的說明：表存什麼、保留來做什麼）；`content` 是內容）與說這件事的文件（`sources`）。沒有那一種附註時，照實說知識庫沒有寫。
   附註的 `kind` 是 `column_derivation` 時，它說的是這一欄怎麼由其他欄位算出：`content` 的 `expression` 是運算式（別張表的欄位前面是關聯名稱），`state` 是資料檢查的結果：`verified`（抽樣的列都符合，不是整張表）、`unverified`（還沒檢查，或無法判定；`reason` 是原因，`unsupported_function` 表示這個算法要讀別張表，系統不檢查這一類）、`awaiting_choice`（同一欄有幾個算法都符合，還沒有人選定）、`refuted`（資料不符，`violations` 是不符的筆數）。回答這一欄怎麼來時，連同這個狀態一起說；`refuted` 的算法照實說文件這樣寫、但資料不符。
   同一份回覆的 `concepts` 是對應到這個欄位的已發布概念（`name` 與它的用語 `term`）；使用者問哪些規則用到這個欄位、或有什麼是從它算出來的，以 `read_knowledge`（`mode` 為 `usage`）帶這些 `name` 查讀到它的規則。
-- **怎麼關聯**：用 `read_knowledge`（`mode` 為 `dependencies`）看概念讀到哪些概念與關聯，說明連接的欄位與基數（一對一、多對一、一對多），以及基數是否經資料驗證。
+- **怎麼關聯**：用 `read_knowledge`（`mode` 為 `trace` 一次看全部，或 `dependencies` 依層數看）看概念讀到哪些概念與關聯，說明連接的欄位與基數（一對一、多對一、一對多），以及基數是否經資料驗證。
 - **還缺什麼**：沒有欄位對應的葉子概念、單位未知、基數未知等缺口，附上缺口的問句，交給 [補齊缺口](../../plasma-fill-gaps/SKILL.md) 處理。
 
 使用者問過去的設計或做法時，以 `read_knowledge` 帶 `history` 為 true，一併讀已不適用的舊設計附註；這些附註不參與查詢與 SQL。
