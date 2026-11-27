@@ -24,14 +24,14 @@
 
 ## 建立 pview
 
-以下 `default.sales_daily` 是示意，必須換成 `get_view` 回傳、經查詢驗證的 mview 路徑。
-`report_date`、`store_id`、`sales_amount` 都必須是 mview 已產出的欄位。
+以下 `default.loans_daily` 是示意，必須換成 `get_view` 回傳、經查詢驗證的 mview 路徑。
+`report_date`、`branch_id`、`loan_count` 都必須是 mview 已產出的欄位。
 
 ```json
 {
-  "name": "sales_by_period",
+  "name": "loans_by_period",
   "description": "依日期區間篩選已同步的每日銷售資料",
-  "sql": "SELECT report_date, store_id, sales_amount FROM default.sales_daily WHERE report_date >= DATE @start_date AND report_date < DATE @end_date",
+  "sql": "SELECT report_date, branch_id, loan_count FROM default.loans_daily WHERE report_date >= DATE @start_date AND report_date < DATE @end_date",
   "param_def": {
     "parameters": [
       {"variable_name": "start_date", "name": "開始日期", "data_type": "date"},
@@ -80,7 +80,7 @@
 ```json
 {
   "workspace_id": "<workspace ID>",
-  "data": {"columns": ["report_date", "store_id", "sales_amount"], "rows": [["2026-09-01", "S01", 1200]]},
+  "data": {"columns": ["report_date", "branch_id", "loan_count"], "rows": [["2026-09-01", "B01", 120]]},
   "total": 1,
   "page": 1,
   "page_size": 10,
@@ -105,7 +105,7 @@ page_size 的 100 列則只是樣本限制，不代表完整結果只有 100 列
 
 ```json
 {
-  "name": "sales_daily",
+  "name": "loans_daily",
   "type": "materialized_view",
   "view_sql": "<已查核與驗證的完整運算 SQL>",
   "sync_mode": "manual"

@@ -238,7 +238,7 @@ pview 使用 `get_view` 回傳並經查詢核對的 mview 路徑，不猜 schema
 
 | 欄位名稱 | 型別 | 說明 | mview 運算方式／來源 |
 |---|---|---|---|
-| `report_date` | date | 報表日期 | `CAST(o.order_time AS DATE)`，來源 `sales.orders.order_time` |
+| `report_date` | date | 報表日期 | `CAST(l.loaned_at AS DATE)`，來源 `lib.loans.loaned_at` |
 
 - 「說明」使用業務語意；「運算方式／來源」寫出 mview 中的運算式或來源 `database.table.column`。
 - 在表格下方另列 pview 參數：名稱、型別、是否必填、對應篩選欄位及條件（如 `report_date >= @start_date`）。
